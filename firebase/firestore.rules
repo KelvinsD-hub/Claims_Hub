@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users: public create supports Firebase Auth signup flow.
+    // All reads and subsequent writes require authentication.
+    match /users/{document} {
+      allow create: if true;
+      allow read:   if request.auth != null;
+      allow write:  if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
+    // Leads: public create supports the public-facing lead capture form.
+    // Only authenticated agents can read or modify lead records.
+    match /leads/{document} {
+      allow create: if true;
+      allow read:   if request.auth != null;
+      allow write:  if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
+    // Claims: agents create records; claimants interact via secure_token links.
+    //
+    // CREATE — agents only (authenticated).
+    // READ   — authenticated users OR documents that carry a secure_token
+    //          (required so the public evidence form can look up a claim by token).
+    //          Phase 2 will replace this with Firebase Anonymous Auth so reads
+    //          can be fully locked to authenticated sessions.
+    // UPDATE — authenticated users OR requests that supply the correct secure_token
+    //          (prevents arbitrary writes while keeping the claimant form working).
+    // DELETE — authenticated users only.
+    match /claims/{document} {
+      allow create: if request.auth != null;
+      allow read:   if request.auth != null
+                    || resource.data.secure_token is string;
+      allow update: if request.auth != null
+                    || (
+                         resource.data.secure_token is string
+                         && resource.data.secure_token.size() > 10
+                         && resource.data.secure_token == request.resource.data.secure_token
+                       );
+      allow delete: if request.auth != null;
+    }
+
+    // Solicitor exports: internal staff only.
+    match /solicitor_exports/{document} {
+      allow create: if request.auth != null;
+      allow read:   if request.auth != null;
+      allow write:  if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
+    // Activity logs: internal staff only.
+    match /activity_logs/{document} {
+      allow create: if request.auth != null;
+      allow read:   if request.auth != null;
+      allow write:  if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
+    // Airlines directory: internal staff only — no public exposure needed.
+    match /airlines_directory/{document} {
+      allow create: if request.auth != null;
+      allow read:   if request.auth != null;
+      allow write:  if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+  }
+}

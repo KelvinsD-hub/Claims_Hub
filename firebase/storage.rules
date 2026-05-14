@@ -1,0 +1,31 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Default: deny everything not explicitly matched below.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // User profile assets (photos, etc.) — owner write, authenticated read.
+    match /users/{userId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Claim document uploads (boarding passes, ID scans, LOA PDFs).
+    // Write is open so unauthenticated claimants can upload evidence via
+    // their secure_token form link. Reads are restricted to agents.
+    // Phase 2 will tighten write access once Anonymous Auth is in place.
+    match /claims/{claimId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if true;
+    }
+
+    // Solicitor export files — internal staff only.
+    match /solicitor_exports/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null;
+    }
+  }
+}

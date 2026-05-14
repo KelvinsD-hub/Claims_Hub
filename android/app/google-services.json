@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "36397348687",
+    "project_id": "msmcrm-g24k37",
+    "storage_bucket": "msmcrm-g24k37.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:36397348687:android:c1ac2e117495f4ef09773a",
+        "android_client_info": {
+          "package_name": "com.mycompany.claimshub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCE_-97Wlb_5Z32b6s2z06VJauYhrlhnNg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
