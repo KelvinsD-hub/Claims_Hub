@@ -1,4 +1,5 @@
 ﻿import '/backend/backend.dart';
+import '/custom_code/actions/index.dart' as actions;
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -99,6 +100,14 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
         'solicitor_email_status': 'Sent',
       });
 
+      await actions.logActivity(
+        action: 'Legal letter sent',
+        description:
+            'Final legal notice sent to ${claim.airlineName.isNotEmpty ? claim.airlineName : 'the airline'} for ${claim.fullName}',
+        entityType: 'Claim',
+        claimRef: claim.reference,
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -153,6 +162,14 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
         'is_escalated': false,
         'settlement_date': FieldValue.serverTimestamp(),
       });
+
+      await actions.logActivity(
+        action: 'Claim $label',
+        description: '${claim.fullName}\'s claim marked as $label',
+        entityType: 'Claim',
+        claimRef: claim.reference,
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

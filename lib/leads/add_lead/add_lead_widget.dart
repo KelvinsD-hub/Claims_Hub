@@ -1,5 +1,6 @@
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
+import '/custom_code/actions/index.dart' as actions;
 import '/flutter_flow/flutter_flow_drop_down.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -729,21 +730,26 @@ class _AddLeadWidgetState extends State<AddLeadWidget> {
                             ),
                             FFButtonWidget(
                               onPressed: () async {
-                                await LeadsRecord.collection
-                                    .doc()
-                                    .set(createLeadsRecordData(
-                                      fullName: _model.textController1.text,
-                                      email: _model.textController3.text,
-                                      phone: _model.textController2.text,
-                                      claimType: 'Flight Claims',
-                                      utmSource: _model.sourceValue,
-                                      initialSummary:
-                                          _model.textController4.text,
-                                      status: 'New lead',
-                                      isQualified: false,
-                                      createdAt: getCurrentTimestamp,
-                                      agentRef: currentUserReference,
-                                    ));
+                                final docRef = LeadsRecord.collection.doc();
+                                await docRef.set(createLeadsRecordData(
+                                  fullName: _model.textController1.text,
+                                  email: _model.textController3.text,
+                                  phone: _model.textController2.text,
+                                  claimType: 'Flight Claims',
+                                  utmSource: _model.sourceValue,
+                                  initialSummary: _model.textController4.text,
+                                  status: 'New lead',
+                                  isQualified: false,
+                                  createdAt: getCurrentTimestamp,
+                                  agentRef: currentUserReference,
+                                ));
+                                await actions.logActivity(
+                                  action: 'Lead created',
+                                  description:
+                                      'New lead added: ${_model.textController1.text}',
+                                  entityType: 'Lead',
+                                  leadRef: docRef,
+                                );
                               },
                               text: 'Create Lead',
                               options: FFButtonOptions(

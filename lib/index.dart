@@ -59,3 +59,5 @@ export '/engagment_form/claim_status/claim_status_widget.dart'
 export '/pages/eligibility_checker/eligibility_checker_widget.dart'
     show EligibilityCheckerWidget;
 export '/pages/solicitors/solicitors_widget.dart' show SolicitorsWidget;
+export '/pages/evidence_locker/evidence_locker_widget.dart'
+    show EvidenceLockerWidget;

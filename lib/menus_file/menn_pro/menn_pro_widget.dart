@@ -361,7 +361,24 @@ class _MennProWidgetState extends State<MennProWidget> {
                             ),
                           ),
                         ),
-                        Container(
+                        InkWell(
+                          splashColor: Colors.transparent,
+                          focusColor: Colors.transparent,
+                          hoverColor: Colors.transparent,
+                          highlightColor: Colors.transparent,
+                          onTap: () async {
+                            context.pushNamed(
+                              EvidenceLockerWidget.routeName,
+                              extra: <String, dynamic>{
+                                '__transition_info__': TransitionInfo(
+                                  hasTransition: true,
+                                  transitionType: PageTransitionType.fade,
+                                  duration: Duration(milliseconds: 0),
+                                ),
+                              },
+                            );
+                          },
+                          child: Container(
                           width: double.infinity,
                           height: 48.0,
                           decoration: BoxDecoration(
@@ -415,6 +432,7 @@ class _MennProWidgetState extends State<MennProWidget> {
                               ].divide(SizedBox(width: 12.0)),
                             ),
                           ),
+                        ),
                         ),
                         InkWell(
                           splashColor: Colors.transparent,
@@ -574,7 +592,24 @@ class _MennProWidgetState extends State<MennProWidget> {
                             ),
                           ),
                         ),
-                        Container(
+                        InkWell(
+                          splashColor: Colors.transparent,
+                          focusColor: Colors.transparent,
+                          hoverColor: Colors.transparent,
+                          highlightColor: Colors.transparent,
+                          onTap: () async {
+                            context.pushNamed(
+                              SupportsWidget.routeName,
+                              extra: <String, dynamic>{
+                                '__transition_info__': TransitionInfo(
+                                  hasTransition: true,
+                                  transitionType: PageTransitionType.fade,
+                                  duration: Duration(milliseconds: 0),
+                                ),
+                              },
+                            );
+                          },
+                          child: Container(
                           width: double.infinity,
                           height: 48.0,
                           decoration: BoxDecoration(
@@ -628,6 +663,7 @@ class _MennProWidgetState extends State<MennProWidget> {
                               ].divide(SizedBox(width: 12.0)),
                             ),
                           ),
+                        ),
                         ),
                         InkWell(
                           splashColor: Colors.transparent,

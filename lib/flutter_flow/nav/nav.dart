@@ -129,6 +129,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => SupportsWidget(),
         ),
         FFRoute(
+          name: EvidenceLockerWidget.routeName,
+          path: EvidenceLockerWidget.routePath,
+          builder: (context, params) => EvidenceLockerWidget(),
+        ),
+        FFRoute(
           name: DesignerWidget.routeName,
           path: DesignerWidget.routePath,
           builder: (context, params) => DesignerWidget(),

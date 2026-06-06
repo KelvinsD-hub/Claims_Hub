@@ -1,5 +1,6 @@
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
+import '/custom_code/actions/index.dart' as actions;
 import '/flutter_flow/flutter_flow_drop_down.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -1141,6 +1142,13 @@ class _LeadFormWidgetState extends State<LeadFormWidget> {
                                         '${functions.dialedCountryCode(_model.countryDropDownValue)}${_model.phoneNumberTextController.text}',
                                     country: _model.countryDropDownValue,
                                   ));
+                                  await actions.logActivity(
+                                    action: 'Lead submitted',
+                                    description:
+                                        'New claim enquiry from ${_model.fullNameTextController.text}',
+                                    entityType: 'Lead',
+                                    leadRef: docRef,
+                                  );
                                   final reference =
                                       'CA-${docRef.id.substring(0, 8).toUpperCase()}';
 
