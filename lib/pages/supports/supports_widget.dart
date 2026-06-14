@@ -125,10 +125,7 @@ class _SupportsWidgetState extends State<SupportsWidget> {
                   child: SingleChildScrollView(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 900),
-                          child: Column(
+                      child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // -- Header -----------------------------------
@@ -330,8 +327,6 @@ class _SupportsWidgetState extends State<SupportsWidget> {
                               ),
                             ],
                           ),
-                        ),
-                      ),
                     ),
                   ),
                 ),

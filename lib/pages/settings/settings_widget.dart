@@ -683,12 +683,9 @@ class _SettingsWidgetState extends State<SettingsWidget>
   }
 
   Widget _buildSettingsBody(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 820),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-          child: Column(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+      child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // -- Profile -------------------------------------------------
@@ -810,9 +807,7 @@ class _SettingsWidgetState extends State<SettingsWidget>
               ),
             ],
           ),
-        ),
-      ),
-    );
+        );
   }
 }
 
