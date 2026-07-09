@@ -48,6 +48,40 @@ class _ClaimsOptionsWidgetState extends State<ClaimsOptionsWidget> {
     super.dispose();
   }
 
+  /// Applies a claim update and only reports success if the write actually
+  /// succeeded. Guards every context use after the await against an unmounted
+  /// widget, and surfaces failures instead of silently showing "success".
+  Future<void> _applyStatusUpdate(
+      BuildContext context, Map<String, dynamic> data) async {
+    try {
+      await widget!.claimRef!.reference.update(data);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Document Updated successfully!',
+            style: TextStyle(color: FlutterFlowTheme.of(context).info),
+          ),
+          duration: const Duration(milliseconds: 4000),
+          backgroundColor: const Color(0xFF5FE179),
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Update failed: ${e.toString()}',
+            style: const TextStyle(color: Colors.white),
+          ),
+          duration: const Duration(milliseconds: 5000),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -102,23 +136,10 @@ class _ClaimsOptionsWidgetState extends State<ClaimsOptionsWidget> {
                 hoverColor: Colors.transparent,
                 highlightColor: Colors.transparent,
                 onTap: () async {
-                  await widget!.claimRef!.reference
-                      .update(createClaimsRecordData(
-                    claimStatus: 'Ready For Review',
-                  ));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Document Updated successfully!',
-                        style: TextStyle(
-                          color: FlutterFlowTheme.of(context).info,
-                        ),
-                      ),
-                      duration: Duration(milliseconds: 4000),
-                      backgroundColor: Color(0xFF5FE179),
-                    ),
+                  await _applyStatusUpdate(
+                    context,
+                    createClaimsRecordData(claimStatus: 'Ready For Review'),
                   );
-                  Navigator.pop(context);
                 },
                 child: Container(
                   width: double.infinity,
@@ -192,23 +213,10 @@ class _ClaimsOptionsWidgetState extends State<ClaimsOptionsWidget> {
                   hoverColor: Colors.transparent,
                   highlightColor: Colors.transparent,
                   onTap: () async {
-                    await widget!.claimRef!.reference
-                        .update(createClaimsRecordData(
-                      claimStatus: 'Details Pending',
-                    ));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Document Updated successfully!',
-                          style: TextStyle(
-                            color: FlutterFlowTheme.of(context).info,
-                          ),
-                        ),
-                        duration: Duration(milliseconds: 4000),
-                        backgroundColor: Color(0xFF5FE179),
-                      ),
+                    await _applyStatusUpdate(
+                      context,
+                      createClaimsRecordData(claimStatus: 'Details Pending'),
                     );
-                    Navigator.pop(context);
                   },
                   child: AnimatedContainer(
                     duration: Duration(milliseconds: 150),
@@ -294,26 +302,13 @@ class _ClaimsOptionsWidgetState extends State<ClaimsOptionsWidget> {
                   hoverColor: Colors.transparent,
                   highlightColor: Colors.transparent,
                   onTap: () async {
-                    await widget!.claimRef!.reference.update({
+                    await _applyStatusUpdate(context, {
                       ...createClaimsRecordData(
                         claimStatus: 'Submit to Solicitor',
                         airlineEmailStatus: 'Pending',
                       ),
                       'is_escalated': true,
                     });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Document Updated successfully!',
-                          style: TextStyle(
-                            color: FlutterFlowTheme.of(context).info,
-                          ),
-                        ),
-                        duration: Duration(milliseconds: 4000),
-                        backgroundColor: Color(0xFF5FE179),
-                      ),
-                    );
-                    Navigator.pop(context);
                   },
                   child: AnimatedContainer(
                     duration: Duration(milliseconds: 150),
@@ -399,23 +394,10 @@ class _ClaimsOptionsWidgetState extends State<ClaimsOptionsWidget> {
                   hoverColor: Colors.transparent,
                   highlightColor: Colors.transparent,
                   onTap: () async {
-                    await widget!.claimRef!.reference
-                        .update(createClaimsRecordData(
-                      claimStatus: 'Claim Won',
-                    ));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Document Updated successfully!',
-                          style: TextStyle(
-                            color: FlutterFlowTheme.of(context).info,
-                          ),
-                        ),
-                        duration: Duration(milliseconds: 4000),
-                        backgroundColor: Color(0xFF5FE179),
-                      ),
+                    await _applyStatusUpdate(
+                      context,
+                      createClaimsRecordData(claimStatus: 'Claim Won'),
                     );
-                    Navigator.pop(context);
                   },
                   child: AnimatedContainer(
                     duration: Duration(milliseconds: 150),
@@ -501,23 +483,10 @@ class _ClaimsOptionsWidgetState extends State<ClaimsOptionsWidget> {
                   hoverColor: Colors.transparent,
                   highlightColor: Colors.transparent,
                   onTap: () async {
-                    await widget!.claimRef!.reference
-                        .update(createClaimsRecordData(
-                      claimStatus: 'Claim Lost',
-                    ));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Document Updated successfully!',
-                          style: TextStyle(
-                            color: FlutterFlowTheme.of(context).info,
-                          ),
-                        ),
-                        duration: Duration(milliseconds: 4000),
-                        backgroundColor: Color(0xFF5FE179),
-                      ),
+                    await _applyStatusUpdate(
+                      context,
+                      createClaimsRecordData(claimStatus: 'Claim Lost'),
                     );
-                    Navigator.pop(context);
                   },
                   child: AnimatedContainer(
                     duration: Duration(milliseconds: 150),

@@ -1,6 +1,7 @@
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/backend/firebase_storage/storage.dart';
+import '/backend/security/crypto_service.dart';
 import '/flutter_flow/flutter_flow_choice_chips.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -61,14 +62,23 @@ class _EvidenceFormWidgetState extends State<EvidenceFormWidget> {
     _model = createModel(context, () => EvidenceFormModel());
 
     // On page load action.
+    // The claim is loaded by document reference (claimRef) in build(); the
+    // token-based lookup below is only a fallback for links that arrive without
+    // a claimRef. Unauthenticated `list` queries are blocked by security rules,
+    // so guard it and swallow the expected permission error.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
-      _model.activeClaim = await queryClaimsRecordOnce(
-        queryBuilder: (claimsRecord) => claimsRecord.where(
-          'secure_token',
-          isEqualTo: widget!.token,
-        ),
-        limit: 1,
-      );
+      if (widget!.claimRef != null) return;
+      try {
+        _model.activeClaim = await queryClaimsRecordOnce(
+          queryBuilder: (claimsRecord) => claimsRecord.where(
+            'secure_token',
+            isEqualTo: widget!.token,
+          ),
+          limit: 1,
+        );
+      } catch (_) {
+        // Expected when unauthenticated and no claimRef was supplied.
+      }
     });
 
     _model.fullNameTextController ??= TextEditingController();
@@ -4303,20 +4313,34 @@ class _EvidenceFormWidgetState extends State<EvidenceFormWidget> {
                                 FFButtonWidget(
                                   onPressed: () async {
                                     try {
-                                      // Bypass createClaimsRecordData to avoid CryptoService.instance
-                                      // being accessed unconditionally — it is only initialised for
-                                      // authenticated staff, not unauthenticated claimants.
+                                      // CryptoService is configured at app startup
+                                      // (main.dart → initializeClaimsSecurity) for every
+                                      // session, so claimant PII is encrypted here too.
+                                      // Encrypt only non-empty values so blank fields stay
+                                      // readable as empty by CryptoService.decrypt().
+                                      final _crypto = CryptoService.instance;
+                                      String _enc(String v) =>
+                                          v.isEmpty ? '' : _crypto.encrypt(v);
+                                      final _nin =
+                                          _model.ninTextController.text;
+                                      final _passport =
+                                          _model.passportIDTextController.text;
                                       await evidenceFormClaimsRecord.reference
                                           .update(mapToFirestore(<String, dynamic>{
                                         'pnr_number': _model.pnrTextController.text,
-                                        'bvn_number': _model.ninTextController.text,
+                                        // NIN and Passport are written to their own
+                                        // (encrypted) fields — the old code stored NIN
+                                        // into bvn_number, which broke the Evidence Locker.
+                                        'NIN': _enc(_nin),
+                                        'Passport': _enc(_passport),
                                         'airline_response': _model.issueTextController.text,
                                         'claim_status': 'Terms Pending',
                                         'flight_details_submitted': true,
                                         'terms_accepted': false,
                                         'signature_submitted': false,
                                         'bank_name': _model.banknameTextController.text,
-                                        'account_no': _model.accountnumberTextController.text,
+                                        'account_no': _enc(
+                                            _model.accountnumberTextController.text),
                                         'account_name': _model.accountnameTextController.text,
                                         'signed_at': getCurrentTimestamp,
                                         'departure': _model.departureTextController.text,

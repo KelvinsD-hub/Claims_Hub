@@ -4,7 +4,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'dart:ui';
-import '/flutter_flow/random_data_util.dart' as random_data;
+import '/backend/security/secure_token.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -223,34 +223,20 @@ class _LeadsOptionsWidgetState extends State<LeadsOptionsWidget> {
 
                         var claimsRecordReference =
                             ClaimsRecord.collection.doc();
-                        await claimsRecordReference.set(createClaimsRecordData(
+                        // Build the claim data once so the saved document and the
+                        // local model share the same secure_token (they previously
+                        // used two different tokens, making the local copy's link
+                        // invalid).
+                        final claimData = createClaimsRecordData(
                           leadRef: widget!.leadRef?.reference,
                           claimStatus: 'Details Pending',
-                          secureToken: random_data.randomString(
-                            20,
-                            32,
-                            true,
-                            true,
-                            true,
-                          ),
+                          secureToken: generateSecureToken(),
                           createdAt: getCurrentTimestamp,
                           clientEmail: dropdown2AccountLeadsRecord.email,
-                        ));
+                        );
+                        await claimsRecordReference.set(claimData);
                         _model.createdClaim = ClaimsRecord.getDocumentFromData(
-                            createClaimsRecordData(
-                              leadRef: widget!.leadRef?.reference,
-                              claimStatus: 'Details Pending',
-                              secureToken: random_data.randomString(
-                                20,
-                                32,
-                                true,
-                                true,
-                                true,
-                              ),
-                              createdAt: getCurrentTimestamp,
-                              clientEmail: dropdown2AccountLeadsRecord.email,
-                            ),
-                            claimsRecordReference);
+                            claimData, claimsRecordReference);
 
                         await widget!.leadRef!.reference
                             .update(createLeadsRecordData(

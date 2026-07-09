@@ -11,16 +11,56 @@ admin.initializeApp();
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function createTransporter() {
+  const pass = process.env.HOSTINGER_EMAIL_PASS;
+  if (!pass) {
+    throw new Error('HOSTINGER_EMAIL_PASS secret is not configured.');
+  }
   return nodemailer.createTransport({
     host: 'smtp.hostinger.com',
     port: 587,
     secure: false,
     auth: {
       user: 'info@claimshub.online',
-      pass: process.env.HOSTINGER_EMAIL_PASS.trim(),
+      pass: pass.trim(),
     },
-    tls: { rejectUnauthorized: false },
   });
+}
+
+// Escape user-supplied text before interpolating into HTML email bodies.
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Reject SSRF targets: only http(s) to public hosts (blocks localhost,
+// link-local/metadata, and RFC1918 private ranges).
+function isSafeProxyUrl(raw) {
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch (_) {
+    return false;
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+  const host = parsed.hostname.toLowerCase();
+  if (host === 'localhost' || host === '0.0.0.0' || host.endsWith('.local')) {
+    return false;
+  }
+  // Block metadata endpoint and private/link-local IPv4 ranges.
+  const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const [a, b] = [Number(m[1]), Number(m[2])];
+    if (a === 127 || a === 10 || a === 0) return false;
+    if (a === 169 && b === 254) return false;      // link-local / cloud metadata
+    if (a === 192 && b === 168) return false;
+    if (a === 172 && b >= 16 && b <= 31) return false;
+    if (a === 100 && b >= 64 && b <= 127) return false; // carrier-grade NAT
+  }
+  return true;
 }
 
 async function storePdf(claimId, filename, pdfBytes) {
@@ -66,7 +106,7 @@ async function buildLoaPdf(data, claimId) {
 
   const today = formatDate();
   const clientName = data.full_name || 'The Passenger';
-  const pnr = data.pnr || data.booking_reference || 'N/A';
+  const pnr = data.pnr_number || data.pnr || data.booking_reference || 'N/A';
 
   // Header band
   page.drawRectangle({ x: 0, y: 792, width: 595, height: 50, color: navy });
@@ -208,7 +248,7 @@ async function buildDemandLetterPdf(data, claimId) {
 
   const today = formatDate();
   const clientName = data.full_name || 'The Passenger';
-  const pnr = data.pnr || data.booking_reference || 'N/A';
+  const pnr = data.pnr_number || data.pnr || data.booking_reference || 'N/A';
   const rawAmount = data.claims_amount;
   const amountText = rawAmount || 'the applicable statutory amount';
 
@@ -362,11 +402,22 @@ exports.corsProxy = functions
   .https.onRequest((req, res) => {
     cors(req, res, () => {
       const url = req.query.url || req.body.url;
-      if (!url) return res.status(403).send('URL is empty.');
-      https.get(url, (resp) => {
-        res.setHeader('content-type', resp.headers['content-type'] || 'image/jpeg');
+      if (!url) return res.status(400).send('URL is empty.');
+      if (!isSafeProxyUrl(url)) {
+        return res.status(400).send('URL is not permitted.');
+      }
+      const proxied = https.get(url, (resp) => {
+        // Only pass through image responses — this proxy exists to fetch
+        // claim/evidence images, not as a general-purpose fetch relay.
+        const contentType = resp.headers['content-type'] || '';
+        if (!contentType.startsWith('image/')) {
+          resp.resume();
+          return res.status(415).send('Unsupported content type.');
+        }
+        res.setHeader('content-type', contentType);
         resp.pipe(res);
       });
+      proxied.on('error', () => res.status(502).send('Upstream fetch failed.'));
     });
   });
 
@@ -445,6 +496,7 @@ exports.onTriggerAirlineEmail = functions
       return null;
     }
 
+    try {
     const claimId = context.params.claimId;
     const clientName = newData.full_name || 'Client';
     const safeName = clientName.replace(/\s+/g, '_');
@@ -511,7 +563,7 @@ exports.onTriggerAirlineEmail = functions
               </tr>
               ${[
                 ['Passenger', clientName],
-                ['PNR / Booking Reference', newData.pnr || newData.booking_reference || 'N/A'],
+                ['PNR / Booking Reference', newData.pnr_number || newData.pnr || newData.booking_reference || 'N/A'],
                 ['Flight Number', newData.flight_number || 'N/A'],
                 ['Date of Travel', newData.flight_date || 'N/A'],
                 ['Route', `${newData.departure || 'N/A'} &rarr; ${newData.destination || 'N/A'}`],
@@ -605,6 +657,15 @@ exports.onTriggerAirlineEmail = functions
       loa_url: loaUrl,
       demand_letter_url: demandUrl,
     });
+    } catch (err) {
+      console.error('[onTriggerAirlineEmail]', err && err.message);
+      // Reset the trigger so a transient PDF/SMTP failure doesn't wedge the claim.
+      await change.after.ref.update({
+        trigger_airline_email: false,
+        airline_email_status: 'Send failed',
+      }).catch(() => {});
+      return null;
+    }
   });
 
 // ─── 5. On Trigger Solicitor Email → Generate Final Legal Notice, email airline ─
@@ -622,6 +683,7 @@ exports.onTriggerSolicitorEmail = functions
       return null;
     }
 
+    try {
     const claimId = context.params.claimId;
     const clientName = newData.full_name || 'Client';
     const safeName = clientName.replace(/\s+/g, '_');
@@ -691,7 +753,7 @@ exports.onTriggerSolicitorEmail = functions
 
     for (const [label, value] of [
       ['Passenger', clientName],
-      ['PNR / Booking Reference', newData.pnr || newData.booking_reference || 'N/A'],
+      ['PNR / Booking Reference', newData.pnr_number || newData.pnr || newData.booking_reference || 'N/A'],
       ['Flight Number', newData.flight_number || 'N/A'],
       ['Date of Travel', newData.flight_date || 'N/A'],
       ['Route', `${newData.departure || 'N/A'} to ${newData.destination || 'N/A'}`],
@@ -809,7 +871,7 @@ exports.onTriggerSolicitorEmail = functions
               </tr>
               ${[
                 ['Passenger', clientName],
-                ['PNR / Booking Reference', newData.pnr || newData.booking_reference || 'N/A'],
+                ['PNR / Booking Reference', newData.pnr_number || newData.pnr || newData.booking_reference || 'N/A'],
                 ['Flight Number', newData.flight_number || 'N/A'],
                 ['Date of Travel', newData.flight_date || 'N/A'],
                 ['Route', `${newData.departure || 'N/A'} &rarr; ${newData.destination || 'N/A'}`],
@@ -888,6 +950,15 @@ exports.onTriggerSolicitorEmail = functions
       solicitor_letter_url: solicitorUrl,
       solicitor_sent_at: admin.firestore.FieldValue.serverTimestamp(),
     });
+    } catch (err) {
+      console.error('[onTriggerSolicitorEmail]', err && err.message);
+      // Reset the trigger so a transient PDF/SMTP failure doesn't wedge the claim.
+      await change.after.ref.update({
+        trigger_solicitor_email: false,
+        solicitor_email_status: 'Send failed',
+      }).catch(() => {});
+      return null;
+    }
   });
 
 // ─── 6. On Claim Status Changed → Notify client by email ─────────────────────
@@ -1098,16 +1169,50 @@ exports.sendManualAirlineEmail = functions
         return res.status(405).json({ error: 'Method not allowed' });
       }
 
-      const {
+      // Staff-only action: require a valid Firebase ID token.
+      const authHeader = req.headers.authorization || '';
+      const idToken = authHeader.startsWith('Bearer ')
+        ? authHeader.substring(7)
+        : null;
+      if (!idToken) {
+        return res.status(401).json({ error: 'Missing authentication token.' });
+      }
+      try {
+        await admin.auth().verifyIdToken(idToken);
+      } catch (_) {
+        return res.status(401).json({ error: 'Invalid authentication token.' });
+      }
+
+      // The Flutter client wraps the payload in a `data` envelope.
+      const payload = (req.body && req.body.data) ? req.body.data : (req.body || {});
+      let {
         airlineEmail, airlineName, clientName, pnr, flightNo,
         route, flightDate, delayDuration, compensation, loaPdfUrl, claimId,
-      } = req.body;
+      } = payload;
 
       if (!airlineEmail || !clientName || !claimId) {
         return res.status(400).json({
           error: 'airlineEmail, clientName, and claimId are required.',
         });
       }
+
+      // Reject a malformed claimId before using it as a Firestore doc path.
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(String(claimId))) {
+        return res.status(400).json({ error: 'Invalid claimId.' });
+      }
+
+      // Escape every value interpolated into the HTML body / headers below.
+      airlineName = escapeHtml(airlineName);
+      clientName = escapeHtml(clientName);
+      pnr = escapeHtml(pnr);
+      flightNo = escapeHtml(flightNo);
+      route = escapeHtml(route);
+      flightDate = escapeHtml(flightDate);
+      delayDuration = escapeHtml(delayDuration);
+      // Only allow an https link through to the LOA anchor href.
+      loaPdfUrl = (typeof loaPdfUrl === 'string' && loaPdfUrl.startsWith('https://'))
+        ? encodeURI(loaPdfUrl)
+        : '';
 
       const amountDisplay = compensation
         ? `&#x20A6;${Number(compensation).toLocaleString('en-NG')}`

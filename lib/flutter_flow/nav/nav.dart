@@ -134,11 +134,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => EvidenceLockerWidget(),
         ),
         FFRoute(
-          name: DesignerWidget.routeName,
-          path: DesignerWidget.routePath,
-          builder: (context, params) => DesignerWidget(),
-        ),
-        FFRoute(
           name: LeadFormWidget.routeName,
           path: LeadFormWidget.routePath,
           builder: (context, params) => LeadFormWidget(
@@ -211,11 +206,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           ),
         ),
         FFRoute(
-          name: LeadFormCopyWidget.routeName,
-          path: LeadFormCopyWidget.routePath,
-          builder: (context, params) => LeadFormCopyWidget(),
-        ),
-        FFRoute(
           name: UnderReviewWidget.routeName,
           path: UnderReviewWidget.routePath,
           builder: (context, params) => UnderReviewWidget(),
@@ -286,16 +276,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: ClaimsWonWidget.routeName,
           path: ClaimsWonWidget.routePath,
           builder: (context, params) => ClaimsWonWidget(),
-        ),
-        FFRoute(
-          name: TestTokenWidget.routeName,
-          path: TestTokenWidget.routePath,
-          builder: (context, params) => TestTokenWidget(
-            token: params.getParam(
-              'token',
-              ParamType.String,
-            ),
-          ),
         ),
         FFRoute(
           name: WaitingApprovalWidget.routeName,

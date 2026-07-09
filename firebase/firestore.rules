@@ -2,13 +2,56 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Helpers ────────────────────────────────────────────────────────────
+    // Fields a claimant (secure_token link, unauthenticated) is allowed to
+    // write through the public evidence / terms / LOA forms. Anything not in
+    // this list (email triggers, solicitor fields, server-generated URLs,
+    // lead_ref, createdAt, secure_token, client_email) is staff/server-only.
+    function claimantWritableFields() {
+      return [
+        'pnr_number', 'bvn_number', 'NIN', 'Passport', 'airline_response',
+        'claim_status', 'flight_details_submitted', 'terms_accepted',
+        'signature_submitted', 'bank_name', 'account_no', 'account_name',
+        'signed_at', 'departure', 'destination', 'full_name',
+        'duration_of_delay', 'flight_date', 'claims_amount', 'airline_name',
+        'flight_number', 'claims_reason', 'attached_document', 'signature'
+      ];
+    }
+
+    // Role model (foundation). An admin is a staff member whose Firebase Auth
+    // account carries the custom claim { admin: true } — set out-of-band with
+    // the firebase/scripts/set-admin.js bootstrap script. Extend this with
+    // isStaff()/other roles as the access model is rolled out per collection.
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    // A claimant update may only touch the allowlisted fields, must keep the
+    // token unchanged, and may only move claim_status to a claimant-settable
+    // value (never to Won/Paid/etc.).
+    function isValidClaimantUpdate() {
+      return resource.data.secure_token is string
+        && resource.data.secure_token.size() > 10
+        && request.resource.data.secure_token == resource.data.secure_token
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(claimantWritableFields())
+        && (
+             !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['claim_status'])
+             || request.resource.data.claim_status in ['Terms Pending', 'Ready For Review']
+           );
+    }
+
     // Users: public create supports Firebase Auth signup flow.
     // All reads and subsequent writes require authentication.
     match /users/{document} {
       allow create: if true;
       allow read:   if request.auth != null;
       allow write:  if request.auth != null;
-      allow delete: if request.auth != null;
+      // Deleting a staff account is admin-only (rare, sensitive). Self-service
+      // account deletion still works: it goes through Firebase Auth and the
+      // onUserDeleted function cleans up the doc with the Admin SDK.
+      allow delete: if isAdmin();
     }
 
     // Leads: public create supports the public-facing lead capture form.
@@ -23,23 +66,29 @@ service cloud.firestore {
     // Claims: agents create records; claimants interact via secure_token links.
     //
     // CREATE — agents only (authenticated).
-    // READ   — authenticated users OR documents that carry a secure_token
-    //          (required so the public evidence form can look up a claim by token).
-    //          Phase 2 will replace this with Firebase Anonymous Auth so reads
-    //          can be fully locked to authenticated sessions.
-    // UPDATE — authenticated users OR requests that supply the correct secure_token
-    //          (prevents arbitrary writes while keeping the claimant form working).
+    // GET    — authenticated staff, OR a capability-URL request: the caller
+    //          already knows the exact document ID (delivered in the emailed
+    //          claim link) and the doc carries a secure_token. This intentionally
+    //          does NOT allow LIST, so the collection cannot be enumerated by an
+    //          unauthenticated client.
+    // LIST   — authenticated staff only (prevents mass PII enumeration).
+    // UPDATE — authenticated staff may change anything. A claimant using a
+    //          secure_token link may only submit their own evidence: the token
+    //          must match, only allowlisted fields may change, and claim_status
+    //          may only move to a claimant-settable value (see isValidClaimantUpdate).
     // DELETE — authenticated users only.
+    //
+    // NOTE: token-path writes still cannot be attributed to a specific person,
+    // so bank/account fields remain claimant-writable by design. Moving the
+    // claimant write path behind an authenticated Cloud Function (server-side
+    // token validation) is the recommended Phase 2 hardening.
     match /claims/{document} {
       allow create: if request.auth != null;
-      allow read:   if request.auth != null
+      allow get:    if request.auth != null
                     || resource.data.secure_token is string;
+      allow list:   if request.auth != null;
       allow update: if request.auth != null
-                    || (
-                         resource.data.secure_token is string
-                         && resource.data.secure_token.size() > 10
-                         && resource.data.secure_token == request.resource.data.secure_token
-                       );
+                    || isValidClaimantUpdate();
       allow delete: if request.auth != null;
     }
 

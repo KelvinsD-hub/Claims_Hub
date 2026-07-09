@@ -17,6 +17,13 @@ const String _supportEmail = 'info@claimshub.online';
 const String _supportPhone = '+233000000000'; // TODO: real support line
 const String _supportWhatsApp = '233000000000'; // wa.me number, digits only
 
+// A phone/WhatsApp value still holding a placeholder (all zeros) is not shown,
+// so users never dial a junk number. Set real values above to reveal the button.
+bool _isRealNumber(String value) {
+  final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+  return digits.isNotEmpty && digits.replaceAll('0', '').isNotEmpty;
+}
+
 class SupportsWidget extends StatefulWidget {
   const SupportsWidget({super.key});
 
@@ -202,19 +209,21 @@ class _SupportsWidgetState extends State<SupportsWidget> {
                                           onTap: () => _open(
                                               'mailto:$_supportEmail?subject=Claims%20Hub%20Support'),
                                         ),
-                                        _ContactButton(
-                                          icon: FontAwesomeIcons.whatsapp,
-                                          label: 'WhatsApp',
-                                          onTap: () => _open(
-                                              'https://wa.me/$_supportWhatsApp'),
-                                          faIcon: true,
-                                        ),
-                                        _ContactButton(
-                                          icon: Icons.call_outlined,
-                                          label: 'Call',
-                                          onTap: () =>
-                                              _open('tel:$_supportPhone'),
-                                        ),
+                                        if (_isRealNumber(_supportWhatsApp))
+                                          _ContactButton(
+                                            icon: FontAwesomeIcons.whatsapp,
+                                            label: 'WhatsApp',
+                                            onTap: () => _open(
+                                                'https://wa.me/$_supportWhatsApp'),
+                                            faIcon: true,
+                                          ),
+                                        if (_isRealNumber(_supportPhone))
+                                          _ContactButton(
+                                            icon: Icons.call_outlined,
+                                            label: 'Call',
+                                            onTap: () =>
+                                                _open('tel:$_supportPhone'),
+                                          ),
                                       ],
                                     ),
                                     const SizedBox(height: 14),

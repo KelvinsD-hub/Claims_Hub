@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'auth/firebase_auth/firebase_user_provider.dart';
 import 'auth/firebase_auth/auth_util.dart';
 
@@ -22,6 +23,24 @@ void main() async {
   usePathUrlStrategy();
 
   await initFirebase();
+
+  // Firebase App Check. Activates only when a reCAPTCHA v3 site key is supplied
+  // at build time (--dart-define=APP_CHECK_WEB_KEY=...), so this is a safe no-op
+  // until App Check is registered in the Firebase console. Do NOT flip on
+  // enforcement (console) until a build carrying the key has been released.
+  const appCheckWebKey = String.fromEnvironment('APP_CHECK_WEB_KEY');
+  if (appCheckWebKey.isNotEmpty) {
+    try {
+      await FirebaseAppCheck.instance.activate(
+        webProvider: ReCaptchaV3Provider(appCheckWebKey),
+        androidProvider: AndroidProvider.playIntegrity,
+        appleProvider: AppleProvider.deviceCheck,
+      );
+    } catch (e) {
+      debugPrint('App Check init warning: $e');
+    }
+  }
+
   try {
     await initializeClaimsSecurity();
   } catch (e) {

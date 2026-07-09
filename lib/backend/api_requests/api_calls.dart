@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import '../schema/structs/index.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '/flutter_flow/flutter_flow_util.dart';
@@ -41,12 +42,18 @@ class SendManualAirlineEmailCall {
     "claimId": "${escapeStringForJson(claimId)}"
   }
 }''';
+    // Attach the caller's Firebase ID token so the Cloud Function can verify
+    // this is an authenticated staff request before sending airline email.
+    final _user = FirebaseAuth.instance.currentUser;
+    final _idToken = _user != null ? await _user.getIdToken() : null;
     return ApiManager.instance.makeApiCall(
       callName: 'sendManualAirlineEmail',
       apiUrl:
           'https://us-central1-msmcrm-g24k37.cloudfunctions.net/sendManualAirlineEmail',
       callType: ApiCallType.POST,
-      headers: {},
+      headers: {
+        if (_idToken != null) 'Authorization': 'Bearer $_idToken',
+      },
       params: {},
       body: ffApiRequestBody,
       bodyType: BodyType.JSON,
