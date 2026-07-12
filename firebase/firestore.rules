@@ -72,6 +72,17 @@ service cloud.firestore {
       allow delete: if request.auth != null;
     }
 
+    // Flight stats: anonymous per-flight claim counters maintained by the
+    // backend (group-claim social proof on the website). Counts only, no PII.
+    // Public GET by exact doc id; no public list or write.
+    match /flight_stats/{document} {
+      allow get:    if true;
+      allow list:   if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
     // Claims: agents create records; claimants interact via secure_token links.
     //
     // CREATE — agents only (authenticated).
