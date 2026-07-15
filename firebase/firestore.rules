@@ -72,6 +72,15 @@ service cloud.firestore {
       allow delete: if request.auth != null;
     }
 
+    // Blog posts: managed from the website's /admin dashboard by approved
+    // staff. Public pages are server-rendered by the `blog` Cloud Function
+    // (Admin SDK, bypasses rules), so no public client read is needed.
+    match /blog_posts/{document} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true;
+    }
+
     // Flight stats: anonymous per-flight claim counters maintained by the
     // backend (group-claim social proof on the website). Counts only, no PII.
     // Public GET by exact doc id; no public list or write.
