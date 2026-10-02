@@ -1,4 +1,5 @@
-﻿import '/auth/firebase_auth/auth_util.dart';
+﻿import '/backend/services/pipeline.dart';
+import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/claims/claims_options/claims_options_widget.dart';
 import '/flutter_flow/flutter_flow_animations.dart';
@@ -988,8 +989,10 @@ class _ClaimsUnderReviewWidgetState extends State<ClaimsUnderReviewWidget>
                                                               claimsRecord
                                                                   .where(
                                                                     'claim_status',
-                                                                    isEqualTo:
-                                                                        'Ready For Review',
+                                                                    whereIn: [
+                                                                      ClaimStage.readyForReview,
+                                                                      ClaimStage.underReview
+                                                                    ],
                                                                   )
                                                                   .orderBy(
                                                                       'createdAt',

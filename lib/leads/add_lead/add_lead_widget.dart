@@ -743,13 +743,6 @@ class _AddLeadWidgetState extends State<AddLeadWidget> {
                                   createdAt: getCurrentTimestamp,
                                   agentRef: currentUserReference,
                                 ));
-                                await actions.logActivity(
-                                  action: 'Lead created',
-                                  description:
-                                      'New lead added: ${_model.textController1.text}',
-                                  entityType: 'Lead',
-                                  leadRef: docRef,
-                                );
                               },
                               text: 'Create Lead',
                               options: FFButtonOptions(

@@ -1,3 +1,4 @@
+import '/backend/services/pipeline.dart';
 import '/backend/services/compensation_calculator.dart';
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
@@ -18,16 +19,19 @@ const _kGold = Color(0xFFE6B011);
 // Status badge colours
 Color _statusColor(String? s) {
   switch (s) {
-    case 'Won':
-    case 'Claim Won':
+    case ClaimStage.won:
+    case ClaimStage.paid:
       return const Color(0xFF15AA47);
-    case 'Lost':
-    case 'Claim Lost':
+    case ClaimStage.lost:
       return const Color(0xFFE53935);
-    case 'Under Review':
-    case 'Ready For Review':
+    case ClaimStage.withdrawn:
+      return const Color(0xFF757575);
+    case ClaimStage.underReview:
+    case ClaimStage.readyForReview:
+    case ClaimStage.demandPending:
+    case ClaimStage.awaitingReply:
       return const Color(0xFF0C519B);
-    case 'Submit to Solicitor':
+    case ClaimStage.withSolicitor:
       return const Color(0xFF7C3AED);
     default:
       return const Color(0xFFF08156);
@@ -54,19 +58,7 @@ class _ClaimsDashboardWidgetState extends State<ClaimsDashboardWidget>
   String? _statusFilter;
   final _searchController = TextEditingController();
 
-  static const _statusOptions = [
-    'All Statuses',
-    'Details Pending',
-    'Under Review',
-    'Ready For Review',
-    'Awaiting Reply',
-    'Email Sent',
-    'Submit to Solicitor',
-    'Won',
-    'Claim Won',
-    'Lost',
-    'Claim Lost',
-  ];
+  static const _statusOptions = ['All Statuses', ...ClaimStage.all];
 
   @override
   void initState() {

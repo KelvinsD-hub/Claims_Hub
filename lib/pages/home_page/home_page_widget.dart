@@ -1,3 +1,4 @@
+import '/backend/services/pipeline.dart';
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/custom_code/widgets/claim_status_card.dart';
@@ -26,19 +27,20 @@ const _kGold = Color(0xFFE6B011);
 // ── claim_status → pipeline stage (0–3) ──────────────────────────────────────
 int _stageFromStatus(String? s) {
   switch (s) {
-    case 'Details Pending':
+    case ClaimStage.detailsPending:
+    case ClaimStage.termsPending:
       return 0;
-    case 'Under Review':
-    case 'Ready For Review':
+    case ClaimStage.readyForReview:
+    case ClaimStage.underReview:
+    case ClaimStage.demandPending:
       return 1;
-    case 'Awaiting Reply':
-    case 'Email Sent':
+    case ClaimStage.awaitingReply:
+    case ClaimStage.withSolicitor:
       return 2;
-    case 'Won':
-    case 'Claim Won':
-    case 'Submit to Solicitor':
-    case 'Lost':
-    case 'Claim Lost':
+    case ClaimStage.won:
+    case ClaimStage.paid:
+    case ClaimStage.lost:
+    case ClaimStage.withdrawn:
       return 3;
     default:
       return 0;
@@ -667,9 +669,10 @@ class _HomePageWidgetState extends State<HomePageWidget>
                                       label: 'Awaiting Evidence',
                                       icon: Icons.folder_open_rounded,
                                       accentColor: const Color(0xFF0C519B),
-                                      future: queryLeadsRecordCount(
-                                        queryBuilder: (q) => q.where('status',
-                                            isEqualTo: 'Awaiting Client'),
+                                      future: queryClaimsRecordCount(
+                                        queryBuilder: (q) => q.where(
+                                            'claim_status',
+                                            isEqualTo: ClaimStage.detailsPending),
                                       ),
                                     )),
                                     const SizedBox(width: 16),
@@ -680,8 +683,10 @@ class _HomePageWidgetState extends State<HomePageWidget>
                                       accentColor: const Color(0xFF4A6741),
                                       future: queryClaimsRecordCount(
                                         queryBuilder: (q) => q.where(
-                                            'claim_status',
-                                            isEqualTo: 'Under Review'),
+                                            'claim_status', whereIn: [
+                                          ClaimStage.readyForReview,
+                                          ClaimStage.underReview
+                                        ]),
                                       ),
                                     )),
                                     const SizedBox(width: 16),

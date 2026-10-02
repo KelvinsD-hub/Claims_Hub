@@ -5,6 +5,14 @@ const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const crypto = require('crypto');
 const https = require('https');
 const cors = require('cors')({ origin: true });
+const pipeline = require('./pipeline');
+const { CLAIM } = pipeline;
+const { applyStageChange, SYSTEM_ACTOR } = require('./stage-change');
+
+/** The fields that record a stage change (see stage-change.js). */
+function stageStamp(stage, actor, note, field = 'claim_status') {
+  return require('./stage-change').stageStamp(admin, stage, actor, note, field);
+}
 
 admin.initializeApp();
 
@@ -726,11 +734,15 @@ exports.onTriggerAirlineEmail = functions
       ],
     });
 
+    // The letter has gone, so the claim moves on — recorded here, where the
+    // send is known to have succeeded, not by the browser that asked for it.
     return change.after.ref.update({
       trigger_airline_email: false,
       airline_email_status: 'Awaiting reply',
       loa_url: loaUrl,
       demand_letter_url: demandUrl,
+      demand_sent_at: admin.firestore.FieldValue.serverTimestamp(),
+      ...stageStamp(CLAIM.AWAITING_REPLY, SYSTEM_ACTOR, 'Demand letter sent to the airline'),
     });
     } catch (err) {
       console.error('[onTriggerAirlineEmail]', err && err.message);
@@ -1028,12 +1040,20 @@ exports.onTriggerSolicitorEmail = functions
       }],
     });
 
-    return change.after.ref.update({
+    await change.after.ref.update({
       trigger_solicitor_email: false,
       solicitor_email_status: 'Sent',
       solicitor_letter_url: solicitorUrl,
       solicitor_sent_at: admin.firestore.FieldValue.serverTimestamp(),
     });
+    await logEvent({
+      entityType: 'Claim', claimRef: change.after.ref, leadRef: newData.lead_ref || null,
+      action: 'Final legal notice sent',
+      description: `Final legal notice sent to ${newData.airline_name || 'the airline'} for ${clientName}`,
+      actorUid: newData.letter_requested_by || 'system',
+      actorName: newData.letter_requested_by_name || 'System',
+    });
+    return null;
     } catch (err) {
       console.error('[onTriggerSolicitorEmail]', err && err.message);
       // Reset the trigger so a transient PDF/SMTP failure doesn't wedge the claim.
@@ -1055,6 +1075,9 @@ exports.onClaimStatusChanged = functions
     const prevData = change.before.data();
 
     if (newData.claim_status === prevData.claim_status) return null;
+    // Renaming old stage values is bookkeeping, not news: clients are not
+    // emailed about a stage their claim reached months ago.
+    if (newData.stage_changed_by === 'migration') return null;
 
     const clientEmail = newData.client_email;
     if (!clientEmail) return null;
@@ -1116,7 +1139,7 @@ exports.onClaimStatusChanged = functions
         `;
         break;
 
-      case 'Submit to Solicitor':
+      case CLAIM.WITH_SOLICITOR:
         subject = 'Your Claim Has Been Referred to Our Legal Team — Claims Assist';
         bodyHtml = `
           <p>Hi ${newData.full_name || 'Customer'},</p>
@@ -1165,6 +1188,184 @@ exports.onClaimStatusChanged = functions
       console.error('[onClaimStatusChanged]', e.message);
     }
 
+    return null;
+  });
+
+// ─── Pipeline: stage changes and the event log ────────────────────────────────
+//
+// Staff do not write a stage themselves. They ask changeStage, which checks
+// the move against pipeline.js, stamps who made it, and applies anything that
+// has to happen with it (qualifying a lead opens its claim). The database
+// rules refuse a stage written any other way by a staff account.
+//
+// Every stage change, whoever makes it — staff through changeStage, a client
+// finishing a form, a function after sending a letter — is then written to
+// activity_logs by the two log triggers below. One place writes the log, so
+// nothing is logged twice and nothing is missed.
+
+/** The signed-in staff member, or null. Approval and role come from Firestore. */
+async function staffFromRequest(req) {
+  const header = req.headers.authorization || '';
+  const idToken = header.startsWith('Bearer ') ? header.substring(7) : null;
+  if (!idToken) return null;
+  let decoded;
+  try {
+    decoded = await admin.auth().verifyIdToken(idToken);
+  } catch (_) {
+    return null;
+  }
+  const snap = await admin.firestore().doc(`users/${decoded.uid}`).get();
+  const user = snap.exists ? snap.data() : {};
+  const breakGlass = decoded.admin === true;
+  if (!breakGlass && user.approved !== true) return null;
+  return {
+    uid: decoded.uid,
+    name: user.display_name || decoded.email || 'Staff',
+    role: breakGlass && !user.role ? pipeline.ROLE.SUPER_ADMIN : (user.role || ''),
+  };
+}
+
+exports.changeStage = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+    const staff = await staffFromRequest(req);
+    if (!staff) {
+      return res.status(401).json({ error: 'Sign in with an approved staff account.' });
+    }
+
+    const payload = (req.body && req.body.data) ? req.body.data : (req.body || {});
+    const kind = String(payload.kind || '');
+    const id = String(payload.id || '');
+    const to = String(payload.to || '');
+    const note = String(payload.note || '').trim().slice(0, 1000);
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
+      return res.status(400).json({ error: 'Invalid record id.' });
+    }
+    if (kind !== 'lead' && kind !== 'claim') {
+      return res.status(400).json({ error: 'Unknown record type.' });
+    }
+
+    try {
+      const result = await applyStageChange(admin, { kind, id, to, note, staff });
+      return res.status(200).json({ success: true, ...result });
+    } catch (e) {
+      if (e instanceof pipeline.StageError) {
+        return res.status(e.status).json({ error: e.message });
+      }
+      console.error('[changeStage]', e && e.message);
+      return res.status(500).json({ error: 'The stage could not be changed. Please try again.' });
+    }
+  });
+});
+
+/** One entry in the event log. Never throws: logging must not undo the work. */
+async function logEvent(entry) {
+  try {
+    const actorRef = entry.actorUid && entry.actorUid !== 'system' && entry.actorUid !== 'client'
+      ? admin.firestore().doc(`users/${entry.actorUid}`)
+      : null;
+    await admin.firestore().collection('activity_logs').add({
+      entityType: entry.entityType,
+      ...(entry.leadRef ? { leadRef: entry.leadRef } : {}),
+      ...(entry.claimRef ? { claims: entry.claimRef } : {}),
+      action: entry.action,
+      description: entry.description || '',
+      ...(actorRef ? { performedBy: actorRef } : {}),
+      performedByName: entry.actorName || 'System',
+      actor_type: actorRef ? 'staff' : (entry.actorUid === 'client' ? 'client' : 'system'),
+      ...(entry.from ? { from_stage: entry.from } : {}),
+      ...(entry.to ? { to_stage: entry.to } : {}),
+      ...(entry.note ? { note: entry.note } : {}),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    console.error('[logEvent]', e && e.message);
+  }
+}
+
+/**
+ * Who made a stage change. changeStage and the letter functions stamp the
+ * record; a change with no fresh stamp came through a client's form link.
+ */
+function actorOf(before, after) {
+  const stamped = after.stage_changed_at &&
+    (!before || !before.stage_changed_at || !after.stage_changed_at.isEqual(before.stage_changed_at));
+  if (stamped) {
+    return { uid: after.stage_changed_by || 'system', name: after.stage_changed_by_name || 'System', note: after.stage_note || '' };
+  }
+  return { uid: 'client', name: 'Client', note: '' };
+}
+
+exports.onClaimStageLog = functions.firestore
+  .document('claims/{claimId}')
+  .onWrite(async (change) => {
+    if (!change.after.exists) return null;
+    const after = change.after.data();
+    const before = change.before.exists ? change.before.data() : null;
+    const who = after.full_name || after.client_email || 'a client';
+
+    if (!before) {
+      const actor = actorOf(null, after);
+      // A claim created outside changeStage has no stamp; that is staff or a
+      // script, never a client, who cannot create claims.
+      await logEvent({
+        entityType: 'Claim', claimRef: change.after.ref, leadRef: after.lead_ref || null,
+        action: 'Claim opened', description: `Claim opened for ${who}`,
+        actorUid: actor.uid === 'client' ? 'system' : actor.uid,
+        actorName: actor.uid === 'client' ? 'System' : actor.name,
+        to: after.claim_status || '', note: actor.note,
+      });
+      return null;
+    }
+    if (before.claim_status === after.claim_status) return null;
+
+    const actor = actorOf(before, after);
+    await logEvent({
+      entityType: 'Claim', claimRef: change.after.ref, leadRef: after.lead_ref || null,
+      action: 'Stage changed',
+      description: `${who}: ${before.claim_status || '(none)'} → ${after.claim_status || '(none)'}`,
+      actorUid: actor.uid, actorName: actor.name,
+      from: before.claim_status || '', to: after.claim_status || '', note: actor.note,
+    });
+    return null;
+  });
+
+exports.onLeadStageLog = functions.firestore
+  .document('leads/{leadId}')
+  .onWrite(async (change) => {
+    if (!change.after.exists) return null;
+    const after = change.after.data();
+    const before = change.before.exists ? change.before.data() : null;
+    const who = after.full_name || after.email || 'a new lead';
+
+    if (!before) {
+      // Leads arrive from the website, the public form, or staff entering one.
+      const viaStaff = Boolean(after.agent_Ref);
+      await logEvent({
+        entityType: 'Lead', leadRef: change.after.ref,
+        action: 'Lead received',
+        description: `${who}${after.airline_name ? ` — ${after.airline_name}` : ''}` +
+          `${after.utm_source ? ` (${after.utm_source})` : ''}`,
+        actorUid: viaStaff && after.agent_Ref.id ? after.agent_Ref.id : 'client',
+        actorName: viaStaff ? 'Staff' : 'Client',
+        to: after.status || '',
+      });
+      return null;
+    }
+    if (before.status === after.status) return null;
+
+    const actor = actorOf(before, after);
+    await logEvent({
+      entityType: 'Lead', leadRef: change.after.ref,
+      action: 'Stage changed',
+      description: `${who}: ${before.status || '(none)'} → ${after.status || '(none)'}`,
+      // A lead's stage is only ever moved by staff or the system.
+      actorUid: actor.uid === 'client' ? 'system' : actor.uid,
+      actorName: actor.uid === 'client' ? 'System' : actor.name,
+      from: before.status || '', to: after.status || '', note: actor.note,
+    });
     return null;
   });
 

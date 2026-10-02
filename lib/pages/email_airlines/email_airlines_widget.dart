@@ -1,4 +1,5 @@
-﻿import '/auth/firebase_auth/auth_util.dart';
+﻿import '/backend/services/pipeline.dart';
+import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/components/create_airline_widget.dart';
 import '/flutter_flow/flutter_flow_animations.dart';
@@ -31,6 +32,18 @@ class EmailAirlinesWidget extends StatefulWidget {
 
   @override
   State<EmailAirlinesWidget> createState() => _EmailAirlinesWidgetState();
+}
+
+/// The filter chips on this page, as the claim stages they stand for.
+List<String> _stagesForChip(String? chip) {
+  switch (chip) {
+    case 'Awaiting reply':
+      return [ClaimStage.awaitingReply];
+    case 'Resolved':
+      return ClaimStage.closed;
+    default:
+      return [ClaimStage.demandPending];
+  }
 }
 
 class _EmailAirlinesWidgetState extends State<EmailAirlinesWidget>
@@ -556,8 +569,10 @@ class _EmailAirlinesWidgetState extends State<EmailAirlinesWidget>
                                                       (claimsRecord) =>
                                                           claimsRecord.where(
                                                     'claim_status',
-                                                    isEqualTo:
-                                                        'Submit to Solicitor',
+                                                    whereIn: [
+                                                      ClaimStage.demandPending,
+                                                      ClaimStage.awaitingReply
+                                                    ],
                                                   ),
                                                 ),
                                                 builder: (context, snapshot) {
@@ -745,8 +760,8 @@ class _EmailAirlinesWidgetState extends State<EmailAirlinesWidget>
                                                   queryBuilder:
                                                       (claimsRecord) =>
                                                           claimsRecord.where(
-                                                    'airline_email_status',
-                                                    isEqualTo: 'Awaiting reply',
+                                                    'claim_status',
+                                                    isEqualTo: ClaimStage.awaitingReply,
                                                   ),
                                                 ),
                                                 builder: (context, snapshot) {
@@ -946,8 +961,8 @@ class _EmailAirlinesWidgetState extends State<EmailAirlinesWidget>
                                                           (claimsRecord) =>
                                                               claimsRecord
                                                                   .where(
-                                                        'airline_email_status',
-                                                        isEqualTo: 'Resolved',
+                                                        'claim_status',
+                                                        whereIn: ClaimStage.closed,
                                                       ),
                                                     ),
                                                     builder:
@@ -1389,11 +1404,8 @@ class _EmailAirlinesWidgetState extends State<EmailAirlinesWidget>
                                     queryBuilder: (claimsRecord) => claimsRecord
                                         .where(
                                           'claim_status',
-                                          isEqualTo: 'Submit to Solicitor',
-                                        )
-                                        .where(
-                                          'airline_email_status',
-                                          isEqualTo: _model.choiceChipsValue,
+                                          whereIn: _stagesForChip(
+                                              _model.choiceChipsValue),
                                         )
                                         .orderBy('createdAt', descending: true),
                                   ),
@@ -2145,20 +2157,12 @@ class _EmailAirlinesWidgetState extends State<EmailAirlinesWidget>
                                                                     true,
                                                               ));
 
-                                                              await listViewClaimsRecord
-                                                                  .reference
-                                                                  .update(
-                                                                      createClaimsRecordData(
-                                                                airlineEmailStatus:
-                                                                    'Awaiting reply',
-                                                              ));
-
                                                               ScaffoldMessenger
                                                                       .of(context)
                                                                   .showSnackBar(
                                                                 SnackBar(
                                                                   content: Text(
-                                                                    'Demand letter sent successfully!',
+                                                                    'Demand letter queued — it will be sent within seconds.',
                                                                     style:
                                                                         TextStyle(
                                                                       color: FlutterFlowTheme.of(

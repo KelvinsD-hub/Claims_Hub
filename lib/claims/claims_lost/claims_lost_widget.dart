@@ -1,4 +1,5 @@
-﻿import '/auth/firebase_auth/auth_util.dart';
+﻿import '/backend/services/pipeline.dart';
+import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/claims/claims_options/claims_options_widget.dart';
 import '/flutter_flow/flutter_flow_animations.dart';
@@ -316,7 +317,7 @@ class _ClaimsLostWidgetState extends State<ClaimsLostWidget>
                                                         (claimsRecord) =>
                                                             claimsRecord.where(
                                                       'claim_status',
-                                                      isEqualTo: 'Claim Lost',
+                                                      isEqualTo: ClaimStage.lost,
                                                     ),
                                                   ),
                                                   builder: (context, snapshot) {
@@ -997,8 +998,7 @@ class _ClaimsLostWidgetState extends State<ClaimsLostWidget>
                                                               claimsRecord
                                                                   .where(
                                                                     'claim_status',
-                                                                    isEqualTo:
-                                                                        'Claim Lost',
+                                                                    isEqualTo: ClaimStage.lost,
                                                                   )
                                                                   .orderBy(
                                                                       'signed_at',

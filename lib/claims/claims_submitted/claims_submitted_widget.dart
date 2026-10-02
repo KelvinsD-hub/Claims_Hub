@@ -1,4 +1,5 @@
-﻿import '/auth/firebase_auth/auth_util.dart';
+﻿import '/backend/services/pipeline.dart';
+import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/claims/claims_options/claims_options_widget.dart';
 import '/flutter_flow/flutter_flow_animations.dart';
@@ -24,16 +25,19 @@ export 'claims_submitted_model.dart';
 // Status badge colours — kept in sync with ClaimsDashboard.
 Color _statusColor(String? s) {
   switch (s) {
-    case 'Won':
-    case 'Claim Won':
+    case ClaimStage.won:
+    case ClaimStage.paid:
       return const Color(0xFF15AA47);
-    case 'Lost':
-    case 'Claim Lost':
+    case ClaimStage.lost:
       return const Color(0xFFE53935);
-    case 'Under Review':
-    case 'Ready For Review':
+    case ClaimStage.withdrawn:
+      return const Color(0xFF757575);
+    case ClaimStage.underReview:
+    case ClaimStage.readyForReview:
+    case ClaimStage.demandPending:
+    case ClaimStage.awaitingReply:
       return const Color(0xFF0C519B);
-    case 'Submit to Solicitor':
+    case ClaimStage.withSolicitor:
       return const Color(0xFF7C3AED);
     default:
       return const Color(0xFFF08156);

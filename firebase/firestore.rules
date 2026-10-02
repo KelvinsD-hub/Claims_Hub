@@ -110,12 +110,33 @@ service cloud.firestore {
       allow delete: if isAdmin() && (resource.data.get('role', '') != 'Super Admin' || isSuperAdmin());
     }
 
+    // ── Stages ─────────────────────────────────────────────────────────────
+    // A lead's or claim's stage is changed by the changeStage Cloud Function,
+    // which checks the move is allowed, records who made it and opens the
+    // claim when a lead is qualified. Staff can edit everything else on a
+    // record directly, but not these fields.
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+    function leavesLeadStageAlone() {
+      return !changedKeys().hasAny([
+        'status', 'is_qualified', 'claim_ref',
+        'stage_changed_at', 'stage_changed_by', 'stage_changed_by_name'
+      ]);
+    }
+    function leavesClaimStageAlone() {
+      return !changedKeys().hasAny([
+        'claim_status', 'is_escalated', 'lead_ref', 'secure_token',
+        'stage_changed_at', 'stage_changed_by', 'stage_changed_by_name'
+      ]);
+    }
+
     // Leads: public create supports the public-facing lead capture form and
     // the website checker. Only staff can read or change them.
     match /leads/{document} {
       allow create: if true;
       allow read:   if isStaff();
-      allow update: if isStaff();
+      allow update: if isStaff() && leavesLeadStageAlone();
       allow delete: if isManager();
     }
 
@@ -154,14 +175,15 @@ service cloud.firestore {
 
     // Claims: agents create records; claimants interact via secure_token links.
     //
-    // CREATE — staff only.
+    // CREATE — nobody directly: a claim is opened by the changeStage function
+    //          when its lead is qualified.
     // GET    — staff, OR a capability-URL request: the caller
     //          already knows the exact document ID (delivered in the emailed
     //          claim link) and the doc carries a secure_token. This intentionally
     //          does NOT allow LIST, so the collection cannot be enumerated by an
     //          unauthenticated client.
     // LIST   — staff only (prevents mass PII enumeration).
-    // UPDATE — staff may change anything. A claimant using a
+    // UPDATE — staff may change anything except the stage. A claimant using a
     //          secure_token link may only submit their own evidence: the token
     //          must match, only allowlisted fields may change, and claim_status
     //          may only move to a claimant-settable value (see isValidClaimantUpdate).
@@ -172,11 +194,11 @@ service cloud.firestore {
     // claimant write path behind an authenticated Cloud Function (server-side
     // token validation) is the recommended Phase 2 hardening.
     match /claims/{document} {
-      allow create: if isStaff();
+      allow create: if false;
       allow get:    if isStaff()
                     || resource.data.secure_token is string;
       allow list:   if isStaff();
-      allow update: if isStaff()
+      allow update: if (isStaff() && leavesClaimStageAlone())
                     || isValidClaimantUpdate();
       allow delete: if isManager();
     }

@@ -237,7 +237,7 @@ class _LeadMenuWidgetState extends State<LeadMenuWidget> {
                                   ),
                                   if (FFAppState().leadNavOpen == true)
                                     Text(
-                                      'Under Review',
+                                      'Contacted',
                                       style: FlutterFlowTheme.of(context)
                                           .bodyMedium
                                           .override(
@@ -536,7 +536,7 @@ class _LeadMenuWidgetState extends State<LeadMenuWidget> {
                                   ),
                                   if (FFAppState().leadNavOpen == true)
                                     Text(
-                                      'Not Qualified',
+                                      'Rejected',
                                       style: FlutterFlowTheme.of(context)
                                           .bodyMedium
                                           .override(

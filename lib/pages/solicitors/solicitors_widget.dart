@@ -1,4 +1,6 @@
-﻿import '/backend/services/compensation_calculator.dart';
+﻿import '/auth/firebase_auth/auth_util.dart';
+import '/backend/services/pipeline.dart';
+import '/backend/services/compensation_calculator.dart';
 import '/backend/backend.dart';
 import '/custom_code/actions/index.dart' as actions;
 import '/flutter_flow/flutter_flow_icon_button.dart';
@@ -98,16 +100,9 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
     try {
       await claim.reference.update({
         'trigger_solicitor_email': true,
-        'solicitor_email_status': 'Sent',
+        'letter_requested_by': currentUserUid,
+        'letter_requested_by_name': currentUserDisplayName,
       });
-
-      await actions.logActivity(
-        action: 'Legal letter sent',
-        description:
-            'Final legal notice sent to ${claim.airlineName.isNotEmpty ? claim.airlineName : 'the airline'} for ${claim.fullName}',
-        entityType: 'Claim',
-        claimRef: claim.reference,
-      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -158,18 +153,15 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
     if (confirmed != true) return;
 
     try {
+      final result = await changeStage(
+        kind: RecordKind.claim,
+        id: claim.reference.id,
+        to: status,
+      );
+      if (!result.succeeded) throw result.error!;
       await claim.reference.update({
-        'claim_status': status,
-        'is_escalated': false,
         'settlement_date': FieldValue.serverTimestamp(),
       });
-
-      await actions.logActivity(
-        action: 'Claim $label',
-        description: '${claim.fullName}\'s claim marked as $label',
-        entityType: 'Claim',
-        claimRef: claim.reference,
-      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -218,7 +210,8 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
                   child: StreamBuilder<List<ClaimsRecord>>(
                     stream: queryClaimsRecord(
                       queryBuilder: (q) =>
-                          q.where('is_escalated', isEqualTo: true),
+                          q.where('claim_status',
+                              isEqualTo: ClaimStage.withSolicitor),
                     ),
                     builder: (context, snapshot) {
                       final claims = snapshot.data ?? [];

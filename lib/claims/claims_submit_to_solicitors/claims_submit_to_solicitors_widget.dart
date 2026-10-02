@@ -1,4 +1,5 @@
-﻿import '/backend/backend.dart';
+﻿import '/backend/services/pipeline.dart';
+import '/backend/backend.dart';
 import '/flutter_flow/flutter_flow_animations.dart';
 import '/flutter_flow/flutter_flow_drop_down.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -888,8 +889,7 @@ class _ClaimsSubmitToSolicitorsWidgetState
                                             claimsRecord
                                                 .where(
                                                   'claim_status',
-                                                  isEqualTo:
-                                                      'Submit to Solicitor',
+                                                  isEqualTo: ClaimStage.withSolicitor,
                                                 )
                                                 .orderBy('createdAt',
                                                     descending: true),

@@ -106,12 +106,22 @@ async function check(name, promise) {
   for (const [who, db] of [['agent', agent], ['solicitor', lawyer], ['manager', manager], ['admin', admin], ['super admin', superAdmin]]) {
     await check(`${who} can list leads`, assertSucceeds(getDocs(collection(db, 'leads'))));
     await check(`${who} can list claims`, assertSucceeds(getDocs(collection(db, 'claims'))));
-    await check(`${who} can update a lead`, assertSucceeds(updateDoc(doc(db, 'leads/lead1'), { status: 'Under Review' })));
+    await check(`${who} can edit a lead`, assertSucceeds(updateDoc(doc(db, 'leads/lead1'), { phone: '+2348000000000' })));
     await check(`${who} can update a claim`, assertSucceeds(updateDoc(doc(db, 'claims/claim1'), { claims_amount: '₦21,250' })));
     await check(`${who} can list staff`, assertSucceeds(getDocs(collection(db, 'users'))));
     await check(`${who} can read dashboard stats`, assertSucceeds(getDoc(doc(db, 'stats/dashboard'))));
   }
-  await check('agent can create a claim', assertSucceeds(setDoc(doc(agent, 'claims/new1'), { claim_status: 'Details Pending', secure_token: TOKEN })));
+  await check('agent can ask for a demand letter to be sent', assertSucceeds(updateDoc(doc(agent, 'claims/notoken'), { airline_email_selection: 'legal@example.com', trigger_airline_email: true })));
+
+  console.log('\n— Stages are changed by the server, not the app —');
+  for (const [who, db] of [['agent', agent], ['solicitor', lawyer], ['super admin', superAdmin]]) {
+    await check(`${who} cannot write a lead's stage directly`, assertFails(updateDoc(doc(db, 'leads/lead1'), { status: 'Qualified' })));
+    await check(`${who} cannot mark a lead qualified directly`, assertFails(updateDoc(doc(db, 'leads/lead1'), { is_qualified: true })));
+    await check(`${who} cannot write a claim's stage directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { claim_status: 'Won' })));
+    await check(`${who} cannot forge who changed a stage`, assertFails(updateDoc(doc(db, 'claims/notoken'), { stage_changed_by: 'someone-else' })));
+    await check(`${who} cannot create a claim directly`, assertFails(setDoc(doc(db, 'claims/new1'), { claim_status: 'Details Pending', secure_token: TOKEN })));
+    await check(`${who} cannot change a claim's client link`, assertFails(updateDoc(doc(db, 'claims/claim1'), { secure_token: 'another-long-token-value' })));
+  }
   await check('agent can edit their own profile', assertSucceeds(updateDoc(doc(agent, 'users/agent'), { city: 'Abuja' })));
   await check('agent can write an activity log entry', assertSucceeds(addDoc(collection(agent, 'activity_logs'), { action: 'Lead qualified' })));
   await check('agent can use the airlines directory', assertSucceeds(updateDoc(doc(agent, 'airlines_directory/air1'), { legal_email: 'legal@example.com' })));

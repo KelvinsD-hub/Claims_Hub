@@ -1,4 +1,5 @@
-﻿import '/auth/firebase_auth/auth_util.dart';
+﻿import '/backend/services/pipeline.dart';
+import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/claims/component/lead_note/lead_note_widget.dart';
 import '/flutter_flow/flutter_flow_animations.dart';
@@ -948,7 +949,7 @@ class _ConvertedLeadWidgetState extends State<ConvertedLeadWidget>
                                     queryBuilder: (leadsRecord) => leadsRecord
                                         .where(
                                           'status',
-                                          isEqualTo: 'New lead',
+                                          isEqualTo: LeadStage.qualified,
                                         )
                                         .orderBy('created_at'),
                                   ),

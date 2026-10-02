@@ -1142,13 +1142,6 @@ class _LeadFormWidgetState extends State<LeadFormWidget> {
                                         '${functions.dialedCountryCode(_model.countryDropDownValue)}${_model.phoneNumberTextController.text}',
                                     country: _model.countryDropDownValue,
                                   ));
-                                  await actions.logActivity(
-                                    action: 'Lead submitted',
-                                    description:
-                                        'New claim enquiry from ${_model.fullNameTextController.text}',
-                                    entityType: 'Lead',
-                                    leadRef: docRef,
-                                  );
                                   final reference =
                                       'CA-${docRef.id.substring(0, 8).toUpperCase()}';
 

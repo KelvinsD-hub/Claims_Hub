@@ -1,3 +1,4 @@
+import '/backend/services/pipeline.dart';
 import '/backend/backend.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -44,20 +45,50 @@ class _ClaimStatusWidgetState extends State<ClaimStatusWidget> {
   // Maps a claim_status string to a 0-based step index for the timeline.
   int _stepIndex(String status) {
     switch (status) {
-      case 'Details Pending':
+      case ClaimStage.detailsPending:
         return 0;
-      case 'Submitted':
+      case ClaimStage.termsPending:
+      case ClaimStage.readyForReview:
         return 1;
-      case 'Under Review':
+      case ClaimStage.underReview:
+      case ClaimStage.demandPending:
         return 2;
-      case 'Awaiting Reply':
-      case 'Submit to Solicitor':
+      case ClaimStage.awaitingReply:
+      case ClaimStage.withSolicitor:
         return 3;
-      case 'Won':
-      case 'Lost':
+      case ClaimStage.won:
+      case ClaimStage.paid:
+      case ClaimStage.lost:
         return 4;
       default:
         return 0;
+    }
+  }
+
+  /// The wording on this page is written for seven situations a client can be
+  /// in. Each pipeline stage is one of them; this is the only place that says
+  /// which.
+  String _displayStatus(String stage) {
+    switch (canonicalStage(RecordKind.claim, stage)) {
+      case ClaimStage.detailsPending:
+      case ClaimStage.termsPending:
+        return 'Details Pending';
+      case ClaimStage.readyForReview:
+        return 'Submitted';
+      case ClaimStage.underReview:
+      case ClaimStage.demandPending:
+        return 'Under Review';
+      case ClaimStage.awaitingReply:
+        return 'Awaiting Reply';
+      case ClaimStage.withSolicitor:
+        return 'Submit to Solicitor';
+      case ClaimStage.won:
+      case ClaimStage.paid:
+        return 'Won';
+      case ClaimStage.lost:
+        return 'Lost';
+      default:
+        return '';
     }
   }
 
@@ -160,8 +191,8 @@ class _ClaimStatusWidgetState extends State<ClaimStatusWidget> {
           return _buildInvalidPage(context);
         }
 
-        final status = claim.claimStatus;
-        final step = _stepIndex(status);
+        final step = _stepIndex(claim.claimStatus);
+        final status = _displayStatus(claim.claimStatus);
         final isWon = status == 'Won';
         final isLost = status == 'Lost';
 
