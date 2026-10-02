@@ -15,6 +15,7 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
 const admin = require('../functions/node_modules/firebase-admin');
 const { runAiAssist, reviewAiOutput, callModel } = require('../functions/ai');
 const { StageError } = require('../functions/pipeline');
+const { estimateCost } = require('../functions/ai-tasks');
 
 admin.initializeApp({ projectId: 'demo-claims-hub' });
 const db = admin.firestore();
@@ -66,7 +67,7 @@ const answers = {
   check('the answer is kept', out.output.suggested_next_step === 'Call the passenger');
   check('with the task and the record it was about', out.task === 'lead_triage' && out.kind === 'lead' && out.record.path === 'leads/L1');
   check('who asked, and when', out.requested_by === 'ada' && out.requested_by_name === 'Ada Agent' && !!out.created_at);
-  check('which model answered and what it cost', out.model === 'stand-in' && out.input_tokens === 2000 && out.output_tokens === 1000 && out.cost_usd === 0.028);
+  check('which model answered and what it cost', out.model === 'stand-in' && out.input_tokens === 2000 && out.output_tokens === 1000 && out.cost_usd === estimateCost({ input_tokens: 2000, output_tokens: 1000 }) && out.cost_usd > 0);
   check('and starts unreviewed', out.review_status === 'pending');
   check('the lead itself is untouched', JSON.stringify((await db.doc('leads/L1').get()).data()) === JSON.stringify({ full_name: 'Ada Lead', email: 'ada@example.com', claim_type: 'Flight cancelled', status: 'New lead' }));
   let logs = (await db.collection('activity_logs').where('action', '==', 'AI assist').get()).docs.map((d) => d.data());
@@ -105,8 +106,8 @@ const answers = {
   check('and leaves no answer behind', (await db.collection('ai_outputs').get()).size === before);
 
   // ── With no key, the real call says so without leaving the machine ─────────
-  delete process.env.ANTHROPIC_API_KEY;
-  check('with no key set, staff are told it is not switched on', (await refused(callModel('case_brief', { role: 'user', content: 'x' })))?.status === 503);
+  delete process.env.GEMINI_API_KEY;
+  check('with no key set, staff are told it is not switched on', (await refused(callModel('case_brief', { role: 'user', parts: [{ text: 'x' }] })))?.status === 503);
 
   // ── Review ─────────────────────────────────────────────────────────────────
   await reviewAiOutput(admin, { id: r.id, verdict: 'not_useful', note: 'Missed that the weather report was attached', staff: sola });

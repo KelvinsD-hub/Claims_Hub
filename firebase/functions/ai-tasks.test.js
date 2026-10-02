@@ -1,6 +1,5 @@
 // What the AI assistant is sent. Plain node:  node ai-tasks.test.js
 const t = require('./ai-tasks');
-const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
 
 let passed = 0;
 let failed = 0;
@@ -63,18 +62,20 @@ check('only the brief carries the history', !sent('classify_reply', { events, pa
 
 // Pasted reply and attachments
 const reply = t.buildMessage('classify_reply', { record: claim, pasted: 'We regret the delay, which was caused by adverse weather.' });
-check('the airline\'s reply is sent as pasted', reply.content[0].text.includes('adverse weather'));
+check('the airline\'s reply is sent as pasted', reply.parts[0].text.includes('adverse weather'));
 const withPdf = t.buildMessage('read_evidence', { record: claim, attachment: { contentType: 'application/pdf', base64: 'AAAA' } });
-check('a PDF goes as a document, before the text', withPdf.content[0].type === 'document' && withPdf.content[1].type === 'text');
+check('a PDF goes as a document, before the text', withPdf.parts[0].inlineData.mimeType === 'application/pdf' && withPdf.parts[0].inlineData.data === 'AAAA' && typeof withPdf.parts[1].text === 'string');
 const withPhoto = t.buildMessage('read_evidence', { record: claim, attachment: { contentType: 'image/jpeg', base64: 'AAAA' } });
-check('a photo goes as an image', withPhoto.content[0].type === 'image' && withPhoto.content[0].source.media_type === 'image/jpeg');
-check('a file type that cannot be read is refused', t.documentBlock('image/heic', 'AAAA') === null);
+check('a photo goes as an image', withPhoto.parts[0].inlineData.mimeType === 'image/jpeg');
+check('an iPhone photo can be read', t.documentBlock('image/heic', 'AAAA') !== null);
+check('a file type that cannot be read is refused', t.documentBlock('video/mp4', 'AAAA') === null && t.documentBlock('image/gif', 'AAAA') === null);
 
 // Shapes
 for (const [name, spec] of Object.entries(t.TASKS)) {
-  let ok = true;
-  try { zodOutputFormat(spec.schema); } catch (_) { ok = false; }
-  check(`${name} has a schema the API accepts as an output format`, ok);
+  const schema = t.answerSchema(name);
+  check(`${name} has a schema the model can be given`,
+    schema.type === 'object' && !('$schema' in schema) &&
+    JSON.stringify(schema.required) === JSON.stringify(Object.keys(spec.schema.shape)));
 }
 check('a triage answer in the right shape passes', t.TASKS.lead_triage.schema.safeParse({
   summary: 's', assessment: 'arguable', reasons: [], missing_information: [], suggested_next_step: 'n', draft_message_to_client: '',
@@ -89,8 +90,10 @@ check('the assistant is told not to threaten court or promise fees', /do not thr
 check('the rates match the calculator', /25% on a domestic flight and 30% on an international/.test(t.SYSTEM) && /30% of the ticket price domestic or 50% international/.test(t.SYSTEM));
 
 // Cost
-check('cost is input and output at list price', t.estimateCost({ input_tokens: 1000000, output_tokens: 1000000 }) === 24);
-check('a typical run costs a few cents', t.estimateCost({ input_tokens: 2500, output_tokens: 1500 }) === 0.04);
+const in2026 = new Date('2026-10-02');
+check('cost is input and output at list price', t.estimateCost({ input_tokens: 1000000, output_tokens: 1000000 }, in2026) === 4.5);
+check('a typical run costs under a cent', t.estimateCost({ input_tokens: 2500, output_tokens: 1500 }, in2026) === 0.0075);
+check('the price rise on 1 January 2027 is applied', t.estimateCost({ input_tokens: 1000000, output_tokens: 1000000 }, new Date('2027-01-01T00:00:00Z')) === 9);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

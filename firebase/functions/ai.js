@@ -10,72 +10,97 @@
  * Separate from index.js so it can be run against the Firestore emulator
  * with the model call replaced (see rules-test/ai.test.js).
  */
-const Anthropic = require('@anthropic-ai/sdk');
-const { zodOutputFormat } = require('@anthropic-ai/sdk/helpers/zod');
 const tasks = require('./ai-tasks');
 const documents = require('./documents');
 const { StageError } = require('./pipeline');
 
-let client;
-/** Reads ANTHROPIC_API_KEY from the environment (a function secret). */
-function anthropic() {
-  if (!client) client = new Anthropic();
-  return client;
-}
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${tasks.MODEL}:generateContent`;
+
+/** Under the function's own time limit, so staff get an answer either way. */
+const CALL_TIMEOUT_MS = 150000;
+
+/** The ways the model ends an answer without giving one. */
+const DECLINED = ['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII'];
+
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Ask the model. Returns { output, usage, model }; throws StageError with a
- * message fit to show staff.
+ * message fit to show staff. The key is GEMINI_API_KEY (a function secret).
  */
 async function callModel(task, message) {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'PLACEHOLDER') {
     throw new StageError(503, 'The AI assistant has not been switched on yet. Ask an admin.');
   }
-  let response;
-  try {
-    response = await anthropic().beta.messages.parse({
-      model: tasks.MODEL,
-      max_tokens: 16000,
-      // If the model's safety checks decline a request, the API re-runs it on
-      // the recommended fallback model within the same call.
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      system: tasks.SYSTEM,
-      messages: [message],
-      output_config: {
-        effort: 'medium',
-        format: zodOutputFormat(tasks.TASKS[task].schema),
+  const schema = tasks.TASKS[task].schema;
+  const post = () => fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: tasks.SYSTEM }] },
+      contents: [message],
+      generationConfig: {
+        // The model's thinking counts against this, so it is set well above
+        // the length of any answer.
+        maxOutputTokens: 16000,
+        responseMimeType: 'application/json',
+        responseJsonSchema: tasks.answerSchema(task),
       },
-    });
+    }),
+  });
+
+  let r;
+  try {
+    r = await post();
+    // Google answers 500 or 503 when the model is briefly overloaded.
+    if (r.status === 500 || r.status === 503) {
+      await pause(2000);
+      r = await post();
+    }
   } catch (e) {
-    if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) {
-      console.error('[ai] the API key was refused:', e.message);
+    console.error('[ai] the model could not be reached:', e && e.message);
+    throw new StageError(503, 'The AI assistant could not be reached. Try again.');
+  }
+  if (!r.ok) {
+    const body = (await r.text()).slice(0, 500);
+    console.error(`[ai] API error ${r.status}:`, body);
+    if (r.status === 429) throw new StageError(429, 'The AI assistant is busy. Try again in a minute.');
+    if (r.status === 401 || r.status === 403 || /API key/i.test(body)) {
       throw new StageError(503, 'The AI assistant is not set up correctly. Ask an admin to check its key.');
     }
-    if (e instanceof Anthropic.RateLimitError) {
-      throw new StageError(429, 'The AI assistant is busy. Try again in a minute.');
-    }
-    if (e instanceof Anthropic.BadRequestError) {
-      console.error('[ai] request rejected:', e.message);
-      throw new StageError(500, 'The AI assistant could not read that request.');
-    }
-    if (e instanceof Anthropic.APIConnectionError) {
-      throw new StageError(503, 'The AI assistant could not be reached. Try again.');
-    }
-    if (e instanceof Anthropic.APIError) {
-      console.error(`[ai] API error ${e.status}:`, e.message);
-      throw new StageError(503, 'The AI assistant is unavailable right now. Try again shortly.');
-    }
-    throw e;
+    if (r.status === 400) throw new StageError(500, 'The AI assistant could not read that request.');
+    throw new StageError(503, 'The AI assistant is unavailable right now. Try again shortly.');
   }
-  if (response.stop_reason === 'refusal') {
+
+  const data = await r.json();
+  const candidate = data.candidates && data.candidates[0];
+  const finish = candidate && candidate.finishReason;
+  if ((data.promptFeedback && data.promptFeedback.blockReason) || DECLINED.includes(finish)) {
+    console.error('[ai] declined:', (data.promptFeedback && data.promptFeedback.blockReason) || finish);
     throw new StageError(422, 'The AI assistant declined to answer this one.');
   }
-  if (response.stop_reason === 'max_tokens' || !response.parsed_output) {
-    console.error('[ai] no usable answer; stop_reason:', response.stop_reason);
+  const answer = ((candidate && candidate.content && candidate.content.parts) || [])
+    .filter((p) => !p.thought)
+    .map((p) => p.text || '')
+    .join('');
+  let parsed = null;
+  try { parsed = schema.safeParse(JSON.parse(answer)); } catch (_) { /* not JSON */ }
+  if (finish !== 'STOP' || !parsed || !parsed.success) {
+    console.error('[ai] no usable answer; finishReason:', finish, parsed && parsed.error ? parsed.error.message.slice(0, 300) : '');
     throw new StageError(502, 'The AI assistant did not return a usable answer. Try again.');
   }
-  return { output: response.parsed_output, usage: response.usage || {}, model: response.model || tasks.MODEL };
+  const used = data.usageMetadata || {};
+  return {
+    output: parsed.data,
+    usage: {
+      input_tokens: used.promptTokenCount || 0,
+      // Thinking is billed as output.
+      output_tokens: (used.candidatesTokenCount || 0) + (used.thoughtsTokenCount || 0),
+    },
+    model: data.modelVersion || tasks.MODEL,
+  };
 }
 
 /** A client document as { contentType, base64 }, checked to belong to the claim. */
@@ -97,7 +122,7 @@ async function loadAttachment(admin, claimId, claim, address) {
   }
   const contentType = meta.contentType || '';
   if (contentType !== 'application/pdf' && !tasks.IMAGE_TYPES.includes(contentType)) {
-    throw new StageError(400, 'The AI assistant reads photos (JPEG, PNG, WebP, GIF) and PDFs. This file is another type.');
+    throw new StageError(400, 'The AI assistant reads photos (JPEG, PNG, WebP, HEIC) and PDFs. This file is another type.');
   }
   const [bytes] = await file.download();
   return { contentType, base64: bytes.toString('base64'), path: filePath };

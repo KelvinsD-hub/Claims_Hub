@@ -2,7 +2,6 @@
   "name": "cloud-functions",
   "description": "Firebase Cloud Functions",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.131.0",
     "@langchain/anthropic": "^0.1.1",
     "@langchain/core": "^0.3.19",
     "@langchain/google-genai": "^0.0.8",

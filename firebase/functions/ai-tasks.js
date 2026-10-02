@@ -21,9 +21,18 @@
  */
 const { z } = require('zod/v4');
 
-const MODEL = 'claude-opus-5-5';
-/** US dollars per million tokens for MODEL, for the Monitor page's estimate. */
-const PRICE = { input: 4, output: 20 };
+/**
+ * Google's Gemini, through the same key the website's chat assistant uses. A
+ * named model rather than a rolling alias: the answer must fit a schema and
+ * the Monitor page prices each run, and both depend on which model answers.
+ */
+const MODEL = 'gemini-3.8-flash';
+/**
+ * US dollars per million tokens for MODEL, for the Monitor page's estimate.
+ * Google's published price rises on 1 January 2027.
+ */
+const PRICE = { input: 0.75, output: 3.75 };
+const PRICE_FROM_2027 = { input: 1.5, output: 7.5 };
 
 // ── What the assistant is told about the work ────────────────────────────────
 
@@ -188,15 +197,12 @@ function historyLines(events) {
     .map((e) => `${e.at.toISOString().slice(0, 10)}  ${e.action}${e.description ? `: ${e.description}` : ''}${e.note ? ` — "${e.note}"` : ''}`.slice(0, 400));
 }
 
-const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 
-/** The attachment as a content block, or null if the type cannot be read. */
+/** The attachment as a part of the message, or null if the type cannot be read. */
 function documentBlock(contentType, base64) {
-  if (contentType === 'application/pdf') {
-    return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } };
-  }
-  if (IMAGE_TYPES.includes(contentType)) {
-    return { type: 'image', source: { type: 'base64', media_type: contentType, data: base64 } };
+  if (contentType === 'application/pdf' || IMAGE_TYPES.includes(contentType)) {
+    return { inlineData: { mimeType: contentType, data: base64 } };
   }
   return null;
 }
@@ -221,17 +227,26 @@ function buildMessage(task, { record, pasted, events, attachment }) {
   }
   const content = [];
   if (spec.needsDocument) content.push(documentBlock(attachment.contentType, attachment.base64));
-  content.push({ type: 'text', text: parts.join('\n\n') });
-  return { role: 'user', content };
+  content.push({ text: parts.join('\n\n') });
+  return { role: 'user', parts: content };
 }
 
-/** What a run cost, in US dollars, at MODEL's list price. An estimate. */
-function estimateCost(usage) {
-  const input = (usage.input_tokens || 0) + (usage.cache_creation_input_tokens || 0) + (usage.cache_read_input_tokens || 0);
-  return Number(((input * PRICE.input + (usage.output_tokens || 0) * PRICE.output) / 1e6).toFixed(5));
+/** The shape a task's answer must take, as the JSON Schema the model is given. */
+function answerSchema(task) {
+  const { $schema, ...schema } = z.toJSONSchema(TASKS[task].schema);
+  return schema;
+}
+
+/**
+ * What a run cost, in US dollars, at MODEL's list price on the day. An
+ * estimate. `usage` is { input_tokens, output_tokens }.
+ */
+function estimateCost(usage, at = new Date()) {
+  const price = at >= new Date('2027-01-01T00:00:00Z') ? PRICE_FROM_2027 : PRICE;
+  return Number((((usage.input_tokens || 0) * price.input + (usage.output_tokens || 0) * price.output) / 1e6).toFixed(5));
 }
 
 module.exports = {
   MODEL, PRICE, SYSTEM, TASKS, IMAGE_TYPES,
-  leadFacts, claimFacts, historyLines, documentBlock, buildMessage, estimateCost,
+  leadFacts, claimFacts, historyLines, documentBlock, buildMessage, answerSchema, estimateCost,
 };

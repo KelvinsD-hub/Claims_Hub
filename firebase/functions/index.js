@@ -1317,7 +1317,7 @@ exports.staffDocument = functions.https.onRequest((req, res) => {
 // only: nothing here changes the record it was asked about. A second action
 // records whether staff found an answer useful, for the Monitor page.
 exports.aiAssist = functions
-  .runWith({ secrets: ['ANTHROPIC_API_KEY'], timeoutSeconds: 180, memory: '512MB' })
+  .runWith({ secrets: ['GEMINI_API_KEY'], timeoutSeconds: 180, memory: '512MB' })
   .https.onRequest((req, res) => {
     cors(req, res, async () => {
       if (req.method !== 'POST') {
