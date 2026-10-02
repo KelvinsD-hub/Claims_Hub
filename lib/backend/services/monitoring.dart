@@ -84,10 +84,8 @@ List<StageCount> pipelineCounts(
       : ClaimStage.open;
   return [
     for (final stage in stages)
-      StageCount(
-          stage,
-          items.where((i) => i.kind == kind && i.stage == stage).toList(),
-          now),
+      StageCount(stage,
+          items.where((i) => i.kind == kind && i.stage == stage).toList(), now),
   ];
 }
 
@@ -111,8 +109,8 @@ List<AttentionItem> attentionList(List<WorkItem> items) {
     ..sort((a, b) => a.work.nextActionDue!.compareTo(b.work.nextActionDue!));
   return [
     for (final i in overdue)
-      AttentionItem(i, Attention.overdue,
-          '${i.work.dueLabel} — ${i.work.nextAction}'),
+      AttentionItem(
+          i, Attention.overdue, '${i.work.dueLabel} — ${i.work.nextAction}'),
     for (final i in open)
       if (!i.work.hasHandler)
         AttentionItem(i, Attention.unassigned, 'No handler · ${i.stage}')
@@ -127,7 +125,8 @@ List<AttentionItem> attentionList(List<WorkItem> items) {
             i, Attention.sendFailed, 'The final notice failed to send'),
     for (final i in open)
       if (!i.work.hasNextAction)
-        AttentionItem(i, Attention.noNextAction, 'Nothing scheduled · ${i.stage}'),
+        AttentionItem(
+            i, Attention.noNextAction, 'Nothing scheduled · ${i.stage}'),
   ];
 }
 
@@ -221,8 +220,7 @@ class Money {
         recovered = claims
             .where((c) => c.isWon)
             .fold(0.0, (total, c) => total + (c.work.amountRecovered ?? 0)),
-        awaitingPayout =
-            claims.where((c) => c.stage == ClaimStage.won).length,
+        awaitingPayout = claims.where((c) => c.stage == ClaimStage.won).length,
         wonWithoutAmount = claims
             .where((c) => c.isWon && c.work.amountRecovered == null)
             .length;
@@ -246,4 +244,63 @@ class Money {
   /// Share of decided claims that were won, or null with none decided.
   double? get winRate =>
       wonCount + lostCount == 0 ? null : wonCount / (wonCount + lostCount);
+}
+
+/// One answer the AI assistant gave.
+class AiRun {
+  const AiRun({
+    required this.taskLabel,
+    required this.subject,
+    required this.requestedBy,
+    required this.at,
+    required this.costUsd,
+    required this.review,
+  });
+
+  /// "Case brief", "Lead triage", ...
+  final String taskLabel;
+
+  /// Who the lead or claim is about.
+  final String subject;
+  final String requestedBy;
+  final DateTime at;
+
+  /// The run's estimated cost in US dollars.
+  final double costUsd;
+
+  /// 'pending', 'useful' or 'not_useful'.
+  final String review;
+}
+
+/// How the AI assistant has been used over the last [days] days.
+class AiUsage {
+  AiUsage(List<AiRun> all, DateTime now, {this.days = 30})
+      : runs = all
+            .where((r) => r.at.isAfter(now.subtract(Duration(days: days))))
+            .toList()
+          ..sort((a, b) => b.at.compareTo(a.at));
+
+  final int days;
+
+  /// Runs in the period, newest first.
+  final List<AiRun> runs;
+
+  int get count => runs.length;
+  int get useful => runs.where((r) => r.review == 'useful').length;
+  int get notUseful => runs.where((r) => r.review == 'not_useful').length;
+  int get unreviewed => count - useful - notUseful;
+  double get costUsd => runs.fold(0.0, (total, r) => total + r.costUsd);
+
+  /// Share of reviewed answers staff found useful, or null with none reviewed.
+  double? get usefulRate =>
+      useful + notUseful == 0 ? null : useful / (useful + notUseful);
+
+  /// Runs per task, most used first.
+  List<MapEntry<String, int>> get byTask {
+    final counts = <String, int>{};
+    for (final r in runs) {
+      counts[r.taskLabel] = (counts[r.taskLabel] ?? 0) + 1;
+    }
+    return counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+  }
 }

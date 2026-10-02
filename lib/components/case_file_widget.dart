@@ -4,6 +4,7 @@ import '/backend/backend.dart';
 import '/backend/services/casework.dart';
 import '/backend/services/compensation_calculator.dart';
 import '/backend/services/pipeline.dart';
+import '/components/ai_assist_panel.dart';
 import '/components/casework_panel_widget.dart';
 import '/components/stage_menu_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -43,6 +44,9 @@ class CaseFileWidget extends StatefulWidget {
 
 class _CaseFileWidgetState extends State<CaseFileWidget> {
   bool _busy = false;
+
+  /// The right-hand column shows the history, or the AI assistant.
+  bool _showAssistant = false;
 
   Future<void> _run(Future<CaseActionResult> Function() action, String done) async {
     if (_busy) return;
@@ -481,7 +485,41 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                           border:
                               Border(left: BorderSide(color: theme.alternate)),
                         ),
-                        child: _Timeline(claim: claim),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                  16.0, 14.0, 16.0, 0.0),
+                              child: Row(
+                                children: [
+                                  _TabButton(
+                                    label: 'History',
+                                    selected: !_showAssistant,
+                                    onTap: () =>
+                                        setState(() => _showAssistant = false),
+                                  ),
+                                  const SizedBox(width: 6.0),
+                                  _TabButton(
+                                    label: 'AI assistant',
+                                    selected: _showAssistant,
+                                    onTap: () =>
+                                        setState(() => _showAssistant = true),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: _showAssistant
+                                  ? AiAssistPanel(
+                                      kind: RecordKind.claim,
+                                      recordRef: claim.reference,
+                                      evidence: claim.attachedDocument,
+                                    )
+                                  : _Timeline(claim: claim),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -491,6 +529,41 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
           ),
         );
       },
+    );
+  }
+}
+
+class _TabButton extends StatelessWidget {
+  const _TabButton(
+      {required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    return InkWell(
+      borderRadius: BorderRadius.circular(8.0),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 7.0),
+        decoration: BoxDecoration(
+          color: selected
+              ? brandBlue(context).withValues(alpha: 0.16)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12.5,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? brandBlue(context) : theme.secondaryText,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -747,18 +820,7 @@ class _Timeline extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20.0, 20.0, 20.0, 8.0),
-          child: Text(
-            'HISTORY',
-            style: GoogleFonts.inter(
-              fontSize: 11.0,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-              color: theme.secondaryText,
-            ),
-          ),
-        ),
+        const SizedBox(height: 10.0),
         Expanded(
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: query.snapshots(),

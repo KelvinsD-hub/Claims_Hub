@@ -59,6 +59,7 @@ async function check(name, promise) {
     await setDoc(doc(db, 'solicitor_exports/exp1'), { status: 'sent' });
     await setDoc(doc(db, 'airlines_directory/air1'), { airline_name: 'Air Peace' });
     await setDoc(doc(db, 'stats/dashboard'), { weekly_lead_counts: [0, 0, 0, 0, 0, 0, 0] });
+    await setDoc(doc(db, 'ai_outputs/out1'), { task: 'case_brief', review_status: 'pending' });
     await setDoc(doc(db, 'watchlist/w1'), { email: 'x@example.com' });
     await setDoc(doc(db, 'flight_stats/P47101_2026-09-20'), { claim_count: 3 });
     await setDoc(doc(db, 'blog_posts/post1'), { title: 'Hello' });
@@ -133,6 +134,13 @@ async function check(name, promise) {
     await check(`${who} cannot write the amount recovered directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { amount_recovered: 1 })));
   }
   await check('a claimant link cannot assign the claim', assertFails(updateDoc(doc(anon, 'claims/claim1'), { secure_token: TOKEN, handler_uid: 'x' })));
+
+  console.log('\n— AI assistant answers are written by the server only —');
+  await check('staff can read an AI answer', assertSucceeds(getDoc(doc(agent, 'ai_outputs/out1'))));
+  await check('staff cannot write an AI answer', assertFails(setDoc(doc(agent, 'ai_outputs/forged'), { task: 'case_brief', output: {} })));
+  await check('staff cannot edit an AI answer', assertFails(updateDoc(doc(superAdmin, 'ai_outputs/out1'), { review_status: 'useful' })));
+  await check('an unapproved account cannot read an AI answer', assertFails(getDoc(doc(pending, 'ai_outputs/out1'))));
+  await check('the public cannot read an AI answer', assertFails(getDoc(doc(anon, 'ai_outputs/out1'))));
 
   await check('agent can edit their own profile', assertSucceeds(updateDoc(doc(agent, 'users/agent'), { city: 'Abuja' })));
   await check('agent can write an activity log entry', assertSucceeds(addDoc(collection(agent, 'activity_logs'), { action: 'Lead qualified' })));

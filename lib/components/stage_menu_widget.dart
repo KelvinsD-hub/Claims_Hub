@@ -1,5 +1,7 @@
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/services/pipeline.dart';
+import '/backend/backend.dart';
+import '/components/ai_assist_panel.dart';
 import '/components/casework_panel_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -266,6 +268,49 @@ class _StageMenuWidgetState extends State<StageMenuWidget> {
                     recordId: widget.recordId,
                     data: widget.data!,
                     stage: widget.currentStage,
+                  ),
+                ),
+              if (widget.kind == RecordKind.lead)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4.0),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8.0),
+                    onTap: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => Dialog(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16.0)),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                              maxWidth: 560.0, maxHeight: 720.0),
+                          child: AiAssistPanel(
+                            kind: RecordKind.lead,
+                            recordRef: FirebaseFirestore.instance
+                                .doc('leads/${widget.recordId}'),
+                          ),
+                        ),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12.0, vertical: 10.0),
+                      child: Row(
+                        children: [
+                          Icon(Icons.auto_awesome_outlined,
+                              color: brandBlue(context), size: 20.0),
+                          const SizedBox(width: 12.0),
+                          Expanded(
+                            child: Text(
+                              'AI assistant — triage this lead',
+                              style: theme.bodyMedium.override(
+                                font: GoogleFonts.inter(),
+                                letterSpacing: 0.0,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               if (moves.isEmpty)

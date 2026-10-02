@@ -164,4 +164,37 @@ void main() {
   test('no decided claims means no win rate', () {
     expect(Money([claim('a', ClaimStage.underReview)]).winRate, isNull);
   });
+
+  test('AI usage counts the period, the verdicts and the cost', () {
+    AiRun run(String task, int daysAgo, String review, [double cost = 0.04]) =>
+        AiRun(
+          taskLabel: task,
+          subject: 'Client',
+          requestedBy: 'Ada',
+          at: days(-daysAgo),
+          costUsd: cost,
+          review: review,
+        );
+    final usage = AiUsage([
+      run('Case brief', 1, 'useful'),
+      run('Case brief', 2, 'useful'),
+      run('Case brief', 3, 'not_useful'),
+      run('Lead triage', 4, 'pending'),
+      run('Lead triage', 45, 'useful', 9.0),
+    ], now);
+    expect(usage.count, 4, reason: 'the run from 45 days ago is outside 30');
+    expect(usage.useful, 2);
+    expect(usage.notUseful, 1);
+    expect(usage.unreviewed, 1);
+    expect(usage.costUsd, closeTo(0.16, 0.0001));
+    expect(usage.usefulRate, closeTo(2 / 3, 0.0001));
+    expect(usage.byTask.first.key, 'Case brief');
+    expect(usage.byTask.first.value, 3);
+    expect(usage.runs.first.at.isAfter(usage.runs.last.at), isTrue,
+        reason: 'newest first');
+  });
+
+  test('no reviewed answers means no useful rate', () {
+    expect(AiUsage(const [], now).usefulRate, isNull);
+  });
 }

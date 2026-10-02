@@ -10,6 +10,7 @@ const { CLAIM } = pipeline;
 const { applyStageChange, SYSTEM_ACTOR } = require('./stage-change');
 const casework = require('./casework');
 const documents = require('./documents');
+const { runAiAssist, reviewAiOutput } = require('./ai');
 const { applyCaseAction, nextActionFields } = require('./case-action');
 
 /** The fields that record a stage change (see stage-change.js). */
@@ -1310,6 +1311,47 @@ exports.staffDocument = functions.https.onRequest((req, res) => {
     }
   });
 });
+
+// The AI assistant. Staff ask for one of four tasks on a lead or a claim
+// (ai-tasks.js); the answer is stored in ai_outputs and returned. It advises
+// only: nothing here changes the record it was asked about. A second action
+// records whether staff found an answer useful, for the Monitor page.
+exports.aiAssist = functions
+  .runWith({ secrets: ['ANTHROPIC_API_KEY'], timeoutSeconds: 180, memory: '512MB' })
+  .https.onRequest((req, res) => {
+    cors(req, res, async () => {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      const staff = await staffFromRequest(req);
+      if (!staff) {
+        return res.status(401).json({ error: 'Sign in with an approved staff account.' });
+      }
+      const payload = (req.body && req.body.data) ? req.body.data : (req.body || {});
+      const id = String(payload.id || '');
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
+        return res.status(400).json({ error: 'Invalid record id.' });
+      }
+      try {
+        const result = payload.action === 'review'
+          ? await reviewAiOutput(admin, { id, verdict: String(payload.verdict || ''), note: payload.note, staff })
+          : await runAiAssist(admin, {
+            task: String(payload.task || ''),
+            id,
+            text: payload.text,
+            address: payload.address,
+            staff,
+          });
+        return res.status(200).json({ success: true, ...result });
+      } catch (e) {
+        if (e instanceof pipeline.StageError) {
+          return res.status(e.status).json({ error: e.message });
+        }
+        console.error('[aiAssist]', e && e.message);
+        return res.status(500).json({ error: 'The AI assistant failed. Please try again.' });
+      }
+    });
+  });
 
 // Casework: assigning a record, setting its next action, moving an escalated
 // claim between legal stages, adding to the case file. One endpoint, because

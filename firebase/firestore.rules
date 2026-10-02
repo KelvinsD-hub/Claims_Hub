@@ -233,6 +233,13 @@ service cloud.firestore {
       allow read:   if isStaff();
     }
 
+    // AI assistant answers: written by the aiAssist function only, so what
+    // the assistant said, who asked and what staff made of it cannot be
+    // edited afterwards. Staff read them.
+    match /ai_outputs/{document} {
+      allow read: if isStaff();
+    }
+
     // Airlines directory: internal staff only — no public exposure needed.
     match /airlines_directory/{document} {
       allow read, create, update: if isStaff();

@@ -41,6 +41,31 @@ class _MonitorWidgetState extends State<MonitorWidget> {
 
   Attention _attention = Attention.overdue;
 
+  // Heights of the two rows of panels.
+  static const double _topRow = 470;
+  static const double _bottomRow = 440;
+  static const double _aiRow = 360;
+
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _ai = FirebaseFirestore
+      .instance
+      .collection('ai_outputs')
+      .orderBy('created_at', descending: true)
+      .limit(300)
+      .snapshots();
+
+  static AiRun? _aiRun(Map<String, dynamic> a) {
+    final at = _date(a['created_at']);
+    if (at == null) return null;
+    return AiRun(
+      taskLabel: a['task_label'] as String? ?? 'AI assist',
+      subject: a['subject'] as String? ?? '',
+      requestedBy: a['requested_by_name'] as String? ?? '',
+      at: at,
+      costUsd: (a['cost_usd'] as num?)?.toDouble() ?? 0,
+      review: a['review_status'] as String? ?? 'pending',
+    );
+  }
+
   // Held so the streams are opened once, not on every rebuild.
   late final Stream<List<LeadsRecord>> _leads = queryLeadsRecord();
   late final Stream<List<ClaimsRecord>> _claims = queryClaimsRecord();
@@ -323,6 +348,7 @@ class _MonitorWidgetState extends State<MonitorWidget> {
                 child: _Card(
                   title: 'Pipeline',
                   subtitle: 'Open records in each stage',
+                  height: _topRow,
                   child: _Pipeline(
                     leads: pipelineCounts(RecordKind.lead, items, now),
                     claims: pipelineCounts(RecordKind.claim, items, now),
@@ -335,6 +361,7 @@ class _MonitorWidgetState extends State<MonitorWidget> {
                 child: _Card(
                   title: 'Needs attention',
                   subtitle: 'Select a row to open the record',
+                  height: _topRow,
                   child: _AttentionPanel(
                     attention: attention,
                     selected: _attention,
@@ -356,6 +383,7 @@ class _MonitorWidgetState extends State<MonitorWidget> {
                 child: _Card(
                   title: 'Staff',
                   subtitle: 'Open work each person carries, busiest first',
+                  height: _bottomRow,
                   child: _StaffTable(loads: loads, now: now),
                 ),
               ),
@@ -365,10 +393,32 @@ class _MonitorWidgetState extends State<MonitorWidget> {
                 child: _Card(
                   title: 'Recent activity',
                   subtitle: 'The latest entries in the event log',
+                  height: _bottomRow,
                   child: _ActivityFeed(events: events.take(40).toList()),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 18),
+
+          // The AI assistant
+          _Card(
+            title: 'AI assistant',
+            subtitle: 'What staff have asked it in the last 30 days, and '
+                'whether they found the answers useful',
+            height: _aiRow,
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _ai,
+              builder: (context, snapshot) => _AiPanel(
+                usage: AiUsage(
+                  (snapshot.data?.docs ?? [])
+                      .map((d) => _aiRun(d.data()))
+                      .whereType<AiRun>()
+                      .toList(),
+                  now,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -376,18 +426,26 @@ class _MonitorWidgetState extends State<MonitorWidget> {
   }
 }
 
+/// A titled panel of fixed [height], so the two panels in a row line up. The
+/// body gets whatever is left under the title and scrolls if it needs more.
 class _Card extends StatelessWidget {
-  const _Card(
-      {required this.title, required this.subtitle, required this.child});
+  const _Card({
+    required this.title,
+    required this.subtitle,
+    required this.height,
+    required this.child,
+  });
 
   final String title;
   final String subtitle;
+  final double height;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
     return Container(
+      height: height,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.secondaryBackground,
@@ -407,7 +465,7 @@ class _Card extends StatelessWidget {
               style:
                   GoogleFonts.inter(fontSize: 12, color: theme.secondaryText)),
           const SizedBox(height: 16),
-          child,
+          Expanded(child: child),
         ],
       ),
     );
@@ -527,7 +585,8 @@ class _Pipeline extends StatelessWidget {
           ],
         );
 
-    return Column(
+    return SingleChildScrollView(
+        child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -544,7 +603,7 @@ class _Pipeline extends StatelessWidget {
         heading('Claims'),
         for (final s in claims) _StageBar(stage: s, largest: largest),
       ],
-    );
+    ));
   }
 }
 
@@ -699,8 +758,7 @@ class _AttentionPanel extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 330,
+        Expanded(
           child: shown.isEmpty
               ? Center(
                   child: Text('Nothing here. Good.',
@@ -815,7 +873,8 @@ class _StaffTable extends StatelessWidget {
       return Text('No approved staff.',
           style: cell(color: theme.secondaryText));
     }
-    return Column(
+    return SingleChildScrollView(
+        child: Column(
       children: [
         row([
           Text('NAME', style: head()),
@@ -857,7 +916,7 @@ class _StaffTable extends StatelessWidget {
             Text(_ago(l.lastActive), style: cell(color: theme.secondaryText)),
           ]),
       ],
-    );
+    ));
   }
 }
 
@@ -873,53 +932,181 @@ class _ActivityFeed extends StatelessWidget {
       return Text('Nothing recorded yet.',
           style: GoogleFonts.inter(fontSize: 13, color: theme.secondaryText));
     }
-    return SizedBox(
-      height: 360,
-      child: ListView.separated(
-        itemCount: events.length,
-        separatorBuilder: (_, __) => Divider(height: 1, color: theme.alternate),
-        itemBuilder: (context, i) {
-          final e = events[i];
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
+    return ListView.separated(
+      itemCount: events.length,
+      separatorBuilder: (_, __) => Divider(height: 1, color: theme.alternate),
+      itemBuilder: (context, i) {
+        final e = events[i];
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 92,
+                child: Text(
+                  dateTimeFormat('d MMM HH:mm', e.at),
+                  style: GoogleFonts.inter(
+                      fontSize: 11.5, color: theme.secondaryText),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${e.action} · ${e.actorName}',
+                      style: GoogleFonts.inter(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: theme.primaryText),
+                    ),
+                    if (e.description.isNotEmpty)
+                      Text(
+                        e.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: theme.secondaryText),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AiPanel extends StatelessWidget {
+  const _AiPanel({required this.usage});
+
+  final AiUsage usage;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    if (usage.count == 0) {
+      return Text(
+        'Nothing asked in the last ${usage.days} days.',
+        style: GoogleFonts.inter(fontSize: 13, color: theme.secondaryText),
+      );
+    }
+    Widget figure(String label, String value, String note) => Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: GoogleFonts.inter(
+                      fontSize: 11.5, color: theme.secondaryText)),
+              Text(value,
+                  style: GoogleFonts.inter(
+                      fontSize: 19,
+                      fontWeight: FontWeight.bold,
+                      color: theme.primaryText)),
+              Text(note,
+                  style: GoogleFonts.inter(
+                      fontSize: 11.5, color: theme.secondaryText)),
+            ],
+          ),
+        );
+    String verdict(String review) => switch (review) {
+          'useful' => 'Useful',
+          'not_useful' => 'Not useful',
+          _ => 'Not reviewed',
+        };
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 250,
+          child: SingleChildScrollView(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 92,
-                  child: Text(
-                    dateTimeFormat('d MMM HH:mm', e.at),
-                    style: GoogleFonts.inter(
-                        fontSize: 11.5, color: theme.secondaryText),
-                  ),
+                figure(
+                  'Answers given',
+                  '${usage.count}',
+                  usage.byTask.map((e) => '${e.value} ${e.key}').join(' · '),
                 ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${e.action} · ${e.actorName}',
+                figure(
+                  'Found useful',
+                  usage.usefulRate == null
+                      ? '—'
+                      : '${(usage.usefulRate! * 100).round()}%',
+                  '${usage.useful} useful · ${usage.notUseful} not · '
+                      '${usage.unreviewed} not reviewed',
+                ),
+                figure(
+                  'Estimated cost',
+                  '\$${usage.costUsd.toStringAsFixed(2)}',
+                  'at list price, in US dollars',
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 24),
+        Expanded(
+          child: ListView.separated(
+            itemCount: usage.runs.length > 40 ? 40 : usage.runs.length,
+            separatorBuilder: (_, __) =>
+                Divider(height: 1, color: theme.alternate),
+            itemBuilder: (context, i) {
+              final r = usage.runs[i];
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 92,
+                      child: Text(dateTimeFormat('d MMM HH:mm', r.at),
+                          style: GoogleFonts.inter(
+                              fontSize: 11.5, color: theme.secondaryText)),
+                    ),
+                    Expanded(
+                      child: Text(
+                        '${r.taskLabel} · ${r.subject}',
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w600,
                             color: theme.primaryText),
                       ),
-                      if (e.description.isNotEmpty)
-                        Text(
-                          e.description,
-                          maxLines: 2,
+                    ),
+                    SizedBox(
+                      width: 150,
+                      child: Text(r.requestedBy,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
-                              fontSize: 12, color: theme.secondaryText),
-                        ),
-                    ],
-                  ),
+                              fontSize: 12, color: theme.secondaryText)),
+                    ),
+                    SizedBox(
+                      width: 100,
+                      child: Row(
+                        children: [
+                          if (r.review == 'not_useful') ...[
+                            Icon(Icons.thumb_down_alt_outlined,
+                                size: 13, color: overdueRed(context)),
+                            const SizedBox(width: 4),
+                          ],
+                          Text(verdict(r.review),
+                              style: GoogleFonts.inter(
+                                  fontSize: 12, color: theme.secondaryText)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
