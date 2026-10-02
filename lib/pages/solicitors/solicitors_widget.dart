@@ -7,7 +7,7 @@ import '/components/case_file_widget.dart';
 import '/components/casework_panel_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/menus_file/claims_menu/claims_menu_widget.dart';
+import '/components/work_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -86,11 +86,7 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                wrapWithModel(
-                  model: _model.claimsMenuModel,
-                  updateCallback: () => safeSetState(() {}),
-                  child: ClaimsMenuWidget(selectedPage: 5),
-                ),
+                const WorkSidebar(selected: WorkPage.legal),
                 Expanded(
                   child: StreamBuilder<List<ClaimsRecord>>(
                     // Everything with the legal team now, and everything

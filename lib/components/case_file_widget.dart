@@ -4,9 +4,16 @@ import '/backend/backend.dart';
 import '/backend/services/casework.dart';
 import '/backend/services/compensation_calculator.dart';
 import '/backend/services/pipeline.dart';
+import '/backend/services/demand.dart';
+import '/claims/component/download_p_d_f/download_p_d_f_widget.dart';
+import '/claims/component/part19_calculator/part19_calculator_widget.dart';
 import '/components/ai_assist_panel.dart';
 import '/components/casework_panel_widget.dart';
+import '/components/demand_send.dart';
+import '/components/record_timeline.dart';
 import '/components/stage_menu_widget.dart';
+import '/components/work_ui.dart';
+import '/custom_code/widgets/index.dart' as custom_widgets;
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'package:flutter/material.dart';
@@ -20,23 +27,27 @@ Future<void> showCaseFile(BuildContext context, DocumentReference claimRef) {
   return showDialog<void>(
     context: context,
     builder: (_) => Dialog(
-      insetPadding: const EdgeInsets.all(24.0),
+      insetPadding: const EdgeInsets.all(20.0),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1100.0, maxHeight: 820.0),
+        constraints: const BoxConstraints(maxWidth: 1240.0, maxHeight: 920.0),
         child: CaseFileWidget(claimRef: claimRef),
       ),
     ),
   );
 }
 
-/// Everything about one claim on one screen: the facts, who owns it and what
-/// is due, how far the legal team has taken it, the documents, and the full
-/// history from the event log — with the actions a lawyer takes on it.
+/// Everything about one claim on one screen: the client, the flight, who owns
+/// it and what is due, how far the legal team has taken it, the documents, and
+/// the full history from the event log — with the actions staff take on it.
 class CaseFileWidget extends StatefulWidget {
-  const CaseFileWidget({super.key, required this.claimRef});
+  const CaseFileWidget({super.key, required this.claimRef, this.onClose});
 
   final DocumentReference claimRef;
+
+  /// What the close button does. Left out, it closes the dialog the file is
+  /// shown in.
+  final VoidCallback? onClose;
 
   @override
   State<CaseFileWidget> createState() => _CaseFileWidgetState();
@@ -231,6 +242,46 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
     }
   }
 
+  void _downloadPdf(ClaimsRecord claim) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => Dialog(
+        elevation: 0.0,
+        insetPadding: EdgeInsets.zero,
+        backgroundColor: Colors.transparent,
+        child: DownloadPDFWidget(claimRef: claim),
+      ),
+    );
+  }
+
+  void _calculator(ClaimsRecord claim) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620.0, maxHeight: 760.0),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Part19CalculatorWidget(claim: claim),
+                const SizedBox(height: 8.0),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _changeStage(ClaimsRecord claim) {
     showDialog<void>(
       context: context,
@@ -311,10 +362,11 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                         ],
                       ),
                     ),
-                    _Pill(label: stage, color: brandBlue(context)),
+                    StagePill(stage),
                     IconButton(
                       tooltip: 'Close',
-                      onPressed: () => Navigator.pop(context),
+                      onPressed:
+                          widget.onClose ?? () => Navigator.pop(context),
                       icon: Icon(Icons.close, color: theme.secondaryText),
                     ),
                   ],
@@ -359,6 +411,8 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                                   ),
                                 ),
                             ],
+                            const _SectionTitle('Client'),
+                            _ClientFacts(claim: claim),
                             const _SectionTitle('Flight'),
                             Wrap(
                               spacing: 28.0,
@@ -381,6 +435,17 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                                     displayClaimAmount(claim.claimsAmount, empty: '')),
                               ],
                             ),
+                            if (claim.airlineResponse.trim().isNotEmpty) ...[
+                              const _SectionTitle(
+                                  'What the airline told the passenger'),
+                              Text(
+                                claim.airlineResponse,
+                                style: GoogleFonts.inter(
+                                    fontSize: 13.0,
+                                    height: 1.45,
+                                    color: theme.primaryText),
+                              ),
+                            ],
                             const _SectionTitle('Money'),
                             Wrap(
                               spacing: 28.0,
@@ -409,11 +474,22 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                             ],
                             const _SectionTitle('Documents'),
                             _Documents(claim: claim),
+                            const _SectionTitle('Authority and payment'),
+                            _AuthorityAndBank(claim: claim),
                             const _SectionTitle('Actions'),
                             Wrap(
                               spacing: 8.0,
                               runSpacing: 8.0,
                               children: [
+                                if (stage == ClaimStage.demandPending ||
+                                    stage == ClaimStage.awaitingReply)
+                                  _ActionButton(
+                                    icon: Icons.outgoing_mail,
+                                    label: stage == ClaimStage.demandPending
+                                        ? 'Send demand letter'
+                                        : 'Resend demand letter',
+                                    onTap: () => showSendDemand(context, claim),
+                                  ),
                                 if (canWorkLegal)
                                   _ActionButton(
                                     icon: Icons.send_outlined,
@@ -450,13 +526,59 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                                   label: 'Change stage / close',
                                   onTap: () => _changeStage(claim),
                                 ),
+                                _ActionButton(
+                                  icon: Icons.edit_outlined,
+                                  label: 'Edit details',
+                                  onTap: () {
+                                    final router = GoRouter.of(context);
+                                    if (widget.onClose == null) {
+                                      Navigator.pop(context);
+                                    }
+                                    editClaimWith(router, claim.reference);
+                                  },
+                                ),
+                                _ActionButton(
+                                  icon: Icons.calculate_outlined,
+                                  label: 'Part 19 calculator',
+                                  onTap: () => _calculator(claim),
+                                ),
+                                _ActionButton(
+                                  icon: Icons.download_outlined,
+                                  label: 'Download PDF',
+                                  onTap: () => _downloadPdf(claim),
+                                ),
                               ],
                             ),
+                            if (stage == ClaimStage.demandPending &&
+                                !demandReadiness(claim.snapshotData).ready)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text(
+                                  'The demand letter cannot go yet. '
+                                  '${demandReadiness(claim.snapshotData).blockers.join(' ')}',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 12.0,
+                                      color: overdueRed(context)),
+                                ),
+                              ),
+                            if ((claim.airlineEmailStatus == 'Send failed' ||
+                                    claim.airlineEmailStatus
+                                        .startsWith('Held')) &&
+                                stage == ClaimStage.demandPending)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text(
+                                  'Demand letter: ${claim.airlineEmailStatus}',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 12.0,
+                                      color: overdueRed(context)),
+                                ),
+                              ),
                             if (canWorkLegal && claim.airlineEmailSelection.isEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 8.0),
                                 child: Text(
-                                  'No airline email is set for this claim. Choose one on the Email Airlines page before sending the final notice.',
+                                  'No airline email is set for this claim. It is set when the demand letter is sent.',
                                   style: GoogleFonts.inter(
                                       fontSize: 12.0,
                                       color: overdueRed(context)),
@@ -516,7 +638,10 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                                       recordRef: claim.reference,
                                       evidence: claim.attachedDocument,
                                     )
-                                  : _Timeline(claim: claim),
+                                  : RecordTimeline(
+                                      leadRef: claim.leadRef,
+                                      claimRef: claim.reference,
+                                    ),
                             ),
                           ],
                         ),
@@ -615,30 +740,6 @@ class _Fact extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 5.0),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(20.0),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-            fontSize: 12.0, fontWeight: FontWeight.w600, color: color),
-      ),
     );
   }
 }
@@ -800,113 +901,84 @@ class _Documents extends StatelessWidget {
   }
 }
 
-/// Everything recorded about the claim and the lead it came from, newest
-/// first.
-class _Timeline extends StatelessWidget {
-  const _Timeline({required this.claim});
+/// Who the client is and how to reach them. The phone number lives on the
+/// lead, so it is read from there.
+class _ClientFacts extends StatelessWidget {
+  const _ClientFacts({required this.claim});
+
+  final ClaimsRecord claim;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget facts(LeadsRecord? lead) => Wrap(
+          spacing: 28.0,
+          runSpacing: 12.0,
+          children: [
+            _Fact(
+                'Email',
+                claim.clientEmail.isNotEmpty
+                    ? claim.clientEmail
+                    : (lead?.email ?? '')),
+            _Fact('Phone', lead?.phone ?? ''),
+            _Fact('Country', lead?.country ?? ''),
+            _Fact('Came in through', lead?.utmSource ?? ''),
+            _Fact('NIN', claim.nin),
+            _Fact('Passport', claim.passport),
+            _Fact('BVN', claim.bvnNumber),
+          ],
+        );
+    if (claim.leadRef == null) return facts(null);
+    return StreamBuilder<LeadsRecord>(
+      stream: LeadsRecord.getDocument(claim.leadRef!),
+      builder: (context, snapshot) => facts(snapshot.data),
+    );
+  }
+}
+
+/// The client's signed authority and where their share is to be paid.
+class _AuthorityAndBank extends StatelessWidget {
+  const _AuthorityAndBank({required this.claim});
 
   final ClaimsRecord claim;
 
   @override
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
-    final logs = FirebaseFirestore.instance.collection('activity_logs');
-    // Entries about the lead carry leadRef only; entries about the claim carry
-    // both. Following the lead gives the whole story.
-    final query = claim.leadRef != null
-        ? logs.where('leadRef', isEqualTo: claim.leadRef)
-        : logs.where('claims', isEqualTo: claim.reference);
-
+    final signed = claim.signature.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 10.0),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: query.snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Text('The history could not be loaded.',
-                      style: GoogleFonts.inter(
-                          fontSize: 13.0, color: theme.secondaryText)),
-                );
-              }
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              DateTime when(Map<String, dynamic> e) {
-                final t = e['createdAt'] ?? e['timestamp'];
-                return t is Timestamp ? t.toDate() : DateTime.now();
-              }
-
-              final entries = snapshot.data!.docs.map((d) => d.data()).toList()
-                ..sort((a, b) => when(b).compareTo(when(a)));
-              if (entries.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Text('Nothing recorded yet.',
-                      style: GoogleFonts.inter(
-                          fontSize: 13.0, color: theme.secondaryText)),
-                );
-              }
-              return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(20.0, 4.0, 20.0, 20.0),
-                itemCount: entries.length,
-                separatorBuilder: (_, __) =>
-                    Divider(height: 20.0, color: theme.alternate),
-                itemBuilder: (context, i) {
-                  final e = entries[i];
-                  final note = e['note'] as String? ?? '';
-                  final description = e['description'] as String? ?? '';
-                  // A note's description is only its own first line.
-                  final isNote = e['note_type'] != null;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        e['action'] as String? ?? 'Event',
-                        style: GoogleFonts.inter(
-                          fontSize: 13.0,
-                          fontWeight: FontWeight.w700,
-                          color: theme.primaryText,
-                        ),
-                      ),
-                      if (!isNote && description.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2.0),
-                          child: Text(
-                            description,
-                            style: GoogleFonts.inter(
-                                fontSize: 13.0, color: theme.primaryText),
-                          ),
-                        ),
-                      if (note.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2.0),
-                          child: Text(
-                            note,
-                            style: GoogleFonts.inter(
-                                fontSize: 13.0, color: theme.primaryText),
-                          ),
-                        ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4.0),
-                        child: Text(
-                          '${e['performedByName'] ?? 'System'}  ·  '
-                          '${dateTimeFormat('d MMM y, HH:mm', when(e))}',
-                          style: GoogleFonts.inter(
-                              fontSize: 11.5, color: theme.secondaryText),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-          ),
+        Wrap(
+          spacing: 28.0,
+          runSpacing: 12.0,
+          children: [
+            _Fact(
+                'Letter of authority',
+                signed
+                    ? 'Signed${claim.signedAt == null ? '' : ' ${dateTimeFormat('d MMM y', claim.signedAt)}'}'
+                    : 'Not signed'),
+            _Fact('Terms', claim.termsAccepted ? 'Accepted' : 'Not accepted'),
+            _Fact('Bank', claim.bankName),
+            _Fact('Account name', claim.accountName),
+            _Fact('Account number', claim.accountNo),
+          ],
         ),
+        if (signed) ...[
+          const SizedBox(height: 12.0),
+          Container(
+            padding: const EdgeInsets.all(8.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8.0),
+              border: Border.all(color: theme.alternate),
+            ),
+            child: custom_widgets.SignatureDisplayWidget(
+              width: 200.0,
+              height: 90.0,
+              base64String: claim.signature,
+            ),
+          ),
+        ],
       ],
     );
   }

@@ -8,6 +8,7 @@ const cors = require('cors')({ origin: true });
 const pipeline = require('./pipeline');
 const { CLAIM } = pipeline;
 const { applyStageChange, SYSTEM_ACTOR } = require('./stage-change');
+const { requestDemandLetter } = require('./demand');
 const casework = require('./casework');
 const documents = require('./documents');
 const { runAiAssist, reviewAiOutput } = require('./ai');
@@ -1308,6 +1309,37 @@ exports.staffDocument = functions.https.onRequest((req, res) => {
     } catch (e) {
       console.error('[staffDocument]', e && e.message);
       return res.status(500).json({ error: 'The document could not be opened. Please try again.' });
+    }
+  });
+});
+
+// Send (or resend) a claim's demand letter to the airline. This checks the
+// request and sets the trigger; onTriggerAirlineEmail builds the letter, emails
+// it and moves the claim to Awaiting Reply. The database rules refuse the
+// trigger written directly, so every letter passes through these checks.
+exports.sendDemand = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+    const staff = await staffFromRequest(req);
+    if (!staff) {
+      return res.status(401).json({ error: 'Sign in with an approved staff account.' });
+    }
+    const payload = (req.body && req.body.data) ? req.body.data : (req.body || {});
+    const id = String(payload.id || '');
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
+      return res.status(400).json({ error: 'Invalid record id.' });
+    }
+    try {
+      const result = await requestDemandLetter(admin, { id, email: String(payload.email || '').slice(0, 200), staff });
+      return res.status(200).json({ success: true, ...result });
+    } catch (e) {
+      if (e instanceof pipeline.StageError) {
+        return res.status(e.status).json({ error: e.message });
+      }
+      console.error('[sendDemand]', e && e.message);
+      return res.status(500).json({ error: 'The letter could not be sent. Please try again.' });
     }
   });
 });

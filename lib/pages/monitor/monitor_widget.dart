@@ -7,7 +7,7 @@ import '/components/brand_colors.dart';
 import '/components/case_file_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/leads/leads_options/leads_options_widget.dart';
+import '/components/lead_file_widget.dart';
 import '/menus_file/menn_pro/menn_pro_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -146,14 +146,7 @@ class _MonitorWidgetState extends State<MonitorWidget> {
     if (source is ClaimsRecord) {
       showCaseFile(context, source.reference);
     } else if (source is LeadsRecord) {
-      showDialog<void>(
-        context: context,
-        builder: (_) => Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0.0,
-          child: LeadsOptionsWidget(leadRef: source),
-        ),
-      );
+      showLeadFile(context, source.reference);
     }
   }
 

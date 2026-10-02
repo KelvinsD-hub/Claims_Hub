@@ -211,45 +211,37 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           ),
         ),
         FFRoute(
-          name: UnderReviewWidget.routeName,
-          path: UnderReviewWidget.routePath,
-          builder: (context, params) => UnderReviewWidget(),
-        ),
-        FFRoute(
-          name: ContactLeadWidget.routeName,
-          path: ContactLeadWidget.routePath,
-          builder: (context, params) => ContactLeadWidget(),
-        ),
-        FFRoute(
-          name: AssignedLeadWidget.routeName,
-          path: AssignedLeadWidget.routePath,
-          builder: (context, params) => AssignedLeadWidget(),
-        ),
-        FFRoute(
-          name: QualifiedLeadsWidget.routeName,
-          path: QualifiedLeadsWidget.routePath,
-          builder: (context, params) => QualifiedLeadsWidget(),
-        ),
-        FFRoute(
-          name: UnqualifiedLeadWidget.routeName,
-          path: UnqualifiedLeadWidget.routePath,
-          builder: (context, params) => UnqualifiedLeadWidget(),
-        ),
-        FFRoute(
-          name: ConvertedLeadWidget.routeName,
-          path: ConvertedLeadWidget.routePath,
-          builder: (context, params) => ConvertedLeadWidget(),
-        ),
-        FFRoute(
-          name: ClaimsLostWidget.routeName,
-          path: ClaimsLostWidget.routePath,
-          builder: (context, params) => ClaimsLostWidget(),
-        ),
-        FFRoute(
           name: ClaimsDashboardWidget.routeName,
           path: ClaimsDashboardWidget.routePath,
           builder: (context, params) => ClaimsDashboardWidget(),
         ),
+        // Pages that were folded into the Leads and Claims lists. Their old
+        // addresses still open the list, so a bookmark does not break.
+        for (final path in const [
+          '/underReview',
+          '/contactLead',
+          '/assignedLead',
+          '/qualifiedLeads',
+          '/unqualifiedLead',
+          '/convertedLead',
+        ])
+          FFRoute(
+            name: 'old$path',
+            path: path,
+            builder: (context, params) => LeadsWidget(),
+          ),
+        for (final path in const [
+          '/claimsSubmitted',
+          '/claimsUnderReview',
+          '/claimsSubmitToSolicitors',
+          '/claimsWon',
+          '/claimsLost',
+        ])
+          FFRoute(
+            name: 'old$path',
+            path: path,
+            builder: (context, params) => ClaimsDashboardWidget(),
+          ),
         FFRoute(
           name: ClaimsDetailsWidget.routeName,
           path: ClaimsDetailsWidget.routePath,
@@ -261,26 +253,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
               collectionNamePath: ['claims'],
             ),
           ),
-        ),
-        FFRoute(
-          name: ClaimsSubmittedWidget.routeName,
-          path: ClaimsSubmittedWidget.routePath,
-          builder: (context, params) => ClaimsSubmittedWidget(),
-        ),
-        FFRoute(
-          name: ClaimsUnderReviewWidget.routeName,
-          path: ClaimsUnderReviewWidget.routePath,
-          builder: (context, params) => ClaimsUnderReviewWidget(),
-        ),
-        FFRoute(
-          name: ClaimsSubmitToSolicitorsWidget.routeName,
-          path: ClaimsSubmitToSolicitorsWidget.routePath,
-          builder: (context, params) => ClaimsSubmitToSolicitorsWidget(),
-        ),
-        FFRoute(
-          name: ClaimsWonWidget.routeName,
-          path: ClaimsWonWidget.routePath,
-          builder: (context, params) => ClaimsWonWidget(),
         ),
         FFRoute(
           name: WaitingApprovalWidget.routeName,

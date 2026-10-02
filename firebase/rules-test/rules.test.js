@@ -112,7 +112,6 @@ async function check(name, promise) {
     await check(`${who} can list staff`, assertSucceeds(getDocs(collection(db, 'users'))));
     await check(`${who} can read dashboard stats`, assertSucceeds(getDoc(doc(db, 'stats/dashboard'))));
   }
-  await check('agent can ask for a demand letter to be sent', assertSucceeds(updateDoc(doc(agent, 'claims/notoken'), { airline_email_selection: 'legal@example.com', trigger_airline_email: true })));
 
   console.log('\n— Stages are changed by the server, not the app —');
   for (const [who, db] of [['agent', agent], ['solicitor', lawyer], ['super admin', superAdmin]]) {
@@ -131,11 +130,14 @@ async function check(name, promise) {
     await check(`${who} cannot move a due date directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { next_action_due: new Date('2030-01-01') })));
     await check(`${who} cannot change a lead's next action directly`, assertFails(updateDoc(doc(db, 'leads/lead1'), { next_action: 'Nothing' })));
     await check(`${who} cannot lift a client's objection to AI directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { ai_opt_out: false })));
+    await check(`${who} cannot fire a demand letter directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { trigger_airline_email: true })));
+    await check(`${who} cannot redirect a demand letter directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { airline_email_selection: 'someone@example.com' })));
     await check(`${who} cannot write a legal stage directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { legal_stage: 'Court proceedings' })));
     await check(`${who} cannot write the amount recovered directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { amount_recovered: 1 })));
   }
   await check('a claimant link cannot assign the claim', assertFails(updateDoc(doc(anon, 'claims/claim1'), { secure_token: TOKEN, handler_uid: 'x' })));
   await check('a claimant link cannot set the AI objection', assertFails(updateDoc(doc(anon, 'claims/claim1'), { secure_token: TOKEN, ai_opt_out: true })));
+  await check('a claimant link cannot fire a demand letter', assertFails(updateDoc(doc(anon, 'claims/claim1'), { secure_token: TOKEN, trigger_airline_email: true })));
 
   console.log('\n— AI assistant answers are written by the server only —');
   await check('staff can read an AI answer', assertSucceeds(getDoc(doc(agent, 'ai_outputs/out1'))));

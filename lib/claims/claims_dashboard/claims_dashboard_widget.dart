@@ -1,44 +1,18 @@
-import '/backend/services/pipeline.dart';
-import '/backend/services/casework.dart';
-import '/backend/services/compensation_calculator.dart';
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
-import '/flutter_flow/flutter_flow_animations.dart';
+import '/backend/services/casework.dart';
+import '/backend/services/compensation_calculator.dart';
+import '/backend/services/pipeline.dart';
+import '/components/case_file_widget.dart';
+import '/components/work_ui.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/menus_file/claims_menu/claims_menu_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'claims_dashboard_model.dart';
-export 'claims_dashboard_model.dart';
 
-const _kNavy = Color(0xFF002855);
-const _kGold = Color(0xFFE6B011);
-
-// Status badge colours
-Color _statusColor(String? s) {
-  switch (s) {
-    case ClaimStage.won:
-    case ClaimStage.paid:
-      return const Color(0xFF15AA47);
-    case ClaimStage.lost:
-      return const Color(0xFFE53935);
-    case ClaimStage.withdrawn:
-      return const Color(0xFF757575);
-    case ClaimStage.underReview:
-    case ClaimStage.readyForReview:
-    case ClaimStage.demandPending:
-    case ClaimStage.awaitingReply:
-      return const Color(0xFF0C519B);
-    case ClaimStage.withSolicitor:
-      return const Color(0xFF7C3AED);
-    default:
-      return const Color(0xFFF08156);
-  }
-}
-
+/// Every claim, in one list. The chips along the top group the stages by who
+/// the claim is waiting on; "Mine" and "Overdue" narrow any of them. A row
+/// opens the claim's file.
 class ClaimsDashboardWidget extends StatefulWidget {
   const ClaimsDashboardWidget({super.key});
 
@@ -49,719 +23,280 @@ class ClaimsDashboardWidget extends StatefulWidget {
   State<ClaimsDashboardWidget> createState() => _ClaimsDashboardWidgetState();
 }
 
-class _ClaimsDashboardWidgetState extends State<ClaimsDashboardWidget>
-    with TickerProviderStateMixin {
-  late ClaimsDashboardModel _model;
-  final scaffoldKey = GlobalKey<ScaffoldState>();
-  final animationsMap = <String, AnimationInfo>{};
+/// The stages, grouped by who a claim is waiting on.
+const _groups = <(String, List<String>)>[
+  ('With the client', [ClaimStage.detailsPending, ClaimStage.termsPending]),
+  ('In review', [ClaimStage.readyForReview, ClaimStage.underReview]),
+  ('With the airline', [ClaimStage.demandPending, ClaimStage.awaitingReply]),
+  ('With legal', [ClaimStage.withSolicitor]),
+  ('Won', [ClaimStage.won, ClaimStage.paid]),
+  ('Lost or withdrawn', [ClaimStage.lost, ClaimStage.withdrawn]),
+];
 
-  String _searchQuery = '';
-  String? _statusFilter;
-
-  /// Only the claims the signed-in person is handling or is the lawyer on.
+class _ClaimsDashboardWidgetState extends State<ClaimsDashboardWidget> {
+  /// The group shown; null for every claim.
+  String? _group;
   bool _mineOnly = false;
+  bool _overdueOnly = false;
+  String _search = '';
   final _searchController = TextEditingController();
 
-  static const _statusOptions = ['All Statuses', ...ClaimStage.all];
-
-  @override
-  void initState() {
-    super.initState();
-    _model = createModel(context, () => ClaimsDashboardModel());
-
-    animationsMap.addAll({
-      'rowOnPageLoadAnimation1': AnimationInfo(
-        trigger: AnimationTrigger.onPageLoad,
-        effectsBuilder: () => [
-          MoveEffect(
-            curve: Curves.easeInOut,
-            delay: 0.0.ms,
-            duration: 50.0.ms,
-            begin: const Offset(0.0, 50.0),
-            end: Offset.zero,
-          ),
-          FadeEffect(
-            curve: Curves.easeInOut,
-            delay: 0.0.ms,
-            duration: 50.0.ms,
-            begin: 0.0,
-            end: 1.0,
-          ),
-        ],
-      ),
-      'containerOnActionTriggerAnimation': AnimationInfo(
-        trigger: AnimationTrigger.onActionTrigger,
-        applyInitialState: true,
-        effectsBuilder: () => [
-          MoveEffect(
-            curve: Curves.easeInOut,
-            delay: 0.0.ms,
-            duration: 300.0.ms,
-            begin: const Offset(-40.0, 0.0),
-            end: Offset.zero,
-          ),
-        ],
-      ),
-      'tableAnimation': AnimationInfo(
-        trigger: AnimationTrigger.onPageLoad,
-        effectsBuilder: () => [
-          FadeEffect(
-              curve: Curves.easeOut, delay: 80.0.ms, duration: 250.0.ms,
-              begin: 0.0, end: 1.0),
-          MoveEffect(
-              curve: Curves.easeOut, delay: 80.0.ms, duration: 250.0.ms,
-              begin: const Offset(0, 24), end: Offset.zero),
-        ],
-      ),
-    });
-
-    setupAnimations(
-      animationsMap.values.where((a) =>
-          a.trigger == AnimationTrigger.onActionTrigger || !a.applyInitialState),
-      this,
-    );
-
-    WidgetsBinding.instance.addPostFrameCallback((_) => safeSetState(() {}));
-  }
+  late final Stream<List<ClaimsRecord>> _claims = queryClaimsRecord(
+    queryBuilder: (q) => q.orderBy('createdAt', descending: true),
+  );
 
   @override
   void dispose() {
-    _model.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
+  static String _stageOf(ClaimsRecord claim) =>
+      canonicalStage(RecordKind.claim, claim.claimStatus);
+
+  bool _matches(ClaimsRecord claim) {
+    final work = Casework.of(claim.snapshotData);
+    if (_mineOnly &&
+        work.handlerUid != currentUserUid &&
+        work.lawyerUid != currentUserUid) {
+      return false;
+    }
+    if (_overdueOnly &&
+        !(work.isOverdue && ClaimStage.open.contains(_stageOf(claim)))) {
+      return false;
+    }
+    if (_search.isEmpty) return true;
+    return '${claim.fullName} ${claim.clientEmail} ${claim.airlineName} '
+            '${claim.pnrNumber} ${claim.flightNumber}'
+        .toLowerCase()
+        .contains(_search);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Title(
-      title: 'Claims Dashboard',
-      color: FlutterFlowTheme.of(context).primary.withAlpha(0xFF),
-      child: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus();
-          FocusManager.instance.primaryFocus?.unfocus();
-        },
-        child: Scaffold(
-          key: scaffoldKey,
-          backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-          body: SafeArea(
-            top: true,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Sidebar
-                wrapWithModel(
-                  model: _model.claimsMenuModel,
-                  updateCallback: () => safeSetState(() {}),
-                  child: const ClaimsMenuWidget(selectedPage: 1),
-                ),
-
-                // Main content
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildHeader(context),
-                      Expanded(
-                        child: _buildTable(context).animateOnPageLoad(
-                            animationsMap['tableAnimation']!),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+    final theme = FlutterFlowTheme.of(context);
+    return WorkScaffold(
+      page: WorkPage.claims,
+      title: 'Claims',
+      subtitle: 'Every claim, from the client\'s details to the money paid out',
+      icon: Icons.folder_copy_outlined,
+      actions: [
+        WorkSearchBox(
+          controller: _searchController,
+          hint: 'Search name, airline, flight, booking ref…',
+          onChanged: (v) => setState(() => _search = v.trim().toLowerCase()),
         ),
-      ),
-    );
-  }
-
-  // ── Header ──────────────────────────────────────────────────────────────────
-
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: FlutterFlowTheme.of(context).secondaryBackground,
-        border: Border(
-          bottom: BorderSide(
-              color: FlutterFlowTheme.of(context).alternate, width: 1),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 20.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Title
-            Row(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0C519B),
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                  child: const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: FaIcon(FontAwesomeIcons.listCheck,
-                        color: _kGold, size: 22.0),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Claims Dashboard',
-                        style: GoogleFonts.interTight(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: _kNavy)),
-                    Text('Manage and track all claims',
-                        style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: FlutterFlowTheme.of(context).secondaryText)),
-                  ],
-                ),
-              ],
-            ).animateOnPageLoad(animationsMap['rowOnPageLoadAnimation1']!),
-
-            // Controls: search + status filter + theme toggle
-            Row(
-              children: [
-                // Search box
-                SizedBox(
-                  width: 260,
-                  height: 44,
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (v) =>
-                        setState(() => _searchQuery = v.trim().toLowerCase()),
-                    decoration: InputDecoration(
-                      hintText: 'Search by name, airline, PNR…',
-                      hintStyle: GoogleFonts.inter(
-                          fontSize: 13,
-                          color:
-                              FlutterFlowTheme.of(context).secondaryText),
-                      prefixIcon: Icon(Icons.search,
-                          size: 20,
-                          color: FlutterFlowTheme.of(context).secondaryText),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() => _searchQuery = '');
-                              })
-                          : null,
-                      filled: true,
-                      fillColor:
-                          FlutterFlowTheme.of(context).primaryBackground,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none),
-                    ),
-                    style: GoogleFonts.inter(fontSize: 13),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                FilterChip(
-                  label: Text('My claims',
-                      style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: FlutterFlowTheme.of(context).primaryText)),
-                  selected: _mineOnly,
-                  onSelected: (v) => setState(() => _mineOnly = v),
-                  backgroundColor:
-                      FlutterFlowTheme.of(context).primaryBackground,
-                  showCheckmark: true,
-                ),
-                const SizedBox(width: 12),
-                // Status filter dropdown
-                Container(
-                  height: 44,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: FlutterFlowTheme.of(context).primaryBackground,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String?>(
-                      value: _statusFilter,
-                      hint: Text('All Statuses',
-                          style: GoogleFonts.inter(
-                              fontSize: 13,
-                              color: FlutterFlowTheme.of(context)
-                                  .secondaryText)),
-                      items: _statusOptions.map((s) {
-                        final val = s == 'All Statuses' ? null : s;
-                        return DropdownMenuItem<String?>(
-                            value: val,
-                            child: Text(s,
-                                style: GoogleFonts.inter(fontSize: 13)));
-                      }).toList(),
-                      onChanged: (v) => setState(() => _statusFilter = v),
-                      style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: FlutterFlowTheme.of(context).primaryText),
-                      icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Theme toggle
-                InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () async {
-                    final isLight =
-                        Theme.of(context).brightness == Brightness.light;
-                    setDarkModeSetting(
-                        context, isLight ? ThemeMode.dark : ThemeMode.light);
-                    final anim = animationsMap[
-                        'containerOnActionTriggerAnimation'];
-                    if (anim != null) {
-                      isLight
-                          ? anim.controller.forward(from: 0.0)
-                          : anim.controller.reverse();
-                    }
-                  },
-                  child: Container(
-                    width: 76,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: FlutterFlowTheme.of(context).alternate,
-                      boxShadow: const [
-                        BoxShadow(
-                            blurRadius: 3, color: Color(0x33000000))
-                      ],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(2),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Align(
-                            alignment:
-                                const AlignmentDirectional(-0.9, 0),
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 6),
-                              child: Icon(Icons.wb_sunny_outlined,
-                                  color: FlutterFlowTheme.of(context)
-                                      .secondaryText,
-                                  size: 22),
-                            ),
-                          ),
-                          Align(
-                            alignment:
-                                const AlignmentDirectional(1.0, 0),
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: FaIcon(FontAwesomeIcons.moon,
-                                  color: FlutterFlowTheme.of(context)
-                                      .secondaryText,
-                                  size: 18),
-                            ),
-                          ),
-                          Align(
-                            alignment:
-                                const AlignmentDirectional(1.0, 0),
-                            child: Container(
-                              width: 34,
-                              height: 34,
-                              decoration: BoxDecoration(
-                                color: FlutterFlowTheme.of(context)
-                                    .secondaryBackground,
-                                boxShadow: const [
-                                  BoxShadow(
-                                      blurRadius: 4,
-                                      color: Color(0x430B0D0F),
-                                      offset: Offset(0, 2))
-                                ],
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ).animateOnActionTrigger(
-                              animationsMap[
-                                  'containerOnActionTriggerAnimation']!,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // User badge
-                AuthUserStreamWidget(
-                  builder: (context) => Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: FlutterFlowTheme.of(context).accent2,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color:
-                                  FlutterFlowTheme.of(context).secondary,
-                              width: 2),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.network(
-                              getCORSProxyUrl(currentUserPhoto),
-                              fit: BoxFit.cover),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(currentUserDisplayName,
-                              style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13)),
-                          Text(
-                              '@${valueOrDefault(currentUserDocument?.role, '')}',
-                              style: FlutterFlowTheme.of(context)
-                                  .bodySmall),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Table ────────────────────────────────────────────────────────────────────
-
-  Widget _buildTable(BuildContext context) {
-    return StreamBuilder<List<ClaimsRecord>>(
-      stream: queryClaimsRecord(
-        queryBuilder: (q) => q.orderBy('createdAt', descending: true),
-      ),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return Center(
-              child: CircularProgressIndicator(color: _kNavy));
-        }
-
-        var claims = snap.data ?? [];
-
-        if (_mineOnly) {
-          // Most urgent first; anything with no date last.
-          claims = claims.where((c) {
-            final work = Casework.of(c.snapshotData);
-            return work.handlerUid == currentUserUid ||
-                work.lawyerUid == currentUserUid;
-          }).toList()
-            ..sort((a, b) =>
+      ],
+      child: StreamBuilder<List<ClaimsRecord>>(
+        stream: _claims,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const WorkEmpty('The claims could not be loaded.');
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final matching = snapshot.data!.where(_matches).toList();
+          final stages = _group == null
+              ? null
+              : _groups.firstWhere((g) => g.$1 == _group).$2;
+          final shown = stages == null
+              ? matching
+              : matching.where((c) => stages.contains(_stageOf(c))).toList();
+          if (_mineOnly || _overdueOnly) {
+            // Most urgent first; anything with no date last.
+            shown.sort((a, b) =>
                 (Casework.of(a.snapshotData).nextActionDue ?? DateTime(2100))
                     .compareTo(Casework.of(b.snapshotData).nextActionDue ??
                         DateTime(2100)));
-        }
+          }
 
-        // Apply status filter
-        if (_statusFilter != null) {
-          claims = claims
-              .where((c) => c.claimStatus == _statusFilter)
-              .toList();
-        }
-
-        if (claims.isEmpty) {
-          return _emptyState();
-        }
-
-        return Column(
-          children: [
-            _tableHeader(context),
-            Expanded(
-              child: ListView.builder(
-                itemCount: claims.length,
-                itemBuilder: (context, i) =>
-                    _ClaimsTableRow(
-                  claim: claims[i],
-                  searchQuery: _searchQuery,
-                  isEven: i.isEven,
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24.0, 16.0, 24.0, 12.0),
+                child: Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    WorkChip(
+                      label: 'All',
+                      count: matching.length,
+                      selected: _group == null,
+                      onTap: () => setState(() => _group = null),
+                    ),
+                    for (final (label, groupStages) in _groups)
+                      WorkChip(
+                        label: label,
+                        count: matching
+                            .where((c) => groupStages.contains(_stageOf(c)))
+                            .length,
+                        selected: _group == label,
+                        onTap: () => setState(() => _group = label),
+                      ),
+                    Container(width: 1.0, height: 22.0, color: theme.alternate),
+                    WorkChip(
+                      label: 'Mine',
+                      selected: _mineOnly,
+                      onTap: () => setState(() => _mineOnly = !_mineOnly),
+                    ),
+                    WorkChip(
+                      label: 'Overdue',
+                      selected: _overdueOnly,
+                      onTap: () => setState(() => _overdueOnly = !_overdueOnly),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            _tableFooter(context, claims.length),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _tableHeader(BuildContext context) {
-    final style = GoogleFonts.inter(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        color: FlutterFlowTheme.of(context).secondaryText,
-        letterSpacing: 0.8);
-
-    return Container(
-      color: FlutterFlowTheme.of(context).secondaryBackground,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Row(
-        children: [
-          Expanded(flex: 3, child: Text('CLIENT', style: style)),
-          Expanded(flex: 2, child: Text('AIRLINE', style: style)),
-          Expanded(flex: 2, child: Text('PNR / REF', style: style)),
-          Expanded(flex: 2, child: Text('AMOUNT', style: style)),
-          Expanded(flex: 2, child: Text('STATUS', style: style)),
-          Expanded(flex: 2, child: Text('CREATED', style: style)),
-          const SizedBox(width: 40), // action column
-        ],
-      ),
-    );
-  }
-
-  Widget _tableFooter(BuildContext context, int count) {
-    return Container(
-      color: FlutterFlowTheme.of(context).secondaryBackground,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Row(
-        children: [
-          Text('$count claim${count == 1 ? '' : 's'} total',
-              style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: FlutterFlowTheme.of(context).secondaryText)),
-        ],
-      ),
-    );
-  }
-
-  Widget _emptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inbox_outlined,
-              size: 56,
-              color: FlutterFlowTheme.of(context).alternate),
-          const SizedBox(height: 16),
-          Text(
-            _statusFilter != null || _searchQuery.isNotEmpty || _mineOnly
-                ? 'No claims match the current filter'
-                : 'No claims yet',
-            style: GoogleFonts.inter(
-                fontSize: 15,
-                color: FlutterFlowTheme.of(context).secondaryText),
-          ),
-          if (_statusFilter != null ||
-              _searchQuery.isNotEmpty ||
-              _mineOnly) ...[
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () {
-                _searchController.clear();
-                setState(() {
-                  _searchQuery = '';
-                  _statusFilter = null;
-                  _mineOnly = false;
-                });
-              },
-              child: const Text('Clear filters'),
-            ),
-          ],
-        ],
+              Container(
+                color: theme.secondaryBackground,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0, vertical: 11.0),
+                child: const Row(
+                  children: [
+                    Expanded(flex: 4, child: WorkColumnHead('Client')),
+                    Expanded(flex: 4, child: WorkColumnHead('Flight')),
+                    Expanded(flex: 3, child: WorkColumnHead('Stage')),
+                    Expanded(flex: 3, child: WorkColumnHead('Owner and due')),
+                    Expanded(flex: 2, child: WorkColumnHead('Amount')),
+                    Expanded(flex: 2, child: WorkColumnHead('Opened')),
+                    SizedBox(width: 28.0),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: shown.isEmpty
+                    ? WorkEmpty(_search.isNotEmpty || _mineOnly || _overdueOnly
+                        ? 'No claims match.'
+                        : 'No claims here.')
+                    : ListView.separated(
+                        itemCount: shown.length,
+                        separatorBuilder: (_, __) =>
+                            Divider(height: 1.0, color: theme.alternate),
+                        itemBuilder: (context, i) => _ClaimRow(claim: shown[i]),
+                      ),
+              ),
+              Container(
+                color: theme.secondaryBackground,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0, vertical: 10.0),
+                child: Text(
+                  '${shown.length} claim${shown.length == 1 ? '' : 's'}',
+                  style: GoogleFonts.inter(
+                      fontSize: 12.0, color: theme.secondaryText),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-// ── _ClaimsTableRow ───────────────────────────────────────────────────────────
-
-class _ClaimsTableRow extends StatelessWidget {
-  const _ClaimsTableRow({
-    required this.claim,
-    required this.searchQuery,
-    required this.isEven,
-  });
+class _ClaimRow extends StatelessWidget {
+  const _ClaimRow({required this.claim});
 
   final ClaimsRecord claim;
-  final String searchQuery;
-  final bool isEven;
 
   @override
   Widget build(BuildContext context) {
-    // Load the lead for client name
-    if (claim.leadRef != null) {
-      return StreamBuilder<LeadsRecord>(
-        stream: LeadsRecord.getDocument(claim.leadRef!),
-        builder: (context, snap) {
-          final name = snap.data?.fullName ?? '';
-          return _row(context, clientName: name);
-        },
-      );
-    }
-    return _row(context, clientName: '');
-  }
-
-  Widget _row(BuildContext context, {required String clientName}) {
-    // Filter check
-    if (searchQuery.isNotEmpty) {
-      final haystack =
-          '${clientName.toLowerCase()} ${claim.airlineName?.toLowerCase() ?? ''} ${(claim.snapshotData['pnr'] ?? claim.snapshotData['booking_reference'] ?? '').toString().toLowerCase()}';
-      if (!haystack.contains(searchQuery)) return const SizedBox.shrink();
-    }
-
     final theme = FlutterFlowTheme.of(context);
-    final bgColor = isEven
-        ? theme.secondaryBackground
-        : theme.primaryBackground;
-    final pnr = claim.pnrNumber.isNotEmpty ? claim.pnrNumber : '—';
-    final amount = displayClaimAmount(claim.claimsAmount);
-    final created = claim.createdAt != null
-        ? dateTimeFormat('d MMM y', claim.createdAt)
-        : '—';
+    final work = Casework.of(claim.snapshotData);
+    final stage = canonicalStage(RecordKind.claim, claim.claimStatus);
+    final small = GoogleFonts.inter(fontSize: 12.0, color: theme.secondaryText);
+    final main = GoogleFonts.inter(fontSize: 13.0, color: theme.primaryText);
+    final flight = [claim.flightNumber, claim.flightDate]
+        .where((s) => s.isNotEmpty)
+        .join('  ·  ');
+
+    Widget name(String value) => Text(
+          value.isNotEmpty ? value : 'Unnamed client',
+          overflow: TextOverflow.ellipsis,
+          style: main.copyWith(fontWeight: FontWeight.w700),
+        );
 
     return InkWell(
-      onTap: () => context.pushNamed(
-        'ClaimsDetails',
-        queryParameters: {
-          'claimsRef': serializeParam(
-            claim.reference,
-            ParamType.DocumentReference,
-          ),
-        }.withoutNulls,
-      ),
-      hoverColor: theme.accent2.withOpacity(0.08),
-      child: Container(
-        color: bgColor,
-        padding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      onTap: () => showCaseFile(context, claim.reference),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
         child: Row(
           children: [
-            // Client
             Expanded(
-              flex: 3,
-              child: Row(
+              flex: 4,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: _kNavy,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(
-                        clientName.isNotEmpty
-                            ? clientName[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      clientName.isNotEmpty ? clientName : 'Unknown',
-                      style: GoogleFonts.inter(
-                          fontWeight: FontWeight.w600, fontSize: 13),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                  // Older claims kept the client's name on the lead only.
+                  if (claim.fullName.isEmpty && claim.leadRef != null)
+                    StreamBuilder<LeadsRecord>(
+                      stream: LeadsRecord.getDocument(claim.leadRef!),
+                      builder: (context, snapshot) =>
+                          name(snapshot.data?.fullName ?? ''),
+                    )
+                  else
+                    name(claim.fullName),
+                  if (claim.clientEmail.isNotEmpty)
+                    Text(claim.clientEmail,
+                        overflow: TextOverflow.ellipsis, style: small),
                 ],
               ),
             ),
-            // Airline
             Expanded(
-              flex: 2,
-              child: Text(
-                claim.airlineName.isNotEmpty ? claim.airlineName : '—',
-                style: GoogleFonts.inter(fontSize: 13),
-                overflow: TextOverflow.ellipsis,
+              flex: 4,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(claim.airlineName.isEmpty ? '—' : claim.airlineName,
+                      overflow: TextOverflow.ellipsis, style: main),
+                  if (flight.isNotEmpty)
+                    Text(flight, overflow: TextOverflow.ellipsis, style: small),
+                ],
               ),
             ),
-            // PNR
             Expanded(
-              flex: 2,
-              child: Text(
-                pnr,
-                style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: theme.secondaryText),
-              ),
-            ),
-            // Amount
-            Expanded(
-              flex: 2,
-              child: Text(
-                amount,
-                style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF2A880C)),
-              ),
-            ),
-            // Status badge
-            Expanded(
-              flex: 2,
+              flex: 3,
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: _StatusBadge(status: claim.claimStatus),
+                child: StagePill(stage),
               ),
             ),
-            // Created
+            Expanded(
+              flex: 3,
+              child: ClaimStage.open.contains(stage)
+                  ? OwnerAndDue(work)
+                  : Text(work.handlerName.isEmpty ? '—' : work.handlerName,
+                      overflow: TextOverflow.ellipsis,
+                      style: main.copyWith(fontSize: 12.5)),
+            ),
             Expanded(
               flex: 2,
               child: Text(
-                created,
-                style: GoogleFonts.inter(
-                    fontSize: 12, color: theme.secondaryText),
+                work.amountRecovered != null
+                    ? '${naira(work.amountRecovered!)} in'
+                    : displayClaimAmount(claim.claimsAmount),
+                overflow: TextOverflow.ellipsis,
+                style: main.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
-            // Arrow
+            Expanded(
+              flex: 2,
+              child: Text(
+                claim.createdAt == null
+                    ? '—'
+                    : dateTimeFormat('d MMM y', claim.createdAt),
+                style: small,
+              ),
+            ),
             SizedBox(
-              width: 40,
+              width: 28.0,
               child: Icon(Icons.chevron_right,
-                  color: theme.secondaryText, size: 18),
+                  size: 18.0, color: theme.secondaryText),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ── _StatusBadge ──────────────────────────────────────────────────────────────
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-  final String? status;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = status ?? 'Unknown';
-    final color = _statusColor(status);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.4)),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-        overflow: TextOverflow.ellipsis,
       ),
     );
   }
