@@ -146,7 +146,9 @@ service cloud.firestore {
         'legal_stage_changed_by_name', 'escalated_at', 'closed_at',
         'amount_recovered', 'settlement_offer_amount', 'settlement_offer_at',
         'airline_reply_at', 'airline_reply_summary',
-        'trigger_airline_email', 'airline_email_selection'
+        'trigger_airline_email', 'trigger_solicitor_email',
+        'airline_email_selection', 'letter_requested_by',
+        'letter_requested_by_name'
       ]);
     }
 

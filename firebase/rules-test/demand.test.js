@@ -12,7 +12,7 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
   process.exit(1);
 }
 const admin = require('../functions/node_modules/firebase-admin');
-const { requestDemandLetter } = require('../functions/demand');
+const { requestDemandLetter, requestFinalNotice } = require('../functions/demand');
 const { StageError, CLAIM } = require('../functions/pipeline');
 
 admin.initializeApp({ projectId: 'demo-claims-hub' });
@@ -29,6 +29,8 @@ async function refused(promise) {
 }
 
 const ada = { uid: 'ada', name: 'Ada Agent', role: 'Agent' };
+const sola = { uid: 'sola', name: 'Sola Solicitor', role: 'Solicitor' };
+const boss = { uid: 'boss', name: 'Bola Boss', role: 'Manager' };
 const ready = {
   full_name: 'Tunde Client', airline_name: 'Air Peace', flight_number: 'P47120',
   flight_date: '2026-09-01', departure: 'Lagos', destination: 'Abuja',
@@ -76,6 +78,33 @@ const get = async (id) => (await db.doc(`claims/${id}`).get()).data();
   check('a letter already sent can be sent again, and is logged as that', r.resend === true && logs[0].action === 'Demand letter resent');
   r = await send('eager');
   check('a client who asked us to start at once is not held', (await get('eager')).trigger_airline_email === true);
+
+  // ── The final notice ───────────────────────────────────────────────────────
+  const notice = (id, staff = sola, email) => requestFinalNotice(admin, { id, email, staff });
+  await db.doc('claims/legal').set({ ...ready, claim_status: CLAIM.WITH_SOLICITOR, airline_email_selection: 'legal@flyairpeace.com' });
+  await db.doc('claims/legalnoaddress').set({ ...ready, claim_status: CLAIM.WITH_SOLICITOR });
+  await db.doc('claims/legalthin').set({ ...ready, flight_date: '', claim_status: CLAIM.WITH_SOLICITOR, airline_email_selection: 'legal@flyairpeace.com' });
+
+  check('an agent cannot send a final notice', (await refused(notice('legal', ada)))?.status === 403);
+  check('a claim not with the legal team is refused', (await refused(notice('sent')))?.status === 409);
+  check('a claim with no airline address is refused', (await refused(notice('legalnoaddress')))?.status === 400);
+  const thinNotice = await refused(notice('legalthin'));
+  check('a claim missing what the notice states is refused, saying what', thinNotice?.status === 400 && /flight date/.test(thinNotice.message));
+  check('none of those set the trigger', !(await get('legal')).trigger_solicitor_email && !(await get('legalthin')).trigger_solicitor_email);
+
+  r = await notice('legal');
+  claim = await get('legal');
+  check('a lawyer can send it, to the address the demand went to', r.resend === false && r.email === 'legal@flyairpeace.com' && claim.trigger_solicitor_email === true && claim.letter_requested_by === 'sola');
+  logs = (await db.collection('activity_logs').where('claims', '==', db.doc('claims/legal')).get()).docs.map((x) => x.data());
+  check('it is in the event log', logs.length === 1 && logs[0].action === 'Final notice sent' && logs[0].performedByName === 'Sola Solicitor');
+  check('a second press while it is going is refused', (await refused(notice('legal')))?.status === 409);
+
+  r = await notice('legalnoaddress', boss, 'Counsel@Airline.com');
+  check('a manager can too, and can give the address', r.email === 'counsel@airline.com' && (await get('legalnoaddress')).airline_email_selection === 'counsel@airline.com');
+  await db.doc('claims/legal').update({ trigger_solicitor_email: false, solicitor_email_status: 'Sent' });
+  r = await notice('legal');
+  logs = (await db.collection('activity_logs').where('claims', '==', db.doc('claims/legal')).get()).docs.map((x) => x.data());
+  check('a notice already sent can go again, and is logged as that', r.resend === true && logs.some((l) => l.action === 'Final notice resent'));
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

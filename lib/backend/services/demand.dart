@@ -77,10 +77,12 @@ String suggestedAirlineEmail(
 const _sendDemandUrl =
     'https://us-central1-msmcrm-g24k37.cloudfunctions.net/sendDemand';
 
-/// Ask the server to send the demand letter for [claimId] to [email].
+/// Ask the server to send the demand letter for [claimId] to [email]. With
+/// [finalNotice] it sends the legal team's final notice instead.
 Future<CaseActionResult> sendDemandLetter({
   required String claimId,
   required String email,
+  bool finalNotice = false,
 }) async {
   try {
     final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
@@ -96,7 +98,11 @@ Future<CaseActionResult> sendDemandLetter({
             'Authorization': 'Bearer $idToken',
           },
           body: jsonEncode({
-            'data': {'id': claimId, 'email': email.trim()}
+            'data': {
+              'id': claimId,
+              'email': email.trim(),
+              if (finalNotice) 'letter': 'final_notice',
+            }
           }),
         )
         .timeout(const Duration(seconds: 30));

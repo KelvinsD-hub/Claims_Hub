@@ -8,7 +8,7 @@ const cors = require('cors')({ origin: true });
 const pipeline = require('./pipeline');
 const { CLAIM } = pipeline;
 const { applyStageChange, SYSTEM_ACTOR } = require('./stage-change');
-const { requestDemandLetter } = require('./demand');
+const { requestDemandLetter, requestFinalNotice } = require('./demand');
 const casework = require('./casework');
 const documents = require('./documents');
 const { runAiAssist, reviewAiOutput } = require('./ai');
@@ -1313,10 +1313,12 @@ exports.staffDocument = functions.https.onRequest((req, res) => {
   });
 });
 
-// Send (or resend) a claim's demand letter to the airline. This checks the
-// request and sets the trigger; onTriggerAirlineEmail builds the letter, emails
-// it and moves the claim to Awaiting Reply. The database rules refuse the
-// trigger written directly, so every letter passes through these checks.
+// Send (or resend) a letter to the airline: the demand letter, or with
+// `letter: 'final_notice'` the legal team's final notice. This checks the
+// request and sets the trigger; onTriggerAirlineEmail and
+// onTriggerSolicitorEmail build the letter and email it. The database rules
+// refuse the triggers written directly, so every letter passes through these
+// checks.
 exports.sendDemand = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
     if (req.method !== 'POST') {
@@ -1332,7 +1334,10 @@ exports.sendDemand = functions.https.onRequest((req, res) => {
       return res.status(400).json({ error: 'Invalid record id.' });
     }
     try {
-      const result = await requestDemandLetter(admin, { id, email: String(payload.email || '').slice(0, 200), staff });
+      const request = { id, email: String(payload.email || '').slice(0, 200), staff };
+      const result = payload.letter === 'final_notice'
+        ? await requestFinalNotice(admin, request)
+        : await requestDemandLetter(admin, request);
       return res.status(200).json({ success: true, ...result });
     } catch (e) {
       if (e instanceof pipeline.StageError) {

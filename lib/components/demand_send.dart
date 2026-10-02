@@ -22,19 +22,25 @@ void editClaimWith(GoRouter router, DocumentReference claimRef) {
 }
 
 /// Shows what the demand letter for [claim] will say and where it will go,
-/// and sends it when staff confirm. Returns true if it was sent.
-Future<bool> showSendDemand(BuildContext context, ClaimsRecord claim) async {
+/// and sends it when staff confirm. With [finalNotice] it is the legal team's
+/// final notice. Returns true if it was sent.
+Future<bool> showSendDemand(
+  BuildContext context,
+  ClaimsRecord claim, {
+  bool finalNotice = false,
+}) async {
   final sent = await showDialog<bool>(
     context: context,
-    builder: (_) => _SendDemandDialog(claim: claim),
+    builder: (_) => _SendDemandDialog(claim: claim, finalNotice: finalNotice),
   );
   return sent == true;
 }
 
 class _SendDemandDialog extends StatefulWidget {
-  const _SendDemandDialog({required this.claim});
+  const _SendDemandDialog({required this.claim, required this.finalNotice});
 
   final ClaimsRecord claim;
+  final bool finalNotice;
 
   @override
   State<_SendDemandDialog> createState() => _SendDemandDialogState();
@@ -86,7 +92,10 @@ class _SendDemandDialogState extends State<_SendDemandDialog> {
       _error = null;
     });
     final result = await sendDemandLetter(
-        claimId: widget.claim.reference.id, email: email);
+      claimId: widget.claim.reference.id,
+      email: email,
+      finalNotice: widget.finalNotice,
+    );
     if (!mounted) return;
     if (!result.succeeded) {
       setState(() {
@@ -96,7 +105,10 @@ class _SendDemandDialogState extends State<_SendDemandDialog> {
       return;
     }
     showCaseActionResult(
-        context, result, 'Demand letter on its way to $email.');
+      context,
+      result,
+      '${widget.finalNotice ? 'Final notice' : 'Demand letter'} on its way to $email.',
+    );
     Navigator.pop(context, true);
   }
 
@@ -105,8 +117,12 @@ class _SendDemandDialogState extends State<_SendDemandDialog> {
     final theme = FlutterFlowTheme.of(context);
     final claim = widget.claim;
     final readiness = demandReadiness(claim.snapshotData);
-    final resend = canonicalStage(RecordKind.claim, claim.claimStatus) ==
-        ClaimStage.awaitingReply;
+    final finalNotice = widget.finalNotice;
+    final what = finalNotice ? 'final notice' : 'demand letter';
+    final resend = finalNotice
+        ? claim.snapshotData['solicitor_email_status'] == 'Sent'
+        : canonicalStage(RecordKind.claim, claim.claimStatus) ==
+            ClaimStage.awaitingReply;
     final held = claim.inCancellationPeriod;
     final canSend = readiness.ready && !held && !_sending;
 
@@ -169,8 +185,7 @@ class _SendDemandDialogState extends State<_SendDemandDialog> {
         );
 
     return AlertDialog(
-      title:
-          Text(resend ? 'Resend the demand letter' : 'Send the demand letter'),
+      title: Text(resend ? 'Resend the $what' : 'Send the $what'),
       content: SizedBox(
         width: 520.0,
         child: SingleChildScrollView(
@@ -190,7 +205,7 @@ class _SendDemandDialogState extends State<_SendDemandDialog> {
               fact('Amount', displayClaimAmount(claim.claimsAmount, empty: '')),
               if (readiness.blockers.isNotEmpty)
                 notice(Icons.error_outline, overdueRed(context), [
-                  'The letter cannot go yet:',
+                  'The $what cannot go yet:',
                   for (final b in readiness.blockers) '•  $b',
                 ]),
               if (held)
@@ -234,9 +249,13 @@ class _SendDemandDialogState extends State<_SendDemandDialog> {
               ),
               const SizedBox(height: 10.0),
               Text(
-                'The letter goes from info@claimshub.online with the letter of '
-                'authority attached, and gives the airline 14 days. Sending it '
-                'moves the claim to Awaiting Reply.',
+                finalNotice
+                    ? 'The notice goes from info@claimshub.online and gives the '
+                        'airline 7 days. Sending it moves the legal stage to '
+                        'Final notice sent.'
+                    : 'The letter goes from info@claimshub.online with the '
+                        'letter of authority attached, and gives the airline 14 '
+                        'days. Sending it moves the claim to Awaiting Reply.',
                 style: GoogleFonts.inter(
                     fontSize: 12.0, height: 1.45, color: theme.secondaryText),
               ),

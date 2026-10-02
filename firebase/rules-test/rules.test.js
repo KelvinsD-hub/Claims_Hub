@@ -131,6 +131,7 @@ async function check(name, promise) {
     await check(`${who} cannot change a lead's next action directly`, assertFails(updateDoc(doc(db, 'leads/lead1'), { next_action: 'Nothing' })));
     await check(`${who} cannot lift a client's objection to AI directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { ai_opt_out: false })));
     await check(`${who} cannot fire a demand letter directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { trigger_airline_email: true })));
+    await check(`${who} cannot fire a final notice directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { trigger_solicitor_email: true })));
     await check(`${who} cannot redirect a demand letter directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { airline_email_selection: 'someone@example.com' })));
     await check(`${who} cannot write a legal stage directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { legal_stage: 'Court proceedings' })));
     await check(`${who} cannot write the amount recovered directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { amount_recovered: 1 })));

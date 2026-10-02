@@ -20,7 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// A naira amount for display: "₦170,000".
-String naira(num amount) => '₦${NumberFormat.decimalPattern().format(amount.round())}';
+String naira(num amount) =>
+    '₦${NumberFormat.decimalPattern().format(amount.round())}';
 
 /// Opens the case file for [claimRef] over the current page.
 Future<void> showCaseFile(BuildContext context, DocumentReference claimRef) {
@@ -59,7 +60,8 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
   /// The right-hand column shows the history, or the AI assistant.
   bool _showAssistant = false;
 
-  Future<void> _run(Future<CaseActionResult> Function() action, String done) async {
+  Future<void> _run(
+      Future<CaseActionResult> Function() action, String done) async {
     if (_busy) return;
     setState(() => _busy = true);
     final result = await action();
@@ -183,63 +185,17 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
     final court = to == LegalStage.court;
     final answer = await _ask(
       title: 'Move to "$to"',
-      label: court ? 'Why this claim is going to court (required)' : 'Note (optional)',
+      label: court
+          ? 'Why this claim is going to court (required)'
+          : 'Note (optional)',
       textRequired: court,
     );
     if (answer == null || !mounted) return;
     await _run(
-      () => setLegalStage(
-          claimId: claim.reference.id, to: to, note: answer.text),
+      () =>
+          setLegalStage(claimId: claim.reference.id, to: to, note: answer.text),
       'Legal stage: $to.',
     );
-  }
-
-  Future<void> _sendFinalNotice(ClaimsRecord claim, bool resend) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(resend ? 'Resend the final notice' : 'Send the final notice'),
-        content: Text(
-          'Send the Final Legal Notice to '
-          '${claim.airlineName.isNotEmpty ? claim.airlineName : 'the airline'} '
-          'at ${claim.airlineEmailSelection} on behalf of ${claim.fullName}?\n\n'
-          'This starts the 7 day final notice period.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Send'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    final theme = FlutterFlowTheme.of(context);
-    try {
-      // The function sends the letter, records the send and starts the clock.
-      await claim.reference.update({
-        'trigger_solicitor_email': true,
-        'letter_requested_by': currentUserUid,
-        'letter_requested_by_name': currentUserDisplayName,
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Final notice queued — it will be sent within seconds.',
-            style: TextStyle(color: theme.info)),
-        backgroundColor: const Color(0xFF3BA55D),
-      ));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('The notice could not be queued: $e',
-            style: TextStyle(color: theme.info)),
-        backgroundColor: theme.error,
-      ));
-    }
   }
 
   void _downloadPdf(ClaimsRecord claim) {
@@ -351,7 +307,8 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                           const SizedBox(height: 4.0),
                           Text(
                             [
-                              if (claim.airlineName.isNotEmpty) claim.airlineName,
+                              if (claim.airlineName.isNotEmpty)
+                                claim.airlineName,
                               if (claim.leadRef != null)
                                 'CA-${claim.leadRef!.id.substring(0, 8).toUpperCase()}',
                               claim.clientEmail,
@@ -365,8 +322,7 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                     StagePill(stage),
                     IconButton(
                       tooltip: 'Close',
-                      onPressed:
-                          widget.onClose ?? () => Navigator.pop(context),
+                      onPressed: widget.onClose ?? () => Navigator.pop(context),
                       icon: Icon(Icons.close, color: theme.secondaryText),
                     ),
                   ],
@@ -431,8 +387,10 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                                     claim.farePaid == null
                                         ? ''
                                         : '${claim.fareCurrency} ${NumberFormat.decimalPattern().format(claim.farePaid)}'),
-                                _Fact('Amount claimed',
-                                    displayClaimAmount(claim.claimsAmount, empty: '')),
+                                _Fact(
+                                    'Amount claimed',
+                                    displayClaimAmount(claim.claimsAmount,
+                                        empty: '')),
                               ],
                             ),
                             if (claim.airlineResponse.trim().isNotEmpty) ...[
@@ -496,30 +454,32 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                                     label: noticeSent
                                         ? 'Resend final notice'
                                         : 'Send final notice',
-                                    onTap: claim.airlineEmailSelection.isEmpty
-                                        ? null
-                                        : () => _sendFinalNotice(claim, noticeSent),
+                                    onTap: () => showSendDemand(context, claim,
+                                        finalNotice: true),
                                   ),
                                 _ActionButton(
                                   icon: Icons.reply_outlined,
                                   label: 'Record airline reply',
                                   onTap: _busy
                                       ? null
-                                      : () => _addNote(claim, CaseNoteType.airlineReply),
+                                      : () => _addNote(
+                                          claim, CaseNoteType.airlineReply),
                                 ),
                                 _ActionButton(
                                   icon: Icons.payments_outlined,
                                   label: 'Record offer',
                                   onTap: _busy
                                       ? null
-                                      : () => _addNote(claim, CaseNoteType.offer),
+                                      : () =>
+                                          _addNote(claim, CaseNoteType.offer),
                                 ),
                                 _ActionButton(
                                   icon: Icons.note_add_outlined,
                                   label: 'Add note',
                                   onTap: _busy
                                       ? null
-                                      : () => _addNote(claim, CaseNoteType.note),
+                                      : () =>
+                                          _addNote(claim, CaseNoteType.note),
                                 ),
                                 _ActionButton(
                                   icon: Icons.swap_horiz_rounded,
@@ -569,16 +529,6 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                                 padding: const EdgeInsets.only(top: 8.0),
                                 child: Text(
                                   'Demand letter: ${claim.airlineEmailStatus}',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 12.0,
-                                      color: overdueRed(context)),
-                                ),
-                              ),
-                            if (canWorkLegal && claim.airlineEmailSelection.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8.0),
-                                child: Text(
-                                  'No airline email is set for this claim. It is set when the demand letter is sent.',
                                   style: GoogleFonts.inter(
                                       fontSize: 12.0,
                                       color: overdueRed(context)),
@@ -729,7 +679,8 @@ class _Fact extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label,
-            style: GoogleFonts.inter(fontSize: 11.0, color: theme.secondaryText)),
+            style:
+                GoogleFonts.inter(fontSize: 11.0, color: theme.secondaryText)),
         const SizedBox(height: 2.0),
         Text(
           value.trim().isEmpty ? '—' : value,
@@ -766,7 +717,8 @@ class _ActionButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         side: BorderSide(color: color.withValues(alpha: 0.5)),
         padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
       ),
     );
   }
@@ -799,8 +751,8 @@ class _LegalStageRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(10.0),
               onTap: isCurrent || onMove == null ? null : () => onMove!(stage),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12.0, vertical: 8.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                 decoration: BoxDecoration(
                   color: isCurrent
                       ? color.withValues(alpha: 0.16)
@@ -851,7 +803,8 @@ class _Documents extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
     final demandUrl = claim.snapshotData['demand_letter_url'] as String? ?? '';
-    final noticeUrl = claim.snapshotData['solicitor_letter_url'] as String? ?? '';
+    final noticeUrl =
+        claim.snapshotData['solicitor_letter_url'] as String? ?? '';
     final docs = <(String, String)>[
       if (claim.loaUrl.isNotEmpty) ('Letter of authority', claim.loaUrl),
       if (demandUrl.isNotEmpty) ('Demand letter', demandUrl),

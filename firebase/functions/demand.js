@@ -1,17 +1,22 @@
 /**
- * Sending the demand letter to the airline.
+ * Sending a letter to the airline: the demand letter, and the legal team's
+ * final notice.
  *
- * The letter itself is built and emailed by onTriggerAirlineEmail (index.js),
- * which fires when a claim's `trigger_airline_email` turns true. This decides
- * whether that may happen: who is asking, whether the claim is at the right
- * stage, whether the file has what the letter states, and where it is going.
- * The database rules refuse the trigger written any other way, so a letter
- * cannot leave with "N/A" for the flight because someone pressed Send early.
+ * The letters themselves are built and emailed by onTriggerAirlineEmail and
+ * onTriggerSolicitorEmail (index.js), which fire when a claim's
+ * `trigger_airline_email` or `trigger_solicitor_email` turns true. This
+ * decides whether that may happen: who is asking, whether the claim is at the
+ * right stage, whether the file has what the letter states, and where it is
+ * going. The database rules refuse the triggers written any other way, so a
+ * letter cannot leave with "N/A" for the flight because someone pressed Send
+ * early.
  *
- * `demandReadiness` is pure; `requestDemandLetter` writes, and is run against
- * the Firestore emulator in rules-test/demand.test.js.
+ * `demandReadiness` is pure; `requestDemandLetter` and `requestFinalNotice`
+ * write, and are run against the Firestore emulator in
+ * rules-test/demand.test.js.
  */
 const pipeline = require('./pipeline');
+const casework = require('./casework');
 const { CLAIM, StageError } = pipeline;
 
 const EMAIL = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]{2,}$/;
@@ -106,4 +111,63 @@ async function requestDemandLetter(admin, { id, email, staff }) {
   });
 }
 
-module.exports = { demandReadiness, heldUntil, requestDemandLetter, EMAIL };
+/**
+ * Ask for the final legal notice on claim `id` to go to the airline. Only
+ * the legal team may, and only on a claim that is with them. `email` may be
+ * left out to use the address the demand letter went to. Returns
+ * { email, resend }.
+ */
+async function requestFinalNotice(admin, { id, email, staff }) {
+  if (!casework.LEGAL_ROLES.includes(staff.role)) {
+    throw new StageError(403, 'The final notice is sent by the legal team.');
+  }
+  const db = admin.firestore();
+  const ref = db.doc(`claims/${id}`);
+
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new StageError(404, 'That claim no longer exists.');
+    const claim = snap.data();
+    const stage = pipeline.canonical('claim', claim.claim_status);
+    if (stage !== CLAIM.WITH_SOLICITOR) {
+      throw new StageError(409, `A final notice goes out on a claim at "${CLAIM.WITH_SOLICITOR}". This claim is at "${stage}".`);
+    }
+    if (claim.trigger_solicitor_email === true) {
+      throw new StageError(409, 'This notice is already being sent.');
+    }
+    const to = (text(email) || text(claim.airline_email_selection)).toLowerCase();
+    if (!EMAIL.test(to)) throw new StageError(400, 'Choose the airline\'s email address first.');
+    const held = heldUntil(claim);
+    if (held) {
+      throw new StageError(409, `Not sent. This client can still cancel until ${held.toISOString().slice(0, 10)} and did not ask us to start before then.`);
+    }
+    const { blockers } = demandReadiness(claim);
+    if (blockers.length) {
+      throw new StageError(400, `The notice cannot go yet. ${blockers.join(' ')}`);
+    }
+
+    const resend = claim.solicitor_email_status === 'Sent';
+    const who = claim.full_name || claim.client_email || 'this claim';
+    tx.update(ref, {
+      airline_email_selection: to,
+      trigger_solicitor_email: true,
+      letter_requested_by: staff.uid,
+      letter_requested_by_name: staff.name,
+    });
+    tx.set(db.collection('activity_logs').doc(), {
+      entityType: 'Claim',
+      claims: ref,
+      ...(claim.lead_ref ? { leadRef: claim.lead_ref } : {}),
+      action: resend ? 'Final notice resent' : 'Final notice sent',
+      description: `${who}: final legal notice ${resend ? 're' : ''}sent to ${claim.airline_name} at ${to}`,
+      performedBy: db.doc(`users/${staff.uid}`),
+      performedByName: staff.name,
+      actor_type: 'staff',
+      sent_to: to,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { email: to, resend };
+  });
+}
+
+module.exports = { demandReadiness, heldUntil, requestDemandLetter, requestFinalNotice, EMAIL };
