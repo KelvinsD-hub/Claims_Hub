@@ -1,12 +1,10 @@
 /**
- * Storage security rules tests — for the PENDING rules, not the live ones.
+ * Storage security rules tests.
  *
- * rules-test/storage.rules.pending restricts client documents to approved
- * staff by looking the caller up in Firestore. That lookup only works once the
- * project has granted Cloud Storage permission to read Firestore (Firebase
- * console → Storage → Rules prompts for it on first save). Until that is
- * confirmed in production, firebase/storage.rules stays as it was, because a
- * lookup that fails silently would lock staff out of client documents.
+ * storage.rules restricts client documents to approved staff by looking the
+ * caller up in Firestore. That lookup needs Cloud Storage to hold permission
+ * to read Firestore (roles/firebaserules.firestoreServiceAgent), which the
+ * production project has had since the rules were published from the console.
  *
  *   cd firebase
  *   firebase emulators:exec --only firestore,storage --project demo-claims-hub "node rules-test/storage.test.js"
@@ -41,7 +39,7 @@ async function check(name, promise) {
   const env = await initializeTestEnvironment({
     projectId: 'demo-claims-hub',
     firestore: { rules: read('firestore.rules') },
-    storage: { rules: read('rules-test/storage.rules.pending') },
+    storage: { rules: read('storage.rules') },
   });
 
   await env.withSecurityRulesDisabled(async (ctx) => {
