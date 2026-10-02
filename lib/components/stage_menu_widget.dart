@@ -1,5 +1,6 @@
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/services/pipeline.dart';
+import '/components/casework_panel_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'package:flutter/material.dart';
@@ -7,9 +8,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// The "move this record on" menu for a lead or a claim.
 ///
-/// Offers only the moves allowed from the record's current stage for the
-/// signed-in person's role, asks for a note (required when closing something
-/// without an outcome), and sends the change to the server.
+/// Shows who owns the record and what it is waiting for, then offers only the
+/// moves allowed from its current stage for the signed-in person's role, asks
+/// for a note (required when closing something without an outcome), and sends
+/// the change to the server.
 class StageMenuWidget extends StatefulWidget {
   const StageMenuWidget({
     super.key,
@@ -17,6 +19,7 @@ class StageMenuWidget extends StatefulWidget {
     required this.recordId,
     required this.currentStage,
     required this.subject,
+    this.data,
     this.confirmBefore,
   });
 
@@ -26,6 +29,10 @@ class StageMenuWidget extends StatefulWidget {
 
   /// Who the record is about, for the dialogs: "Tunde Bello".
   final String subject;
+
+  /// The record's document data. With it, the menu shows the owner and the
+  /// next action.
+  final Map<String, dynamic>? data;
 
   /// Extra check before a particular move goes ahead. Return false to stop it.
   final Future<bool> Function(BuildContext context, String to)? confirmBefore;
@@ -80,11 +87,14 @@ class _StageMenuWidgetState extends State<StageMenuWidget> {
     }
   }
 
-  /// Returns the note, or null if the person backed out.
-  Future<String?> _askForNote(String to) {
+  /// Returns the note (and, for a win, the amount recovered), or null if the
+  /// person backed out.
+  Future<({String note, double? amount})?> _askForNote(String to) {
     final required = moveNeedsReason(to);
+    final askAmount = widget.kind == RecordKind.claim && to == ClaimStage.won;
     final controller = TextEditingController();
-    return showDialog<String>(
+    final amountController = TextEditingController();
+    return showDialog<({String note, double? amount})>(
       context: context,
       builder: (dialogContext) {
         String? error;
@@ -100,9 +110,22 @@ class _StageMenuWidgetState extends State<StageMenuWidget> {
                   '${canonicalStage(widget.kind, widget.currentStage)} → $to',
                 ),
                 const SizedBox(height: 12.0),
+                if (askAmount) ...[
+                  TextField(
+                    controller: amountController,
+                    autofocus: true,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Amount recovered (naira)',
+                      hintText: 'Leave blank if not known yet',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12.0),
+                ],
                 TextField(
                   controller: controller,
-                  autofocus: true,
+                  autofocus: !askAmount,
                   minLines: 2,
                   maxLines: 4,
                   maxLength: 1000,
@@ -129,7 +152,15 @@ class _StageMenuWidgetState extends State<StageMenuWidget> {
                     setDialogState(() => error = 'Please give a reason.');
                     return;
                   }
-                  Navigator.pop(dialogContext, note);
+                  final typed =
+                      amountController.text.replaceAll(RegExp(r'[^0-9.]'), '');
+                  final amount = typed.isEmpty ? null : double.tryParse(typed);
+                  if (typed.isNotEmpty && (amount == null || amount <= 0)) {
+                    setDialogState(
+                        () => error = 'The amount recovered is not a number.');
+                    return;
+                  }
+                  Navigator.pop(dialogContext, (note: note, amount: amount));
                 },
                 child: const Text('Confirm'),
               ),
@@ -147,15 +178,16 @@ class _StageMenuWidgetState extends State<StageMenuWidget> {
       return;
     }
     if (!mounted) return;
-    final note = await _askForNote(to);
-    if (note == null || !mounted) return;
+    final answer = await _askForNote(to);
+    if (answer == null || !mounted) return;
 
     setState(() => _busy = to);
     final result = await changeStage(
       kind: widget.kind,
       id: widget.recordId,
       to: to,
-      note: note,
+      note: answer.note,
+      amount: answer.amount,
     );
     if (!mounted) return;
     setState(() => _busy = null);
@@ -185,7 +217,7 @@ class _StageMenuWidgetState extends State<StageMenuWidget> {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Container(
-        width: 300.0,
+        width: 340.0,
         decoration: BoxDecoration(
           color: theme.secondaryBackground,
           boxShadow: const [
@@ -226,6 +258,16 @@ class _StageMenuWidgetState extends State<StageMenuWidget> {
                   ),
                 ),
               ),
+              if (widget.data != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: CaseworkPanelWidget(
+                    kind: widget.kind,
+                    recordId: widget.recordId,
+                    data: widget.data!,
+                    stage: widget.currentStage,
+                  ),
+                ),
               if (moves.isEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12.0, 0.0, 12.0, 8.0),

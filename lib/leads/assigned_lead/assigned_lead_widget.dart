@@ -1,4 +1,6 @@
-﻿import '/auth/firebase_auth/auth_util.dart';
+﻿import '/backend/services/pipeline.dart';
+import '/backend/services/casework.dart';
+import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/claims/component/lead_note/lead_note_widget.dart';
 import '/flutter_flow/flutter_flow_animations.dart';
@@ -144,7 +146,7 @@ class _AssignedLeadWidgetState extends State<AssignedLeadWidget>
   @override
   Widget build(BuildContext context) {
     return Title(
-        title: 'AssignedLead',
+        title: 'My leads',
         color: FlutterFlowTheme.of(context).primary.withAlpha(0XFF),
         child: GestureDetector(
           onTap: () {
@@ -214,7 +216,7 @@ class _AssignedLeadWidgetState extends State<AssignedLeadWidget>
                                           ),
                                         ),
                                         Text(
-                                          'Assigned',
+                                          'My',
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(
@@ -262,7 +264,7 @@ class _AssignedLeadWidgetState extends State<AssignedLeadWidget>
                                       ].divide(SizedBox(width: 7.0)),
                                     ),
                                     Text(
-                                      'Manage and update all Assigned New leads and  client relationships',
+                                      'Open leads you are handling, most urgent first',
                                       style: FlutterFlowTheme.of(context)
                                           .bodyMedium
                                           .override(
@@ -945,12 +947,12 @@ class _AssignedLeadWidgetState extends State<AssignedLeadWidget>
                                     'containerOnPageLoadAnimation2']!),
                                 StreamBuilder<List<LeadsRecord>>(
                                   stream: queryLeadsRecord(
-                                    queryBuilder: (leadsRecord) => leadsRecord
-                                        .where(
-                                          'status',
-                                          isEqualTo: 'New lead',
-                                        )
-                                        .orderBy('created_at'),
+                                    // Leads this person is handling.
+                                    queryBuilder: (leadsRecord) =>
+                                        leadsRecord.where(
+                                      'handler_uid',
+                                      isEqualTo: currentUserUid,
+                                    ),
                                   ),
                                   builder: (context, snapshot) {
                                     // Customize what your widget looks like when it's loading.
@@ -969,8 +971,24 @@ class _AssignedLeadWidgetState extends State<AssignedLeadWidget>
                                         ),
                                       );
                                     }
+                                    // Still open, most urgent first.
                                     List<LeadsRecord> listViewLeadsRecordList =
-                                        snapshot.data!;
+                                        snapshot.data!
+                                            .where((lead) => const [
+                                                  LeadStage.newLead,
+                                                  LeadStage.contacted
+                                                ].contains(canonicalStage(
+                                                    RecordKind.lead,
+                                                    lead.status)))
+                                            .toList()
+                                          ..sort((a, b) => (Casework.of(
+                                                          a.snapshotData)
+                                                      .nextActionDue ??
+                                                  DateTime(2100))
+                                              .compareTo(Casework.of(
+                                                          b.snapshotData)
+                                                      .nextActionDue ??
+                                                  DateTime(2100)));
 
                                     return ListView.separated(
                                       padding: EdgeInsets.fromLTRB(

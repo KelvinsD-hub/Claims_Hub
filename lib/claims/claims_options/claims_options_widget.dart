@@ -74,6 +74,7 @@ class _ClaimsOptionsWidgetState extends State<ClaimsOptionsWidget> {
           currentStage: claim.claimStatus,
           subject:
               claim.fullName.isNotEmpty ? claim.fullName : 'This claim',
+          data: claim.snapshotData,
         );
       },
     );

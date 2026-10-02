@@ -107,6 +107,7 @@ class _LeadsOptionsWidgetState extends State<LeadsOptionsWidget> {
           recordId: lead.reference.id,
           currentStage: lead.status,
           subject: lead.fullName.isNotEmpty ? lead.fullName : 'This lead',
+          data: lead.snapshotData,
           confirmBefore: (context, to) => _confirmQualify(context, lead, to),
         );
       },

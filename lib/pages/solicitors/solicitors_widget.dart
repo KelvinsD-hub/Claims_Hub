@@ -1,21 +1,23 @@
-﻿import '/auth/firebase_auth/auth_util.dart';
-import '/backend/services/pipeline.dart';
-import '/backend/services/compensation_calculator.dart';
+import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
-import '/custom_code/actions/index.dart' as actions;
-import '/flutter_flow/flutter_flow_icon_button.dart';
+import '/backend/services/casework.dart';
+import '/backend/services/compensation_calculator.dart';
+import '/backend/services/pipeline.dart';
+import '/components/case_file_widget.dart';
+import '/components/casework_panel_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/flutter_flow/flutter_flow_widgets.dart';
 import '/menus_file/claims_menu/claims_menu_widget.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'solicitors_model.dart';
 export 'solicitors_model.dart';
 
+/// The legal team's workspace: the claims escalated to them, whose they are,
+/// what is due, and how the team is doing.
+///
+/// Each card opens the case file (CaseFileWidget), where the work is done.
 class SolicitorsWidget extends StatefulWidget {
   const SolicitorsWidget({super.key});
 
@@ -26,10 +28,17 @@ class SolicitorsWidget extends StatefulWidget {
   State<SolicitorsWidget> createState() => _SolicitorsWidgetState();
 }
 
+enum _View { mine, queue, open, closed }
+
 class _SolicitorsWidgetState extends State<SolicitorsWidget> {
   late SolicitorsModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+
+  _View _view = _View.mine;
+
+  /// A legal stage to narrow the open lists to, or null for all of them.
+  String? _legalStage;
 
   @override
   void initState() {
@@ -46,148 +55,24 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
     super.dispose();
   }
 
-  String _initials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    if (parts.isNotEmpty && parts[0].isNotEmpty) return parts[0][0].toUpperCase();
-    return '?';
-  }
+  /// "₦21,250" → 21250. Amounts are stored as the text staff typed.
+  static double _amountClaimed(ClaimsRecord claim) =>
+      double.tryParse(claim.claimsAmount.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+      0.0;
 
-  int _daysSince(DateTime? dt) {
-    if (dt == null) return 0;
-    return DateTime.now().difference(dt).inDays;
-  }
-
-  Future<void> _sendLegalLetter(ClaimsRecord claim) async {
-    if (claim.airlineEmailSelection.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-              'No airline email set for this claim. Use the Email Airlines page to select the target email first.'),
-          backgroundColor: Colors.orange.shade700,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Send Legal Letter'),
-        content: Text(
-          'Send a Final Legal Notice to ${claim.airlineName.isNotEmpty ? claim.airlineName : "the airline"} '
-          'at ${claim.airlineEmailSelection} '
-          'on behalf of ${claim.fullName}?\n\nThis will set a 7-day deadline before court proceedings commence.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF002855)),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Send', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      await claim.reference.update({
-        'trigger_solicitor_email': true,
-        'letter_requested_by': currentUserUid,
-        'letter_requested_by_name': currentUserDisplayName,
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Legal letter queued - it will be sent within seconds.'),
-            backgroundColor: Colors.green.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _updateOutcome(ClaimsRecord claim, String status) async {
-    final label = status == 'Won' ? 'Won' : 'Lost';
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Mark as $label'),
-        content: Text('Mark ${claim.fullName}\'s claim as "$label"? This will notify the client.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: status == 'Won' ? Colors.green.shade700 : Colors.red.shade700,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(label, style: const TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      final result = await changeStage(
-        kind: RecordKind.claim,
-        id: claim.reference.id,
-        to: status,
-      );
-      if (!result.succeeded) throw result.error!;
-      await claim.reference.update({
-        'settlement_date': FieldValue.serverTimestamp(),
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Claim marked as $label.'),
-            backgroundColor: status == 'Won' ? Colors.green.shade700 : Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red.shade700),
-        );
-      }
-    }
+  static String _legalStageOf(ClaimsRecord claim) {
+    final stage = Casework.of(claim.snapshotData).legalStage;
+    return stage.isEmpty ? LegalStage.review : stage;
   }
 
   @override
   Widget build(BuildContext context) {
     context.watch<FFAppState>();
+    final theme = FlutterFlowTheme.of(context);
 
     return Title(
-      title: 'Solicitors Workspace',
-      color: FlutterFlowTheme.of(context).primary.withAlpha(0XFF),
+      title: 'Legal Workspace',
+      color: theme.primary.withAlpha(0XFF),
       child: GestureDetector(
         onTap: () {
           FocusScope.of(context).unfocus();
@@ -195,7 +80,7 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
         },
         child: Scaffold(
           key: scaffoldKey,
-          backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+          backgroundColor: theme.primaryBackground,
           body: SafeArea(
             top: true,
             child: Row(
@@ -208,59 +93,109 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
                 ),
                 Expanded(
                   child: StreamBuilder<List<ClaimsRecord>>(
+                    // Everything with the legal team now, and everything
+                    // closed, from which the ones they handled are picked out.
                     stream: queryClaimsRecord(
-                      queryBuilder: (q) =>
-                          q.where('claim_status',
-                              isEqualTo: ClaimStage.withSolicitor),
+                      queryBuilder: (q) => q.where('claim_status', whereIn: [
+                        ClaimStage.withSolicitor,
+                        ClaimStage.won,
+                        ClaimStage.lost,
+                        ClaimStage.paid,
+                        ClaimStage.withdrawn,
+                      ]),
                     ),
                     builder: (context, snapshot) {
-                      final claims = snapshot.data ?? [];
-                      final search = _model.searchController?.text.toLowerCase() ?? '';
-                      final filtered = search.isEmpty
-                          ? claims
-                          : claims.where((c) {
-                              return c.fullName.toLowerCase().contains(search) ||
-                                  c.airlineName.toLowerCase().contains(search) ||
-                                  c.pnrNumber.toLowerCase().contains(search) ||
-                                  c.flightNumber.toLowerCase().contains(search);
-                            }).toList();
-
-                      final letterSent = claims
+                      final all = snapshot.data ?? [];
+                      final open = all
                           .where((c) =>
-                              (c.snapshotData['solicitor_email_status'] as String? ?? '') ==
-                              'Sent')
+                              c.claimStatus == ClaimStage.withSolicitor)
+                          .toList();
+                      // A closed claim counts as the legal team's if it ever
+                      // reached them.
+                      final closed = all
+                          .where((c) =>
+                              c.claimStatus != ClaimStage.withSolicitor &&
+                              Casework.of(c.snapshotData).legalStage.isNotEmpty)
+                          .toList();
+                      final mine = open
+                          .where((c) =>
+                              Casework.of(c.snapshotData).lawyerUid ==
+                              currentUserUid)
+                          .toList();
+                      final queue = open
+                          .where((c) => !Casework.of(c.snapshotData).hasLawyer)
+                          .toList();
+                      final overdue = open
+                          .where((c) => Casework.of(c.snapshotData).isOverdue)
                           .length;
-                      final pending = claims.length - letterSent;
+                      final atStake =
+                          open.fold<double>(0, (total, c) => total + _amountClaimed(c));
+                      final won = closed
+                          .where((c) =>
+                              c.claimStatus == ClaimStage.won ||
+                              c.claimStatus == ClaimStage.paid)
+                          .toList();
+                      final lost = closed
+                          .where((c) => c.claimStatus == ClaimStage.lost)
+                          .length;
+                      final recovered = won.fold<double>(
+                          0,
+                          (total, c) =>
+                              total +
+                              (Casework.of(c.snapshotData).amountRecovered ?? 0));
+
+                      final search =
+                          _model.searchController?.text.toLowerCase() ?? '';
+                      var shown = switch (_view) {
+                        _View.mine => mine,
+                        _View.queue => queue,
+                        _View.open => open,
+                        _View.closed => closed,
+                      };
+                      if (_legalStage != null && _view != _View.closed) {
+                        shown = shown
+                            .where((c) => _legalStageOf(c) == _legalStage)
+                            .toList();
+                      }
+                      if (search.isNotEmpty) {
+                        shown = shown
+                            .where((c) =>
+                                c.fullName.toLowerCase().contains(search) ||
+                                c.airlineName.toLowerCase().contains(search) ||
+                                c.pnrNumber.toLowerCase().contains(search) ||
+                                c.flightNumber.toLowerCase().contains(search))
+                            .toList();
+                      }
+                      // Most urgent first; anything with no date last.
+                      shown.sort((a, b) =>
+                          (Casework.of(a.snapshotData).nextActionDue ??
+                                  DateTime(2100))
+                              .compareTo(
+                                  Casework.of(b.snapshotData).nextActionDue ??
+                                      DateTime(2100)));
 
                       return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 鈹€鈹€ Top bar 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+                          // Top bar
                           Container(
-                            color: FlutterFlowTheme.of(context).secondaryBackground,
+                            color: theme.secondaryBackground,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 24, vertical: 16),
                             child: Row(
                               children: [
-                                const FaIcon(
-                                  FontAwesomeIcons.paperPlane,
-                                  color: Color(0xFF002855),
-                                  size: 22,
-                                ),
+                                Icon(Icons.gavel_rounded,
+                                    color: brandBlue(context), size: 22),
                                 const SizedBox(width: 12),
                                 Text(
-                                  'Solicitors Workspace',
-                                  style: FlutterFlowTheme.of(context)
-                                      .headlineSmall
-                                      .override(
-                                        font: GoogleFonts.inter(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        color: const Color(0xFF002855),
-                                        letterSpacing: 0,
-                                      ),
+                                  'Legal Workspace',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.primaryText,
+                                  ),
                                 ),
                                 const Spacer(),
-                                // Search
                                 SizedBox(
                                   width: 260,
                                   height: 40,
@@ -268,24 +203,27 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
                                     controller: _model.searchController,
                                     focusNode: _model.searchFocusNode,
                                     onChanged: (_) => safeSetState(() {}),
+                                    style: GoogleFonts.inter(
+                                        fontSize: 13, color: theme.primaryText),
                                     decoration: InputDecoration(
                                       hintText: 'Search client, airline, PNR...',
-                                      hintStyle: const TextStyle(
-                                          fontSize: 13, color: Colors.grey),
-                                      prefixIcon: const Icon(Icons.search,
-                                          size: 18, color: Colors.grey),
+                                      hintStyle: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          color: theme.secondaryText),
+                                      prefixIcon: Icon(Icons.search,
+                                          size: 18, color: theme.secondaryText),
                                       contentPadding:
                                           const EdgeInsets.symmetric(
                                               horizontal: 12),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(
-                                            color: Colors.grey.shade300),
+                                        borderSide:
+                                            BorderSide(color: theme.alternate),
                                       ),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(
-                                            color: Colors.grey.shade300),
+                                        borderSide:
+                                            BorderSide(color: theme.alternate),
                                       ),
                                     ),
                                   ),
@@ -294,66 +232,143 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
                             ),
                           ),
 
-                          // 鈹€鈹€ Stats row 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+                          // Dashboard
                           Padding(
                             padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
                             child: Row(
                               children: [
                                 _StatCard(
-                                  label: 'Total Escalated',
-                                  value: claims.length,
-                                  color: const Color(0xFF002855),
-                                  icon: FontAwesomeIcons.fileAlt,
+                                  label: 'Open cases',
+                                  value: '${open.length}',
+                                  note: '${mine.length} yours',
+                                  color: brandBlue(context),
+                                  icon: Icons.folder_open_outlined,
                                 ),
                                 const SizedBox(width: 16),
                                 _StatCard(
-                                  label: 'Letter Sent',
-                                  value: letterSent,
-                                  color: Colors.orange.shade700,
-                                  icon: FontAwesomeIcons.paperPlane,
+                                  label: 'Waiting for a lawyer',
+                                  value: '${queue.length}',
+                                  note: 'in the legal queue',
+                                  color: queue.isEmpty
+                                      ? theme.secondaryText
+                                      : const Color(0xFFF08156),
+                                  icon: Icons.inbox_outlined,
                                 ),
                                 const SizedBox(width: 16),
                                 _StatCard(
-                                  label: 'Awaiting Response',
-                                  value: pending,
-                                  color: Colors.red.shade600,
-                                  icon: FontAwesomeIcons.clock,
+                                  label: 'Overdue',
+                                  value: '$overdue',
+                                  note: 'past their due date',
+                                  color: overdue == 0
+                                      ? theme.secondaryText
+                                      : overdueRed(context),
+                                  icon: Icons.schedule_outlined,
+                                ),
+                                const SizedBox(width: 16),
+                                _StatCard(
+                                  label: 'Value at stake',
+                                  value: naira(atStake),
+                                  note: 'claimed on open cases',
+                                  color: const Color(0xFFE6B011),
+                                  icon: Icons.account_balance_wallet_outlined,
+                                ),
+                                const SizedBox(width: 16),
+                                _StatCard(
+                                  label: 'Outcomes',
+                                  value: '${won.length} won · $lost lost',
+                                  note: '${naira(recovered)} recovered',
+                                  color: const Color(0xFF3BA55D),
+                                  icon: Icons.emoji_events_outlined,
                                 ),
                               ],
                             ),
                           ),
 
-                          const SizedBox(height: 20),
+                          // Views and the legal stage filter
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 18, 24, 12),
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                _Chip(
+                                  label: 'My cases (${mine.length})',
+                                  selected: _view == _View.mine,
+                                  onTap: () => setState(() => _view = _View.mine),
+                                ),
+                                _Chip(
+                                  label: 'Legal queue (${queue.length})',
+                                  selected: _view == _View.queue,
+                                  onTap: () => setState(() => _view = _View.queue),
+                                ),
+                                _Chip(
+                                  label: 'All open (${open.length})',
+                                  selected: _view == _View.open,
+                                  onTap: () => setState(() => _view = _View.open),
+                                ),
+                                _Chip(
+                                  label: 'Closed (${closed.length})',
+                                  selected: _view == _View.closed,
+                                  onTap: () =>
+                                      setState(() => _view = _View.closed),
+                                ),
+                                if (_view != _View.closed) ...[
+                                  Container(
+                                    width: 1,
+                                    height: 22,
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 6),
+                                    color: theme.alternate,
+                                  ),
+                                  for (final stage in LegalStage.all)
+                                    _Chip(
+                                      label:
+                                          '$stage (${open.where((c) => _legalStageOf(c) == stage).length})',
+                                      selected: _legalStage == stage,
+                                      quiet: true,
+                                      onTap: () => setState(() => _legalStage =
+                                          _legalStage == stage ? null : stage),
+                                    ),
+                                ],
+                              ],
+                            ),
+                          ),
 
-                          // 鈹€鈹€ Claims list 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+                          // Cases
                           Expanded(
                             child: snapshot.connectionState ==
                                     ConnectionState.waiting
                                 ? const Center(
-                                    child: CircularProgressIndicator(
-                                        color: Color(0xFF002855)))
-                                : filtered.isEmpty
+                                    child: CircularProgressIndicator())
+                                : shown.isEmpty
                                     ? _EmptyState(
-                                        hasSearch: search.isNotEmpty)
+                                        message: search.isNotEmpty ||
+                                                _legalStage != null
+                                            ? 'No cases match.'
+                                            : switch (_view) {
+                                                _View.mine =>
+                                                  'You have no cases. Take one from the legal queue.',
+                                                _View.queue =>
+                                                  'The legal queue is empty.',
+                                                _View.open =>
+                                                  'No claims are with the legal team.',
+                                                _View.closed =>
+                                                  'No closed cases yet.',
+                                              },
+                                      )
                                     : ListView.separated(
                                         padding: const EdgeInsets.fromLTRB(
                                             24, 0, 24, 24),
-                                        itemCount: filtered.length,
+                                        itemCount: shown.length,
                                         separatorBuilder: (_, __) =>
-                                            const SizedBox(height: 12),
-                                        itemBuilder: (context, i) =>
-                                            _ClaimCard(
-                                          claim: filtered[i],
-                                          initials: _initials(
-                                              filtered[i].fullName),
-                                          daysSince: _daysSince(
-                                              filtered[i].createdAt),
-                                          onSendLetter: () =>
-                                              _sendLegalLetter(filtered[i]),
-                                          onMarkWon: () => _updateOutcome(
-                                              filtered[i], 'Won'),
-                                          onMarkLost: () => _updateOutcome(
-                                              filtered[i], 'Lost'),
+                                            const SizedBox(height: 10),
+                                        itemBuilder: (context, i) => _CaseCard(
+                                          claim: shown[i],
+                                          legalStage: _legalStageOf(shown[i]),
+                                          amountClaimed: displayClaimAmount(
+                                              shown[i].claimsAmount,
+                                              empty: ''),
                                         ),
                                       ),
                           ),
@@ -371,70 +386,64 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
   }
 }
 
-// 鈹€鈹€ Stat card 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-
 class _StatCard extends StatelessWidget {
   const _StatCard({
     required this.label,
     required this.value,
+    required this.note,
     required this.color,
     required this.icon,
   });
 
   final String label;
-  final int value;
+  final String value;
+  final String note;
   final Color color;
   final IconData icon;
 
   @override
   Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: FlutterFlowTheme.of(context).secondaryBackground,
+          color: theme.secondaryBackground,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: theme.alternate),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Center(
-                child: FaIcon(icon, size: 18, color: color),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
               children: [
-                Text(
-                  '$value',
-                  style: GoogleFonts.inter(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: theme.secondaryText),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: GoogleFonts.inter(
+                    fontSize: 20, fontWeight: FontWeight.bold, color: color),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              note,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(fontSize: 11.5, color: theme.secondaryText),
             ),
           ],
         ),
@@ -443,482 +452,247 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// 鈹€鈹€ Claim card 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-
-class _ClaimCard extends StatelessWidget {
-  const _ClaimCard({
-    required this.claim,
-    required this.initials,
-    required this.daysSince,
-    required this.onSendLetter,
-    required this.onMarkWon,
-    required this.onMarkLost,
+class _Chip extends StatelessWidget {
+  const _Chip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.quiet = false,
   });
 
-  final ClaimsRecord claim;
-  final String initials;
-  final int daysSince;
-  final VoidCallback onSendLetter;
-  final VoidCallback onMarkWon;
-  final VoidCallback onMarkLost;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  /// A filter, not a view: drawn lighter.
+  final bool quiet;
 
   @override
   Widget build(BuildContext context) {
-    final solicitorStatus =
-        claim.snapshotData['solicitor_email_status'] as String? ?? '';
-    final letterSent = solicitorStatus == 'Sent';
-    final loaUrl = claim.loaUrl;
-    final demandUrl = claim.snapshotData['demand_letter_url'] as String? ?? '';
-    final solicitorUrl =
-        claim.snapshotData['solicitor_letter_url'] as String? ?? '';
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: FlutterFlowTheme.of(context).secondaryBackground,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    final theme = FlutterFlowTheme.of(context);
+    final accent = quiet ? const Color(0xFF9B6BF2) : brandBlue(context);
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? accent.withValues(alpha: 0.16) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: selected ? accent : theme.alternate),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: quiet ? 12 : 13,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? accent : theme.primaryText,
           ),
-        ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 鈹€鈹€ Top row 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Avatar
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF002855).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  initials,
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF002855),
+    );
+  }
+}
+
+class _CaseCard extends StatefulWidget {
+  const _CaseCard({
+    required this.claim,
+    required this.legalStage,
+    required this.amountClaimed,
+  });
+
+  final ClaimsRecord claim;
+  final String legalStage;
+  final String amountClaimed;
+
+  @override
+  State<_CaseCard> createState() => _CaseCardState();
+}
+
+class _CaseCardState extends State<_CaseCard> {
+  bool _taking = false;
+
+  Future<void> _take() async {
+    setState(() => _taking = true);
+    final result = await assignRecord(
+      kind: RecordKind.claim,
+      id: widget.claim.reference.id,
+      toUid: currentUserUid,
+      lawyer: true,
+    );
+    if (!mounted) return;
+    setState(() => _taking = false);
+    showCaseActionResult(context, result, 'The case is yours.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final claim = widget.claim;
+    final work = Casework.of(claim.snapshotData);
+    final open = claim.claimStatus == ClaimStage.withSolicitor;
+    final role = valueOrDefault(currentUserDocument?.role, '');
+    final days = work.escalatedAt == null
+        ? null
+        : DateTime.now().difference(work.escalatedAt!).inDays;
+    const purple = Color(0xFF9B6BF2);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => showCaseFile(context, claim.reference),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: theme.secondaryBackground,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: work.isOverdue && open
+                  ? overdueRed(context).withValues(alpha: 0.6)
+                  : theme.alternate),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 4,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    claim.fullName.isNotEmpty ? claim.fullName : 'Unnamed client',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: theme.primaryText,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 3),
+                  Text(
+                    [
+                      if (claim.airlineName.isNotEmpty) claim.airlineName,
+                      if (claim.flightNumber.isNotEmpty) claim.flightNumber,
+                      if (widget.amountClaimed.isNotEmpty) widget.amountClaimed,
+                    ].join('  ·  '),
+                    style: GoogleFonts.inter(
+                        fontSize: 12.5, color: theme.secondaryText),
+                  ),
+                ],
               ),
-              const SizedBox(width: 14),
-
-              // Client info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      claim.fullName.isNotEmpty ? claim.fullName : 'Unknown',
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: FlutterFlowTheme.of(context).primaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      claim.clientEmail,
-                      style: GoogleFonts.inter(
-                          fontSize: 12, color: Colors.grey.shade600),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        _InfoChip(
-                          label:
-                              'PNR: ${claim.pnrNumber.isNotEmpty ? claim.pnrNumber : "N/A"}',
-                          color: Colors.grey.shade100,
-                        ),
-                        const SizedBox(width: 6),
-                        _InfoChip(
-                          label: claim.airlineName.isNotEmpty
-                              ? claim.airlineName
-                              : 'Airline N/A',
-                          color: const Color(0xFF002855).withOpacity(0.08),
-                          textColor: const Color(0xFF002855),
-                        ),
-                        const SizedBox(width: 6),
-                        _InfoChip(
-                          label: claim.leadRef != null
-                              ? 'CA-${claim.leadRef!.id.substring(0, 8).toUpperCase()}'
-                              : 'Ref N/A',
-                          color: const Color(0xFFE6B011).withOpacity(0.15),
-                          textColor: const Color(0xFF7A5800),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Right: days badge + letter status
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+            ),
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: daysSince > 14
-                          ? Colors.red.shade50
-                          : Colors.orange.shade50,
+                      color: purple.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: daysSince > 14
-                            ? Colors.red.shade200
-                            : Colors.orange.shade200,
-                      ),
                     ),
                     child: Text(
-                      '${daysSince}d escalated',
+                      open ? widget.legalStage : claim.claimStatus,
                       style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: daysSince > 14
-                            ? Colors.red.shade700
-                            : Colors.orange.shade700,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: open
+                            ? purple
+                            : (claim.claimStatus == ClaimStage.lost
+                                ? overdueRed(context)
+                                : const Color(0xFF3BA55D)),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: letterSent
-                          ? Colors.green.shade50
-                          : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          letterSent ? Icons.mark_email_read : Icons.mail_outline,
-                          size: 13,
-                          color: letterSent
-                              ? Colors.green.shade700
-                              : Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          letterSent ? 'Letter Sent' : 'Not Sent',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: letterSent
-                                ? Colors.green.shade700
-                                : Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 5),
+                  Text(
+                    open
+                        ? (days == null
+                            ? 'Escalated before dates were kept'
+                            : 'Escalated ${days == 0 ? 'today' : '$days days ago'}')
+                        : (work.amountRecovered == null
+                            ? 'Reached: ${widget.legalStage}'
+                            : '${naira(work.amountRecovered!)} recovered'),
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: theme.secondaryText),
                   ),
                 ],
               ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-          Divider(color: Colors.grey.shade200, height: 1),
-          const SizedBox(height: 14),
-
-          // 鈹€鈹€ Flight details row 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-          Wrap(
-            spacing: 20,
-            runSpacing: 8,
-            children: [
-              _DetailItem(
-                icon: Icons.flight,
-                label: 'Flight',
-                value: claim.flightNumber.isNotEmpty
-                    ? claim.flightNumber
-                    : 'N/A',
-              ),
-              _DetailItem(
-                icon: Icons.route,
-                label: 'Route',
-                value:
-                    '${claim.departure.isNotEmpty ? claim.departure : "?"} 鈫?${claim.destination.isNotEmpty ? claim.destination : "?"}',
-              ),
-              _DetailItem(
-                icon: Icons.calendar_today,
-                label: 'Date',
-                value:
-                    claim.flightDate.isNotEmpty ? claim.flightDate : 'N/A',
-              ),
-              _DetailItem(
-                icon: Icons.timer,
-                label: 'Delay',
-                value: claim.durationOfDelay.isNotEmpty
-                    ? claim.durationOfDelay
-                    : 'N/A',
-              ),
-              _DetailItem(
-                icon: Icons.attach_money,
-                label: 'Amount',
-                value: displayClaimAmount(claim.claimsAmount, empty: 'N/A'),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          // 鈹€鈹€ Document links 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-          // Airline email target — set by the Email Airlines page
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: claim.airlineEmailSelection.isNotEmpty
-                  ? const Color(0xFF7C3AED).withOpacity(0.07)
-                  : Colors.orange.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: claim.airlineEmailSelection.isNotEmpty
-                    ? const Color(0xFF7C3AED).withOpacity(0.25)
-                    : Colors.orange.shade200,
-              ),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  claim.airlineEmailSelection.isNotEmpty
-                      ? Icons.email_outlined
-                      : Icons.warning_amber_outlined,
-                  size: 14,
-                  color: claim.airlineEmailSelection.isNotEmpty
-                      ? const Color(0xFF7C3AED)
-                      : Colors.orange.shade700,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  claim.airlineEmailSelection.isNotEmpty
-                      ? 'Airline email target: '
-                      : 'No airline email set — ',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: claim.airlineEmailSelection.isNotEmpty
-                        ? Colors.grey.shade600
-                        : Colors.orange.shade700,
-                  ),
-                ),
-                Flexible(
-                  child: Text(
-                    claim.airlineEmailSelection.isNotEmpty
-                        ? claim.airlineEmailSelection
-                        : 'visit Email Airlines page first',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: claim.airlineEmailSelection.isNotEmpty
-                          ? const Color(0xFF7C3AED)
-                          : Colors.orange.shade700,
-                    ),
+            Expanded(
+              flex: 4,
+              child: open
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          work.hasNextAction ? work.nextAction : 'No next action',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                              fontSize: 12.5, color: theme.primaryText),
+                        ),
+                        if (work.dueLabel.isNotEmpty)
+                          Text(
+                            work.dueLabel,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: work.isOverdue
+                                  ? overdueRed(context)
+                                  : theme.secondaryText,
+                            ),
+                          ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            SizedBox(
+              width: 170,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    work.hasLawyer
+                        ? (work.lawyerUid == currentUserUid
+                            ? 'Yours'
+                            : work.lawyerName)
+                        : (open ? 'No lawyer yet' : ''),
                     overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: work.hasLawyer || !open
+                          ? theme.primaryText
+                          : const Color(0xFFF08156),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          if (loaUrl.isNotEmpty || demandUrl.isNotEmpty || solicitorUrl.isNotEmpty)
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                if (loaUrl.isNotEmpty)
-                  _DocLink(label: 'LOA', url: loaUrl),
-                if (demandUrl.isNotEmpty)
-                  _DocLink(label: '1st Demand', url: demandUrl),
-                if (solicitorUrl.isNotEmpty)
-                  _DocLink(label: 'Legal Notice', url: solicitorUrl),
-              ],
-            ),
-
-          if (loaUrl.isNotEmpty || demandUrl.isNotEmpty || solicitorUrl.isNotEmpty)
-            const SizedBox(height: 14),
-
-          // 鈹€鈹€ Action buttons 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-          Row(
-            children: [
-              // Send / Resend legal letter
-              ElevatedButton.icon(
-                onPressed: claim.airlineEmailSelection.isNotEmpty ? onSendLetter : null,
-                icon: FaIcon(
-                  FontAwesomeIcons.paperPlane,
-                  size: 13,
-                  color: Colors.white,
-                ),
-                label: Text(
-                  letterSent ? 'Resend Legal Letter' : 'Send Legal Letter',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF002855),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-              ),
-              const SizedBox(width: 10),
-
-              // Mark Won
-              OutlinedButton.icon(
-                onPressed: onMarkWon,
-                icon: const Icon(Icons.check_circle_outline,
-                    size: 15, color: Colors.green),
-                label: const Text('Mark Won',
-                    style: TextStyle(
-                        color: Colors.green,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600)),
-                style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  side: BorderSide(color: Colors.green.shade400),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(width: 10),
-
-              // Mark Lost
-              OutlinedButton.icon(
-                onPressed: onMarkLost,
-                icon: const Icon(Icons.cancel_outlined,
-                    size: 15, color: Colors.red),
-                label: const Text('Mark Lost',
-                    style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600)),
-                style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  side: BorderSide(color: Colors.red.shade400),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// 鈹€鈹€ Small helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip(
-      {required this.label, required this.color, this.textColor});
-
-  final String label;
-  final Color color;
-  final Color? textColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration:
-          BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          fontSize: 11,
-          color: textColor ?? Colors.grey.shade700,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailItem extends StatelessWidget {
-  const _DetailItem(
-      {required this.icon, required this.label, required this.value});
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: Colors.grey.shade500),
-        const SizedBox(width: 4),
-        Text(
-          '$label: ',
-          style: GoogleFonts.inter(
-              fontSize: 12, color: Colors.grey.shade500),
-        ),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade800),
-        ),
-      ],
-    );
-  }
-}
-
-class _DocLink extends StatelessWidget {
-  const _DocLink({required this.label, required this.url});
-
-  final String label;
-  final String url;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => launchURL(url),
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFF002855).withOpacity(0.07),
-          borderRadius: BorderRadius.circular(6),
-          border:
-              Border.all(color: const Color(0xFF002855).withOpacity(0.2)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.picture_as_pdf,
-                size: 13, color: Color(0xFF002855)),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: const Color(0xFF002855),
-                fontWeight: FontWeight.w600,
+                  if (open && !work.hasLawyer && isLegalRole(role))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: OutlinedButton(
+                        onPressed: _taking ? null : _take,
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: brandBlue(context)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: Text(
+                          _taking ? 'Taking…' : 'Take this case',
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: brandBlue(context),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
+            const SizedBox(width: 6),
+            Icon(Icons.chevron_right, color: theme.secondaryText),
           ],
         ),
       ),
@@ -927,29 +701,25 @@ class _DocLink extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.hasSearch});
+  const _EmptyState({required this.message});
 
-  final bool hasSearch;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          FaIcon(FontAwesomeIcons.paperPlane,
-              size: 48, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
+          Icon(Icons.gavel_rounded, size: 44, color: theme.alternate),
+          const SizedBox(height: 14),
           Text(
-            hasSearch
-                ? 'No claims match your search.'
-                : 'No claims escalated to solicitors yet.',
-            style: GoogleFonts.inter(
-                fontSize: 15, color: Colors.grey.shade500),
+            message,
+            style: GoogleFonts.inter(fontSize: 15, color: theme.secondaryText),
           ),
         ],
       ),
     );
   }
 }
-

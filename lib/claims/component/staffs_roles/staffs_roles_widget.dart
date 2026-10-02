@@ -148,32 +148,6 @@ class _StaffsRolesWidgetState extends State<StaffsRolesWidget> {
                       ),
                     ],
                   ),
-                  FFButtonWidget(
-                    onPressed: () {
-                      print('Button pressed ...');
-                    },
-                    text: 'add a Staff',
-                    icon: Icon(
-                      Icons.add,
-                      size: 15.0,
-                    ),
-                    options: FFButtonOptions(
-                      height: 44.0,
-                      padding:
-                          EdgeInsetsDirectional.fromSTEB(10.0, 0.0, 10.0, 0.0),
-                      iconPadding:
-                          EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                      iconColor: FlutterFlowTheme.of(context).primaryBackground,
-                      color: FlutterFlowTheme.of(context).primary,
-                      textStyle: TextStyle(
-                        color: FlutterFlowTheme.of(context).primaryBackground,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14.0,
-                      ),
-                      elevation: 0.0,
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
                 ],
               ),
               TextFormField(

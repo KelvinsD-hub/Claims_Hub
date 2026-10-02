@@ -314,7 +314,7 @@ class _LeadMenuWidgetState extends State<LeadMenuWidget> {
                                       ),
                                       if (FFAppState().leadNavOpen == true)
                                         Text(
-                                          'Assigned Agent',
+                                          'My leads',
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(

@@ -122,6 +122,18 @@ async function check(name, promise) {
     await check(`${who} cannot create a claim directly`, assertFails(setDoc(doc(db, 'claims/new1'), { claim_status: 'Details Pending', secure_token: TOKEN })));
     await check(`${who} cannot change a claim's client link`, assertFails(updateDoc(doc(db, 'claims/claim1'), { secure_token: 'another-long-token-value' })));
   }
+  console.log('\n— Ownership, next actions and legal stages are changed by the server —');
+  for (const [who, db] of [['agent', agent], ['solicitor', lawyer], ['super admin', superAdmin]]) {
+    await check(`${who} cannot assign a lead directly`, assertFails(updateDoc(doc(db, 'leads/lead1'), { handler_uid: 'agent', handler_name: 'Me' })));
+    await check(`${who} cannot assign a claim directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { handler_uid: 'agent' })));
+    await check(`${who} cannot make themselves a claim's lawyer directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { lawyer_uid: 'lawyer' })));
+    await check(`${who} cannot move a due date directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { next_action_due: new Date('2030-01-01') })));
+    await check(`${who} cannot change a lead's next action directly`, assertFails(updateDoc(doc(db, 'leads/lead1'), { next_action: 'Nothing' })));
+    await check(`${who} cannot write a legal stage directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { legal_stage: 'Court proceedings' })));
+    await check(`${who} cannot write the amount recovered directly`, assertFails(updateDoc(doc(db, 'claims/notoken'), { amount_recovered: 1 })));
+  }
+  await check('a claimant link cannot assign the claim', assertFails(updateDoc(doc(anon, 'claims/claim1'), { secure_token: TOKEN, handler_uid: 'x' })));
+
   await check('agent can edit their own profile', assertSucceeds(updateDoc(doc(agent, 'users/agent'), { city: 'Abuja' })));
   await check('agent can write an activity log entry', assertSucceeds(addDoc(collection(agent, 'activity_logs'), { action: 'Lead qualified' })));
   await check('agent can use the airlines directory', assertSucceeds(updateDoc(doc(agent, 'airlines_directory/air1'), { legal_email: 'legal@example.com' })));

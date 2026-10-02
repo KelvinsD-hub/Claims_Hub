@@ -1,3 +1,4 @@
+import '/components/brand_colors.dart';
 import '/backend/backend.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -10,7 +11,6 @@ import 'package:provider/provider.dart';
 import 'evidence_locker_model.dart';
 export 'evidence_locker_model.dart';
 
-const Color _kNavy = Color(0xFF002855);
 
 class EvidenceLockerWidget extends StatefulWidget {
   const EvidenceLockerWidget({super.key});
@@ -128,8 +128,8 @@ class _EvidenceLockerWidgetState extends State<EvidenceLockerWidget> {
                                 horizontal: 24, vertical: 16),
                             child: Row(
                               children: [
-                                const Icon(Icons.lock_person_outlined,
-                                    color: _kNavy, size: 24),
+                                Icon(Icons.lock_person_outlined,
+                                    color: brandBlue(context), size: 24),
                                 const SizedBox(width: 12),
                                 Text(
                                   'Evidence Locker',
@@ -138,7 +138,7 @@ class _EvidenceLockerWidgetState extends State<EvidenceLockerWidget> {
                                       .override(
                                         font: GoogleFonts.inter(
                                             fontWeight: FontWeight.bold),
-                                        color: _kNavy,
+                                        color: brandBlue(context),
                                         letterSpacing: 0,
                                       ),
                                 ),
@@ -185,7 +185,7 @@ class _EvidenceLockerWidgetState extends State<EvidenceLockerWidget> {
                                 _StatCard(
                                   label: 'Claims',
                                   value: claims.length,
-                                  color: _kNavy,
+                                  color: brandBlue(context),
                                   icon: FontAwesomeIcons.folderOpen,
                                 ),
                                 const SizedBox(width: 16),
@@ -212,9 +212,9 @@ class _EvidenceLockerWidgetState extends State<EvidenceLockerWidget> {
                           Expanded(
                             child: snapshot.connectionState ==
                                     ConnectionState.waiting
-                                ? const Center(
+                                ? Center(
                                     child: CircularProgressIndicator(
-                                        color: _kNavy))
+                                        color: brandBlue(context)))
                                 : filtered.isEmpty
                                     ? _EmptyState(hasSearch: search.isNotEmpty)
                                     : ListView.separated(
@@ -381,13 +381,13 @@ class _EvidenceCardState extends State<_EvidenceCard> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: _kNavy.withOpacity(0.1),
+                  color: brandBlue(context).withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: Text(widget.initials,
                       style: GoogleFonts.inter(
-                          fontWeight: FontWeight.bold, color: _kNavy)),
+                          fontWeight: FontWeight.bold, color: brandBlue(context))),
                 ),
               ),
               const SizedBox(width: 14),
@@ -483,7 +483,7 @@ class _EvidenceCardState extends State<_EvidenceCard> {
                       size: 16),
                   label: Text(_revealPii ? 'Hide' : 'Reveal',
                       style: const TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(foregroundColor: _kNavy),
+                  style: TextButton.styleFrom(foregroundColor: brandBlue(context)),
                 ),
               ],
             ),
@@ -538,22 +538,22 @@ class _DocChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: _kNavy.withOpacity(0.06),
+          color: brandBlue(context).withOpacity(0.06),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: _kNavy.withOpacity(0.2)),
+          border: Border.all(color: brandBlue(context).withOpacity(0.2)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            FaIcon(icon, size: 14, color: _kNavy),
+            FaIcon(icon, size: 14, color: brandBlue(context)),
             const SizedBox(width: 8),
             Text(label,
                 style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: _kNavy)),
+                    color: brandBlue(context))),
             const SizedBox(width: 6),
-            const Icon(Icons.open_in_new, size: 13, color: _kNavy),
+            Icon(Icons.open_in_new, size: 13, color: brandBlue(context)),
           ],
         ),
       ),
@@ -570,19 +570,19 @@ class _MissingChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: FlutterFlowTheme.of(context).alternate),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.remove_circle_outline,
-              size: 14, color: Colors.grey.shade500),
+              size: 14, color: FlutterFlowTheme.of(context).secondaryText),
           const SizedBox(width: 8),
-          Text(label,
+          Text('$label — missing',
               style: GoogleFonts.inter(
-                  fontSize: 13, color: Colors.grey.shade500)),
+                  fontSize: 13,
+                  color: FlutterFlowTheme.of(context).secondaryText)),
         ],
       ),
     );

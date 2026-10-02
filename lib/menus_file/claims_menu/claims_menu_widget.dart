@@ -476,7 +476,7 @@ class _ClaimsMenuWidgetState extends State<ClaimsMenuWidget> {
                                       ),
                                       if (FFAppState().claimNavOpen == true)
                                         Text(
-                                          'Solicitors Workspace',
+                                          'Legal Workspace',
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(

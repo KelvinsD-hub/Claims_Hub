@@ -110,24 +110,41 @@ service cloud.firestore {
       allow delete: if isAdmin() && (resource.data.get('role', '') != 'Super Admin' || isSuperAdmin());
     }
 
-    // ── Stages ─────────────────────────────────────────────────────────────
+    // ── Stages and casework ────────────────────────────────────────────────
     // A lead's or claim's stage is changed by the changeStage Cloud Function,
     // which checks the move is allowed, records who made it and opens the
-    // claim when a lead is qualified. Staff can edit everything else on a
-    // record directly, but not these fields.
+    // claim when a lead is qualified. Who owns a record, its next action and
+    // a claim's legal stage are changed by the caseAction function, which
+    // checks who is asking and writes the event log. Staff can edit everything
+    // else on a record directly, but not these fields.
     function changedKeys() {
       return request.resource.data.diff(resource.data).affectedKeys();
+    }
+    function caseworkFields() {
+      return [
+        'handler_uid', 'handler_name', 'handler_assigned_at',
+        'handler_assigned_by', 'handler_assigned_by_name',
+        'next_action', 'next_action_due', 'next_action_set_by',
+        'next_action_set_by_name'
+      ];
     }
     function leavesLeadStageAlone() {
       return !changedKeys().hasAny([
         'status', 'is_qualified', 'claim_ref',
         'stage_changed_at', 'stage_changed_by', 'stage_changed_by_name'
-      ]);
+      ]) && !changedKeys().hasAny(caseworkFields());
     }
     function leavesClaimStageAlone() {
       return !changedKeys().hasAny([
         'claim_status', 'is_escalated', 'lead_ref', 'secure_token',
         'stage_changed_at', 'stage_changed_by', 'stage_changed_by_name'
+      ]) && !changedKeys().hasAny(caseworkFields()) && !changedKeys().hasAny([
+        'lawyer_uid', 'lawyer_name', 'lawyer_assigned_at',
+        'lawyer_assigned_by', 'lawyer_assigned_by_name',
+        'legal_stage', 'legal_stage_changed_at', 'legal_stage_changed_by',
+        'legal_stage_changed_by_name', 'escalated_at', 'closed_at',
+        'amount_recovered', 'settlement_offer_amount', 'settlement_offer_at',
+        'airline_reply_at', 'airline_reply_summary'
       ]);
     }
 

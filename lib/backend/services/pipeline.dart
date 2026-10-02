@@ -250,12 +250,14 @@ const _changeStageUrl =
 /// Ask the server to move a lead or claim to [to].
 ///
 /// [note] is kept with the change in the event log; it is required when
-/// [moveNeedsReason] is true. Never throws.
+/// [moveNeedsReason] is true. [amount] is the sum recovered, in naira, when a
+/// claim is won. Never throws.
 Future<StageChangeResult> changeStage({
   required RecordKind kind,
   required String id,
   required String to,
   String note = '',
+  double? amount,
 }) async {
   try {
     final user = FirebaseAuth.instance.currentUser;
@@ -276,6 +278,7 @@ Future<StageChangeResult> changeStage({
               'id': id,
               'to': to,
               'note': note,
+              if (amount != null) 'amount': amount,
             },
           }),
         )

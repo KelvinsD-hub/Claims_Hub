@@ -8,6 +8,8 @@ const cors = require('cors')({ origin: true });
 const pipeline = require('./pipeline');
 const { CLAIM } = pipeline;
 const { applyStageChange, SYSTEM_ACTOR } = require('./stage-change');
+const casework = require('./casework');
+const { applyCaseAction, nextActionFields } = require('./case-action');
 
 /** The fields that record a stage change (see stage-change.js). */
 function stageStamp(stage, actor, note, field = 'claim_status') {
@@ -743,6 +745,7 @@ exports.onTriggerAirlineEmail = functions
       demand_letter_url: demandUrl,
       demand_sent_at: admin.firestore.FieldValue.serverTimestamp(),
       ...stageStamp(CLAIM.AWAITING_REPLY, SYSTEM_ACTOR, 'Demand letter sent to the airline'),
+      ...nextActionFields(admin, 'claim', CLAIM.AWAITING_REPLY),
     });
     } catch (err) {
       console.error('[onTriggerAirlineEmail]', err && err.message);
@@ -1045,6 +1048,12 @@ exports.onTriggerSolicitorEmail = functions
       solicitor_email_status: 'Sent',
       solicitor_letter_url: solicitorUrl,
       solicitor_sent_at: admin.firestore.FieldValue.serverTimestamp(),
+      // The notice period starts now; the lawyer's next date follows from it.
+      ...(pipeline.canonical('claim', newData.claim_status) === CLAIM.WITH_SOLICITOR ? {
+        legal_stage: casework.LEGAL.NOTICE_SENT,
+        legal_stage_changed_at: admin.firestore.FieldValue.serverTimestamp(),
+        ...nextActionFields(admin, 'claim', CLAIM.WITH_SOLICITOR, casework.LEGAL.NOTICE_SENT),
+      } : {}),
     });
     await logEvent({
       entityType: 'Claim', claimRef: change.after.ref, leadRef: newData.lead_ref || null,
@@ -1248,7 +1257,7 @@ exports.changeStage = functions.https.onRequest((req, res) => {
     }
 
     try {
-      const result = await applyStageChange(admin, { kind, id, to, note, staff });
+      const result = await applyStageChange(admin, { kind, id, to, note, staff, amount: payload.amount });
       return res.status(200).json({ success: true, ...result });
     } catch (e) {
       if (e instanceof pipeline.StageError) {
@@ -1256,6 +1265,52 @@ exports.changeStage = functions.https.onRequest((req, res) => {
       }
       console.error('[changeStage]', e && e.message);
       return res.status(500).json({ error: 'The stage could not be changed. Please try again.' });
+    }
+  });
+});
+
+// Casework: assigning a record, setting its next action, moving an escalated
+// claim between legal stages, adding to the case file. One endpoint, because
+// they share everything but the body (see case-action.js). Each writes its own
+// event-log entry in the same transaction.
+exports.caseAction = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+    const staff = await staffFromRequest(req);
+    if (!staff) {
+      return res.status(401).json({ error: 'Sign in with an approved staff account.' });
+    }
+    const payload = (req.body && req.body.data) ? req.body.data : (req.body || {});
+    const id = String(payload.id || '');
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
+      return res.status(400).json({ error: 'Invalid record id.' });
+    }
+    if (payload.to !== undefined && !/^[A-Za-z0-9 _-]{0,128}$/.test(String(payload.to))) {
+      return res.status(400).json({ error: 'Invalid value.' });
+    }
+    try {
+      const result = await applyCaseAction(admin, {
+        action: String(payload.action || ''),
+        kind: String(payload.kind || ''),
+        id,
+        slot: String(payload.slot || ''),
+        to: payload.to === undefined ? '' : String(payload.to),
+        text: payload.text,
+        due: payload.due,
+        note: payload.note,
+        type: String(payload.type || ''),
+        amount: payload.amount,
+        staff,
+      });
+      return res.status(200).json({ success: true, ...result });
+    } catch (e) {
+      if (e instanceof pipeline.StageError) {
+        return res.status(e.status).json({ error: e.message });
+      }
+      console.error('[caseAction]', e && e.message);
+      return res.status(500).json({ error: 'That could not be saved. Please try again.' });
     }
   });
 });
@@ -1317,11 +1372,24 @@ exports.onClaimStageLog = functions.firestore
         actorName: actor.uid === 'client' ? 'System' : actor.name,
         to: after.claim_status || '', note: actor.note,
       });
+      // A claim opened by the website arrives without one.
+      if (!after.next_action) {
+        await change.after.ref.update(nextActionFields(admin, 'claim',
+          pipeline.canonical('claim', after.claim_status), after.legal_stage)).catch((e) =>
+          console.error('[onClaimStageLog] next action', e && e.message));
+      }
       return null;
     }
     if (before.claim_status === after.claim_status) return null;
 
     const actor = actorOf(before, after);
+    if (actor.uid === 'client') {
+      // changeStage and the letter functions set the next action with the
+      // stage. A client finishing a form does not, so it is set here.
+      await change.after.ref.update(nextActionFields(admin, 'claim',
+        pipeline.canonical('claim', after.claim_status), after.legal_stage)).catch((e) =>
+        console.error('[onClaimStageLog] next action', e && e.message));
+    }
     await logEvent({
       entityType: 'Claim', claimRef: change.after.ref, leadRef: after.lead_ref || null,
       action: 'Stage changed',
@@ -1352,6 +1420,12 @@ exports.onLeadStageLog = functions.firestore
         actorName: viaStaff ? 'Staff' : 'Client',
         to: after.status || '',
       });
+      // A new lead belongs to nobody yet; this is what puts it on a clock.
+      if (!after.next_action) {
+        await change.after.ref.update(nextActionFields(admin, 'lead',
+          pipeline.canonical('lead', after.status))).catch((e) =>
+          console.error('[onLeadStageLog] next action', e && e.message));
+      }
       return null;
     }
     if (before.status === after.status) return null;

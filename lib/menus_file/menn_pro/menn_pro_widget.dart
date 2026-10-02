@@ -1,4 +1,5 @@
-﻿import '/flutter_flow/flutter_flow_icon_button.dart';
+﻿import '/components/brand_colors.dart';
+import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
@@ -122,7 +123,7 @@ class _MennProWidgetState extends State<MennProWidget> {
                                     style: GoogleFonts.inter(
                                       fontSize: 20.0,
                                       fontWeight: FontWeight.bold,
-                                      color: Color(0xFF002855),
+                                      color: brandBlue(context),
                                     ),
                                   ),
                                   TextSpan(

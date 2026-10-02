@@ -7,6 +7,8 @@
  */
 const crypto = require('crypto');
 const pipeline = require('./pipeline');
+const casework = require('./casework');
+const { nextActionFields, assignmentFields } = require('./case-action');
 const { LEAD, CLAIM } = pipeline;
 
 const SYSTEM_ACTOR = { uid: 'system', name: 'System' };
@@ -28,11 +30,16 @@ function newSecureToken() {
 }
 
 /**
- * Move one record. `staff` is { uid, name, role }.
+ * Move one record. `staff` is { uid, name, role }. `amount` is the sum
+ * recovered, in naira, when a claim is won.
  * Returns { from, to, claimId? }; throws pipeline.StageError when the move is
  * not allowed, with a message fit to show the person who asked.
+ *
+ * Alongside the stage: whoever moves a record nobody owns becomes its
+ * handler, and the record's next action is reset to what the new stage asks
+ * for (casework.js).
  */
-async function applyStageChange(admin, { kind, id, to, note, staff }) {
+async function applyStageChange(admin, { kind, id, to, note, staff, amount }) {
   const db = admin.firestore();
   const ref = db.doc(`${kind === 'lead' ? 'leads' : 'claims'}/${id}`);
   const field = kind === 'lead' ? 'status' : 'claim_status';
@@ -46,6 +53,8 @@ async function applyStageChange(admin, { kind, id, to, note, staff }) {
     });
     const update = stageStamp(admin, move.to, staff, note, field);
     const out = { from: move.from, to: move.to };
+    const actor = { uid: staff.uid, name: staff.name };
+    if (!data.handler_uid) Object.assign(update, assignmentFields(admin, 'handler', actor, actor));
 
     if (kind === 'lead') {
       if (move.to === LEAD.CONTACTED) update.is_contacted = true;
@@ -68,6 +77,10 @@ async function applyStageChange(admin, { kind, id, to, note, staff }) {
           ...(data.full_name ? { full_name: data.full_name } : {}),
           ...(data.airline_name ? { airline_name: data.airline_name } : {}),
           ...stageStamp(admin, CLAIM.DETAILS_PENDING, staff, 'Opened from a qualified lead'),
+          // The claim stays with whoever was handling the lead.
+          ...assignmentFields(admin, 'handler',
+            data.handler_uid ? { uid: data.handler_uid, name: data.handler_name || 'Staff' } : actor, actor),
+          ...nextActionFields(admin, 'claim', CLAIM.DETAILS_PENDING, null, { forCreate: true }),
         });
         update.is_qualified = true;
         update.claim_ref = claimRef;
@@ -82,7 +95,28 @@ async function applyStageChange(admin, { kind, id, to, note, staff }) {
       if (pipeline.CLAIM_CLOSED.includes(move.to) && !pipeline.CLAIM_CLOSED.includes(move.from)) {
         update.closed_at = admin.firestore.FieldValue.serverTimestamp();
       }
+      if (move.to === CLAIM.WON || move.to === CLAIM.LOST) {
+        update.settlement_date = admin.firestore.FieldValue.serverTimestamp();
+      }
+      if (move.to === CLAIM.WON && amount !== undefined && amount !== null && amount !== '') {
+        const recovered = Number(amount);
+        if (!Number.isFinite(recovered) || recovered <= 0) {
+          throw new pipeline.StageError(400, 'Give the amount recovered, in naira.');
+        }
+        update.amount_recovered = recovered;
+      }
+      if (move.to === CLAIM.WITH_SOLICITOR) {
+        // A fresh escalation starts with a lawyer reading the file.
+        update.legal_stage = casework.LEGAL.REVIEW;
+        update.legal_stage_changed_at = admin.firestore.FieldValue.serverTimestamp();
+        update.escalated_at = admin.firestore.FieldValue.serverTimestamp();
+        if (!data.lawyer_uid && staff.role === pipeline.ROLE.SOLICITOR) {
+          Object.assign(update, assignmentFields(admin, 'lawyer', actor, actor));
+        }
+      }
     }
+    Object.assign(update, nextActionFields(admin, kind, move.to,
+      move.to === CLAIM.WITH_SOLICITOR ? casework.LEGAL.REVIEW : null));
 
     tx.update(ref, update);
     return out;
