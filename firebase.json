@@ -24,6 +24,10 @@
       {
         "source": "/main.dart.js",
         "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      },
+      {
+        "source": "/assets/**",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       }
     ]
   }

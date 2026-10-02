@@ -74,6 +74,13 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     return weekly;
   }
 
+  static String _clientName(ClaimsRecord claim, Map<String, String> leadNames) {
+    if (claim.fullName.isNotEmpty) return claim.fullName;
+    final fromLead = leadNames[claim.leadRef?.id] ?? '';
+    if (fromLead.isNotEmpty) return fromLead;
+    return claim.clientEmail.isNotEmpty ? claim.clientEmail : 'Unnamed client';
+  }
+
   void _addLead() {
     showModalBottomSheet<void>(
       isScrollControlled: true,
@@ -156,6 +163,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
         ? _thisWeek(claims.map((c) => c.createdAt))
         : _thisWeek(leads.map((l) => l.createdAt));
     final what = _chartClaims ? 'claims' : 'leads';
+    // Older claims kept the client's name on the lead only.
+    final leadNames = {for (final l in leads) l.reference.id: l.fullName};
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24.0, 20.0, 24.0, 40.0),
@@ -225,7 +234,6 @@ class _HomePageWidgetState extends State<HomePageWidget> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                flex: 3,
                 child: _Panel(
                   title: _chartClaims
                       ? 'Claims opened this week'
@@ -241,7 +249,6 @@ class _HomePageWidgetState extends State<HomePageWidget> {
               ),
               const SizedBox(width: 14.0),
               Expanded(
-                flex: 2,
                 child: _Panel(
                   title: _chartClaims
                       ? 'Claims by who they are waiting on'
@@ -261,6 +268,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                 child: _Panel(
                   title: 'Newest leads',
                   subtitle: 'The last five to come in',
+                  height: 356.0,
                   action: TextButton(
                     onPressed: () => context.goNamed(LeadsWidget.routeName),
                     child: const Text('All leads'),
@@ -292,6 +300,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                 child: _Panel(
                   title: 'Newest claims',
                   subtitle: 'The last five to be opened',
+                  height: 356.0,
                   action: TextButton(
                     onPressed: () =>
                         context.goNamed(ClaimsDashboardWidget.routeName),
@@ -302,11 +311,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                       if (claims.isEmpty) const _None('No claims yet.'),
                       for (final claim in claims.take(5))
                         _RecentRow(
-                          name: claim.fullName.isNotEmpty
-                              ? claim.fullName
-                              : (claim.clientEmail.isNotEmpty
-                                  ? claim.clientEmail
-                                  : 'Unnamed client'),
+                          name: _clientName(claim, leadNames),
                           detail: [claim.airlineName, claim.flightNumber]
                               .where((s) => s.isNotEmpty)
                               .join('  ·  '),
@@ -535,13 +540,15 @@ class _RecentRow extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(8.0),
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 9.0, horizontal: 4.0),
+      child: Container(
+        height: 50.0,
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
         child: Row(
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(name,
                       overflow: TextOverflow.ellipsis,
