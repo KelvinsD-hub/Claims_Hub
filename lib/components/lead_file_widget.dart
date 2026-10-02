@@ -169,7 +169,7 @@ class _LeadFileWidgetState extends State<LeadFileWidget> {
         final lead = snapshot.data!;
         final stage = canonicalStage(RecordKind.lead, lead.status);
         final what =
-            lead.claimType.isNotEmpty ? lead.claimType : lead.complaintType;
+            lead.complaintType.isNotEmpty ? lead.complaintType : lead.claimType;
 
         String money(double value) {
           final symbol = lead.fareCurrency.isEmpty || lead.fareCurrency == 'NGN'

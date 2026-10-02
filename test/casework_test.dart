@@ -85,4 +85,13 @@ void main() {
     expect(work.aiOptOut, isTrue);
     expect(work.aiOptOutByName, 'Ada');
   });
+
+  test('a handler name with nobody behind it is not an owner', () {
+    final work = Casework.of({'handler_name': 'Claims Assist Limited'});
+    expect(work.hasHandler, isFalse);
+    expect(work.handlerName, '');
+    expect(
+        Casework.of({'handler_uid': 'ada', 'handler_name': 'Ada'}).handlerName,
+        'Ada');
+  });
 }

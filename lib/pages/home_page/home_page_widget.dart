@@ -1,6 +1,9 @@
 import '/backend/services/pipeline.dart';
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
+import '/components/brand_colors.dart';
+import '/components/case_file_widget.dart';
+import '/components/work_ui.dart';
 import '/custom_code/widgets/claim_status_card.dart';
 import '/custom_code/widgets/weekly_leads_chart.dart';
 import '/flutter_flow/flutter_flow_animations.dart';
@@ -63,6 +66,42 @@ class _HomePageWidgetState extends State<HomePageWidget>
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final animationsMap = <String, AnimationInfo>{};
+
+  /// The charts show leads, or claims.
+  bool _chartClaims = false;
+
+  late final Stream<List<LeadsRecord>> _chartLeads = queryLeadsRecord(
+    queryBuilder: (q) => q.orderBy('created_at', descending: true),
+  );
+  late final Stream<List<ClaimsRecord>> _chartClaimsStream = queryClaimsRecord(
+    queryBuilder: (q) => q.orderBy('createdAt', descending: true),
+  );
+
+  /// How many of [dates] fall on each day of this week, Sunday first.
+  static List<int> _thisWeek(Iterable<DateTime?> dates) {
+    final now = DateTime.now();
+    // DateTime.weekday is Mon=1 … Sun=7; % 7 gives days since Sunday.
+    final weekStart = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: now.weekday % 7));
+    final weekly = List<int>.filled(7, 0);
+    for (final at in dates) {
+      if (at == null) continue;
+      if (!DateTime(at.year, at.month, at.day).isBefore(weekStart)) {
+        weekly[at.weekday % 7]++;
+      }
+    }
+    return weekly;
+  }
+
+  /// Claim stages, grouped by who the claim is waiting on, for the chart.
+  static const _claimGroups = <(String, List<String>)>[
+    ('With the client', [ClaimStage.detailsPending, ClaimStage.termsPending]),
+    ('In review', [ClaimStage.readyForReview, ClaimStage.underReview]),
+    ('With the airline', [ClaimStage.demandPending, ClaimStage.awaitingReply]),
+    ('With legal', [ClaimStage.withSolicitor]),
+    ('Won', [ClaimStage.won, ClaimStage.paid]),
+    ('Lost or withdrawn', [ClaimStage.lost, ClaimStage.withdrawn]),
+  ];
 
   @override
   void initState() {
@@ -728,86 +767,105 @@ class _HomePageWidgetState extends State<HomePageWidget>
   // ── Charts section (direct leads query — no pre-aggregation dependency) ─────
 
   Widget _buildChartsSection(BuildContext context) {
-    return StreamBuilder<List<LeadsRecord>>(
-      stream: queryLeadsRecord(
-        queryBuilder: (q) => q.orderBy('created_at', descending: true),
-      ),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting &&
-            !snap.hasData) {
-          return const SizedBox(
-            height: 300,
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        final leads = snap.data ?? [];
-
-        // ── Weekly lead counts (slots 0=Sun … 6=Sat, matching JS getDay()) ──
-        final now = DateTime.now();
-        // DateTime.weekday: Mon=1 … Sun=7. We want days-since-Sunday:
-        // Mon=1→1, Tue=2→2, … Sat=6→6, Sun=7→0
-        final daysSinceSunday = now.weekday % 7;
-        final weekStart = DateTime(now.year, now.month, now.day)
-            .subtract(Duration(days: daysSinceSunday));
-
-        final weekly = List<int>.filled(7, 0);
-        for (final lead in leads) {
-          final createdAt = lead.createdAt;
-          if (createdAt == null) continue;
-          final day =
-              DateTime(createdAt.year, createdAt.month, createdAt.day);
-          if (!day.isBefore(weekStart)) {
-            // weekday % 7 maps Mon=1→1 … Sat=6→6, Sun=7→0
-            weekly[createdAt.weekday % 7]++;
-          }
-        }
-
-        // ── Status distribution (all leads, all time) ─────────────────────
-        final statusCounts = <String, int>{};
-        for (final lead in leads) {
-          final s = lead.status;
-          if (s.isNotEmpty) {
-            statusCounts[s] = (statusCounts[s] ?? 0) + 1;
-          }
-        }
-
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Weekly line chart (70%)
-            Expanded(
-              flex: 7,
-              child: _ChartCard(
-                title: 'Weekly Leads',
-                subtitle: 'Leads created this week (Sun – Sat)',
-                child: SizedBox(
-                  height: 280,
-                  child: WeeklyLeadsChart(
-                    width: double.infinity,
+    Widget charts(List<int> weekly, Map<String, int> counts) {
+      final what = _chartClaims ? 'Claims' : 'Leads';
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              WorkChip(
+                label: 'Leads',
+                selected: !_chartClaims,
+                onTap: () => setState(() => _chartClaims = false),
+              ),
+              const SizedBox(width: 8),
+              WorkChip(
+                label: 'Claims',
+                selected: _chartClaims,
+                onTap: () => setState(() => _chartClaims = true),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 7,
+                child: _ChartCard(
+                  title: 'Weekly $what',
+                  subtitle: _chartClaims
+                      ? 'Claims opened this week (Sun – Sat)'
+                      : 'Leads received this week (Sun – Sat)',
+                  child: SizedBox(
                     height: 280,
-                    leadCounts: weekly,
+                    child: WeeklyLeadsChart(
+                      width: double.infinity,
+                      height: 280,
+                      leadCounts: weekly,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            // Lead status donut (30%)
-            Expanded(
-              flex: 3,
-              child: _ChartCard(
-                title: 'Lead Status',
-                subtitle: 'All-time by status',
-                child: SizedBox(
-                  height: 280,
-                  child: statusCounts.isEmpty
-                      ? const _EmptyChart(label: 'No lead data yet')
-                      : _DonutChart(sources: statusCounts),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 3,
+                child: _ChartCard(
+                  title: _chartClaims ? 'Claim stages' : 'Lead stages',
+                  subtitle: _chartClaims
+                      ? 'Every claim, by who it is waiting on'
+                      : 'Every lead, by stage',
+                  child: SizedBox(
+                    height: 280,
+                    child: counts.isEmpty
+                        ? _EmptyChart(
+                            label: 'No ${what.toLowerCase()} yet')
+                        : _DonutChart(sources: counts),
+                  ),
                 ),
               ),
-            ),
-          ],
-        );
+            ],
+          ),
+        ],
+      );
+    }
+
+    const loading = SizedBox(
+      height: 300,
+      child: Center(child: CircularProgressIndicator()),
+    );
+
+    if (_chartClaims) {
+      return StreamBuilder<List<ClaimsRecord>>(
+        stream: _chartClaimsStream,
+        builder: (context, snap) {
+          if (!snap.hasData) return loading;
+          final claims = snap.data!;
+          final counts = <String, int>{
+            for (final (label, stages) in _claimGroups)
+              if (claims.any((c) => stages.contains(
+                  canonicalStage(RecordKind.claim, c.claimStatus))))
+                label: claims
+                    .where((c) => stages.contains(
+                        canonicalStage(RecordKind.claim, c.claimStatus)))
+                    .length,
+          };
+          return charts(_thisWeek(claims.map((c) => c.createdAt)), counts);
+        },
+      );
+    }
+    return StreamBuilder<List<LeadsRecord>>(
+      stream: _chartLeads,
+      builder: (context, snap) {
+        if (!snap.hasData) return loading;
+        final leads = snap.data!;
+        final counts = <String, int>{};
+        for (final lead in leads) {
+          final stage = canonicalStage(RecordKind.lead, lead.status);
+          if (stage.isNotEmpty) counts[stage] = (counts[stage] ?? 0) + 1;
+        }
+        return charts(_thisWeek(leads.map((l) => l.createdAt)), counts);
       },
     );
   }
@@ -833,7 +891,8 @@ class _HomePageWidgetState extends State<HomePageWidget>
               onPressed: () => context.pushNamed('ClaimsDashboard'),
               child: Text('View all claims',
                   style: GoogleFonts.inter(
-                      color: _kNavy, fontWeight: FontWeight.w600)),
+                      color: brandBlue(context),
+                      fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -917,7 +976,7 @@ class _ClaimCardWrapper extends StatelessWidget {
       airlineName: claim.airlineName,
       pnrNumber: claim.pnrNumber,
       claimStage: _stageFromStatus(claim.claimStatus),
-      onTap: () async {},
+      onTap: () async => showCaseFile(context, claim.reference),
     );
   }
 }

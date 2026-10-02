@@ -37,9 +37,14 @@ bool isLegalRole(String role) => role == 'Solicitor' || isManagerRole(role);
 class Casework {
   Casework.of(Map<String, dynamic> data)
       : handlerUid = _text(data['handler_uid']),
-        handlerName = _text(data['handler_name']),
+        // A name counts only with the person it names: a lead from the
+        // website can carry a `handler_name` that is the firm, not a person.
+        handlerName = _text(data['handler_uid']).isEmpty
+            ? ''
+            : _text(data['handler_name']),
         lawyerUid = _text(data['lawyer_uid']),
-        lawyerName = _text(data['lawyer_name']),
+        lawyerName =
+            _text(data['lawyer_uid']).isEmpty ? '' : _text(data['lawyer_name']),
         nextAction = _text(data['next_action']),
         nextActionDue = _date(data['next_action_due']),
         legalStage = _text(data['legal_stage']),

@@ -241,7 +241,7 @@ class _Pipeline extends StatelessWidget {
   const _Pipeline({required this.stage});
   final int stage;
 
-  static const _stages = ['Leads', 'Evidence', 'Airline', 'Settlement'];
+  static const _stages = ['Client details', 'Review', 'Airline', 'Outcome'];
   static const _navy = Color(0xFF002855);
   static const _gold = Color(0xFFE6B011);
 

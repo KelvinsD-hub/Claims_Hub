@@ -209,7 +209,7 @@ class _LeadRow extends StatelessWidget {
     final theme = FlutterFlowTheme.of(context);
     final work = Casework.of(lead.snapshotData);
     final what =
-        lead.claimType.isNotEmpty ? lead.claimType : lead.complaintType;
+        lead.complaintType.isNotEmpty ? lead.complaintType : lead.claimType;
     final contact =
         [lead.email, lead.phone].where((s) => s.isNotEmpty).join('  ·  ');
     final (String routing, Color routingColor) = switch (lead.handler) {

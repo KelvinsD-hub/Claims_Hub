@@ -7,12 +7,24 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:page_transition/page_transition.dart';
 
 /// The pieces the working pages share — Leads, Claims, Demand letters and the
 /// Legal Workspace — so they look and behave as one area: the same sidebar,
 /// the same header, the same way of showing a stage or a due date.
 
 enum WorkPage { leads, claims, demands, legal }
+
+/// Moving between the working pages swaps the page at once. Without this the
+/// router plays its default page animation, which reads as the screen
+/// jumping.
+const _atOnce = <String, dynamic>{
+  kTransitionInfoKey: TransitionInfo(
+    hasTransition: true,
+    transitionType: PageTransitionType.fade,
+    duration: Duration.zero,
+  ),
+};
 
 /// Whether the sidebar is folded down to its icons. Kept across pages.
 final _sidebarFolded = ValueNotifier<bool>(false);
@@ -57,7 +69,8 @@ class WorkSidebar extends StatelessWidget {
               message: 'Back to the home page',
               child: InkWell(
                 borderRadius: BorderRadius.circular(10.0),
-                onTap: () => context.goNamed(HomePageWidget.routeName),
+                onTap: () =>
+                    context.goNamed(HomePageWidget.routeName, extra: _atOnce),
                 child: Padding(
                   padding: const EdgeInsets.all(10.0),
                   child: Row(
@@ -86,7 +99,7 @@ class WorkSidebar extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10.0),
                     onTap: page == selected
                         ? null
-                        : () => context.goNamed(_route(page)),
+                        : () => context.goNamed(_route(page), extra: _atOnce),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12.0, vertical: 11.0),
