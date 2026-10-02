@@ -1,4 +1,5 @@
-﻿import '/backend/backend.dart';
+﻿import '/backend/services/compensation_calculator.dart';
+import '/backend/backend.dart';
 import '/custom_code/actions/index.dart' as actions;
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -674,9 +675,7 @@ class _ClaimCard extends StatelessWidget {
               _DetailItem(
                 icon: Icons.attach_money,
                 label: 'Amount',
-                value: claim.claimsAmount.isNotEmpty
-                    ? '鈧?{claim.claimsAmount}'
-                    : 'N/A',
+                value: displayClaimAmount(claim.claimsAmount, empty: 'N/A'),
               ),
             ],
           ),

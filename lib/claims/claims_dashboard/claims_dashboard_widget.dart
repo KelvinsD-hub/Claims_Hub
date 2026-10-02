@@ -1,3 +1,4 @@
+import '/backend/services/compensation_calculator.dart';
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/flutter_flow/flutter_flow_animations.dart';
@@ -594,8 +595,7 @@ class _ClaimsTableRow extends StatelessWidget {
         ? theme.secondaryBackground
         : theme.primaryBackground;
     final pnr = claim.pnrNumber.isNotEmpty ? claim.pnrNumber : '—';
-    final amount =
-        claim.claimsAmount.isNotEmpty ? '£${claim.claimsAmount}' : '—';
+    final amount = displayClaimAmount(claim.claimsAmount);
     final created = claim.createdAt != null
         ? dateTimeFormat('d MMM y', claim.createdAt)
         : '—';

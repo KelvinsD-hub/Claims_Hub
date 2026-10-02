@@ -187,6 +187,41 @@ class ClaimsRecord extends FirestoreRecord {
   String get claimsReason => _claimsReason ?? '';
   bool hasClaimsReason() => _claimsReason != null;
 
+  // --- Carried over from the website lead when the claim is opened
+  // (onClaimCreatedCopyLoa in claims-assist-site). Read-only here. ---
+
+  // "fare_paid" / "fare_currency" fields: the ticket price Part 19
+  // compensation is calculated from.
+  double? _farePaid;
+  double? get farePaid => _farePaid;
+  String? _fareCurrency;
+  String get fareCurrency => _fareCurrency ?? '';
+
+  // "route_from_country" / "route_to_country" fields: ISO country codes.
+  String? _routeFromCountry;
+  String get routeFromCountry => _routeFromCountry ?? '';
+  String? _routeToCountry;
+  String get routeToCountry => _routeToCountry ?? '';
+
+  // "passenger_count" field: the lead claimant plus anyone else on the booking.
+  int? _passengerCount;
+  int get passengerCount => _passengerCount ?? 1;
+
+  // "start_immediately" field: the claimant waived the cancellation period.
+  bool? _startImmediately;
+  bool get startImmediately => _startImmediately ?? false;
+
+  // "work_may_start_at" field: when the 14 day cancellation period ends.
+  DateTime? _workMayStartAt;
+  DateTime? get workMayStartAt => _workMayStartAt;
+
+  /// True while the claimant can still cancel at no cost and has not asked us
+  /// to begin — nothing may be sent to the airline until this is false.
+  bool get inCancellationPeriod =>
+      !startImmediately &&
+      _workMayStartAt != null &&
+      _workMayStartAt!.isAfter(DateTime.now());
+
   void _initializeFields() {
     _leadRef = snapshotData['lead_ref'] as DocumentReference?;
     _pnrNumber = snapshotData['pnr_number'] as String?;
@@ -230,6 +265,20 @@ class ClaimsRecord extends FirestoreRecord {
     _airlineEmailSelection = snapshotData['airline_email_selection'] as String?;
     _airlineEmailStatus = snapshotData['airline_email_status'] as String?;
     _claimsReason = snapshotData['claims_reason'] as String?;
+
+    // Type-checked rather than cast: these originate from a public form.
+    T? read<T>(String key) {
+      final value = snapshotData[key];
+      return value is T ? value : null;
+    }
+
+    _farePaid = read<num>('fare_paid')?.toDouble();
+    _fareCurrency = read<String>('fare_currency');
+    _routeFromCountry = read<String>('route_from_country');
+    _routeToCountry = read<String>('route_to_country');
+    _passengerCount = read<num>('passenger_count')?.toInt();
+    _startImmediately = read<bool>('start_immediately');
+    _workMayStartAt = read<DateTime>('work_may_start_at');
   }
 
   static CollectionReference get collection =>

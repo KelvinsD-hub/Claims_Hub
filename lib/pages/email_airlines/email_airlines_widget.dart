@@ -2097,6 +2097,33 @@ class _EmailAirlinesWidgetState extends State<EmailAirlinesWidget>
                                                           'Awaiting reply')
                                                         FFButtonWidget(
                                                           onPressed: () async {
+                                                            // A website client who has not asked us to
+                                                            // start at once can still cancel for 14
+                                                            // days; nothing goes to the airline before
+                                                            // then. The Cloud Function enforces this
+                                                            // too — this is so staff are told why.
+                                                            if (listViewClaimsRecord
+                                                                .inCancellationPeriod) {
+                                                              ScaffoldMessenger
+                                                                      .of(context)
+                                                                  .showSnackBar(
+                                                                SnackBar(
+                                                                  content: Text(
+                                                                    'Not sent. This client can still cancel until '
+                                                                    '${dateTimeFormat("d MMM y", listViewClaimsRecord.workMayStartAt)}, '
+                                                                    'and did not ask us to start before then.',
+                                                                  ),
+                                                                  duration: Duration(
+                                                                      milliseconds:
+                                                                          6000),
+                                                                  backgroundColor:
+                                                                      FlutterFlowTheme.of(
+                                                                              context)
+                                                                          .error,
+                                                                ),
+                                                              );
+                                                              return;
+                                                            }
                                                             if (_model.dropDownValue !=
                                                                     null &&
                                                                 _model.dropDownValue !=

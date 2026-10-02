@@ -1611,7 +1611,7 @@ class _EditEvidenceFormWidgetState extends State<EditEvidenceFormWidget> {
                                             obscureText: false,
                                             decoration: InputDecoration(
                                               hintText:
-                                                  'Enter Amount e.g. \$450.00',
+                                                  'Amount claimed in naira, if known',
                                               hintStyle:
                                                   FlutterFlowTheme.of(context)
                                                       .bodyMedium

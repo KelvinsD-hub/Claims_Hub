@@ -46,6 +46,136 @@ class _LeadNoteWidgetState extends State<LeadNoteWidget> {
     super.dispose();
   }
 
+  /// What the website checker recorded about this lead: who acts on it, and
+  /// the facts a Part 19 claim is valued from.
+  Widget _websiteDetails(BuildContext context, LeadsRecord lead) {
+    final theme = FlutterFlowTheme.of(context);
+
+    final (String label, Color color) = switch (lead.handler) {
+      'claims_assist' => ('In house — we act on this claim', theme.success),
+      'register_interest' => (
+          'Interest only — not a claim we are taking on',
+          theme.warning
+        ),
+      'decline' => ('Declined — no scheme we pursue', theme.error),
+      'reclaims4u' => (
+          'Referred to partner — referral now closed',
+          theme.warning
+        ),
+      _ => (lead.handler, theme.secondaryText),
+    };
+
+    String money(double value) {
+      final symbol = lead.fareCurrency.isEmpty || lead.fareCurrency == 'NGN'
+          ? '₦'
+          : '${lead.fareCurrency} ';
+      return '$symbol${NumberFormat('#,##0.##').format(value)}';
+    }
+
+    final rows = <(String, String)>[
+      if (lead.regime.isNotEmpty) ('Rules', lead.regime),
+      if (lead.estimateValue.isNotEmpty) ('Estimate', lead.estimateValue),
+      if (lead.farePaid != null) ('Ticket price', money(lead.farePaid!)),
+      if (lead.delayHours != null)
+        ('Delay', '${NumberFormat('0.##').format(lead.delayHours)} hours'),
+      if (lead.passengerCount > 1)
+        ('Passengers', '${lead.passengerCount} on this booking'),
+      if (lead.bookingReference.isNotEmpty)
+        ('Booking ref', lead.bookingReference),
+      (
+        'Authority',
+        lead.loaSigned ? 'Signed on the website' : 'Not signed yet'
+      ),
+      if (lead.loaSigned && lead.workMayStartAt != null)
+        (
+          'Work may start',
+          lead.workMayStartAt!.isAfter(DateTime.now())
+              ? '${dateTimeFormat("d MMM y", lead.workMayStartAt)} — '
+                  'cancellation period still running'
+              : 'Now'
+        ),
+      if (lead.bankDetailsPending) ('Bank details', 'Still to be collected'),
+    ];
+
+    final bodySmall = theme.bodySmall.override(
+      font: GoogleFonts.inter(),
+      letterSpacing: 0.0,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(8.0),
+            border: Border.all(color: color),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: bodySmall.override(
+                  font: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                  color: theme.primaryText,
+                  letterSpacing: 0.0,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (lead.handlerReason.isNotEmpty)
+                Text(
+                  lead.handlerReason,
+                  style: bodySmall.override(
+                    font: GoogleFonts.inter(),
+                    color: theme.secondaryText,
+                    letterSpacing: 0.0,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        SizedBox(height: 10.0),
+        for (final (name, value) in rows)
+          Padding(
+            padding: EdgeInsets.only(bottom: 4.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 104.0,
+                  child: Text(
+                    name,
+                    style: bodySmall.override(
+                      font: GoogleFonts.inter(),
+                      color: theme.secondaryText,
+                      letterSpacing: 0.0,
+                    ),
+                  ),
+                ),
+                Expanded(child: Text(value, style: bodySmall)),
+              ],
+            ),
+          ),
+        if (lead.disruptionDetails.isNotEmpty) ...[
+          SizedBox(height: 6.0),
+          Text(
+            'In their words',
+            style: bodySmall.override(
+              font: GoogleFonts.inter(),
+              color: theme.secondaryText,
+              letterSpacing: 0.0,
+            ),
+          ),
+          Text(lead.disruptionDetails, style: bodySmall),
+        ],
+        Divider(thickness: 1.0, color: theme.alternate),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -60,6 +190,10 @@ class _LeadNoteWidgetState extends State<LeadNoteWidget> {
           children: [
             Container(
               width: 370.0,
+              // Website leads carry enough detail to outgrow a short screen.
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+              ),
               decoration: BoxDecoration(
                 color: FlutterFlowTheme.of(context).secondaryBackground,
                 boxShadow: [
@@ -77,7 +211,8 @@ class _LeadNoteWidgetState extends State<LeadNoteWidget> {
               ),
               child: Padding(
                 padding: EdgeInsetsDirectional.fromSTEB(20.0, 20.0, 20.0, 20.0),
-                child: Column(
+                child: SingleChildScrollView(
+                    child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -175,6 +310,8 @@ class _LeadNoteWidgetState extends State<LeadNoteWidget> {
                                 .fontStyle,
                           ),
                     ),
+                    if (widget!.leadRef?.hasHandler() ?? false)
+                      _websiteDetails(context, widget!.leadRef!),
                     Text(
                       valueOrDefault<String>(
                         widget!.leadRef?.initialSummary,
@@ -235,7 +372,7 @@ class _LeadNoteWidgetState extends State<LeadNoteWidget> {
                       ],
                     ),
                   ].divide(SizedBox(height: 12.0)),
-                ),
+                )),
               ),
             ),
           ].divide(SizedBox(height: 12.0)),

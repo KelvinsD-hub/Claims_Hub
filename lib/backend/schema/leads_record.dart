@@ -101,6 +101,62 @@ class LeadsRecord extends FirestoreRecord {
   String get country => _country ?? '';
   bool hasCountry() => _country != null;
 
+  // --- Written by the website checker (claims-assist-site). Read-only here:
+  // staff do not edit these, so they are not in createLeadsRecordData. ---
+
+  // "handler" field: claims_assist | register_interest | decline | reclaims4u.
+  String? _handler;
+  String get handler => _handler ?? '';
+  bool hasHandler() => _handler != null;
+
+  // "handler_reason" field.
+  String? _handlerReason;
+  String get handlerReason => _handlerReason ?? '';
+
+  // "regime" field, e.g. NCAR, UK261.
+  String? _regime;
+  String get regime => _regime ?? '';
+
+  // "loa_signed" field: Letter of Authority e-signed on the website.
+  bool? _loaSigned;
+  bool get loaSigned => _loaSigned ?? false;
+
+  // "fare_paid" / "fare_currency" fields: the ticket price Part 19
+  // compensation is calculated from.
+  double? _farePaid;
+  double? get farePaid => _farePaid;
+  String? _fareCurrency;
+  String get fareCurrency => _fareCurrency ?? '';
+
+  // "delay_hours" field.
+  double? _delayHours;
+  double? get delayHours => _delayHours;
+
+  // "passenger_count" field: the lead claimant plus anyone else on the booking.
+  int? _passengerCount;
+  int get passengerCount => _passengerCount ?? 1;
+
+  // "booking_reference" field.
+  String? _bookingReference;
+  String get bookingReference => _bookingReference ?? '';
+
+  // "disruption_details" field: the claimant's own account.
+  String? _disruptionDetails;
+  String get disruptionDetails => _disruptionDetails ?? '';
+
+  // "bank_details_pending" field: payout details still to be collected.
+  bool? _bankDetailsPending;
+  bool get bankDetailsPending => _bankDetailsPending ?? false;
+
+  // "work_may_start_at" field: end of the 14 day cancellation period, or the
+  // signing time where the claimant asked us to start at once.
+  DateTime? _workMayStartAt;
+  DateTime? get workMayStartAt => _workMayStartAt;
+
+  /// True where the website routed this lead to us to act on. Leads created
+  /// inside the CRM carry no handler and are in house by definition.
+  bool get isInHouse => handler.isEmpty || handler == 'claims_assist';
+
   void _initializeFields() {
     _fullName = snapshotData['full_name'] as String?;
     _email = snapshotData['email'] as String?;
@@ -119,6 +175,25 @@ class LeadsRecord extends FirestoreRecord {
     _isContacted = snapshotData['is_contacted'] as bool?;
     _estimateValue = snapshotData['estimate_value'] as String?;
     _country = snapshotData['country'] as String?;
+    // Type-checked rather than cast: these come from a public form, and a
+    // single lead with an unexpected value must not break the whole list.
+    T? read<T>(String key) {
+      final value = snapshotData[key];
+      return value is T ? value : null;
+    }
+
+    _handler = read<String>('handler');
+    _handlerReason = read<String>('handler_reason');
+    _regime = read<String>('regime');
+    _loaSigned = read<bool>('loa_signed');
+    _farePaid = read<num>('fare_paid')?.toDouble();
+    _fareCurrency = read<String>('fare_currency');
+    _delayHours = read<num>('delay_hours')?.toDouble();
+    _passengerCount = read<num>('passenger_count')?.toInt();
+    _bookingReference = read<String>('booking_reference');
+    _disruptionDetails = read<String>('disruption_details');
+    _bankDetailsPending = read<bool>('bank_details_pending');
+    _workMayStartAt = read<DateTime>('work_may_start_at');
   }
 
   static CollectionReference get collection =>

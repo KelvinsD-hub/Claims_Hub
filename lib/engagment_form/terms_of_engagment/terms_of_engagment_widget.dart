@@ -25,7 +25,7 @@ export 'terms_of_engagment_model.dart';
 ///
 /// 2. Our Fees (No-Win, No-Fee): > * You pay £0 upfront.
 ///
-/// If we win, our service fee is 30% (VAT inclusive) of the total recovery.
+/// If we win, our service fee is 30% of the total recovery, deducted from it. No VAT is added.
 ///
 /// If the airline pays you directly, you must notify us and remit our 30% fee
 /// within 48 hours.
@@ -270,7 +270,7 @@ class _TermsOfEngagmentWidgetState extends State<TermsOfEngagmentWidget> {
                                               ),
                                         ),
                                         Text(
-                                          '• You pay £0 upfront.',
+                                          '• You pay nothing upfront.',
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(
@@ -293,7 +293,7 @@ class _TermsOfEngagmentWidgetState extends State<TermsOfEngagmentWidget> {
                                               ),
                                         ),
                                         Text(
-                                          '• If we win, our service fee is 30% (VAT inclusive) of the total recovery.',
+                                          '• If we win, our service fee is 30% of the total recovery, deducted from it. No VAT is added.',
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(

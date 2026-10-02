@@ -82,10 +82,69 @@ async function storePdf(claimId, filename, pdfBytes) {
   );
 }
 
-function formatDate() {
-  return new Date().toLocaleDateString('en-GB', {
+function formatDate(date) {
+  return (date || new Date()).toLocaleDateString('en-GB', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
+}
+
+// A Firestore Timestamp (or Date) as a Date, or null.
+function toDate(value) {
+  if (!value) return null;
+  if (typeof value.toDate === 'function') return value.toDate();
+  return value instanceof Date ? value : null;
+}
+
+// The standard PDF fonts only cover WinAnsi. Anything outside it — the naira
+// sign in a claim amount, a diacritic in a passenger's name — makes pdf-lib
+// throw and the whole letter fail, so text is reduced to what the font can draw.
+const WIN_ANSI_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
+function pdfSafe(value) {
+  let out = '';
+  for (const ch of String(value == null ? '' : value).replace(/₦/g, 'NGN ')) {
+    const code = ch.codePointAt(0);
+    if ((code >= 0x20 && code <= 0x7e) || (code >= 0xa0 && code <= 0xff) ||
+        WIN_ANSI_EXTRA.includes(ch)) {
+      out += ch;
+      continue;
+    }
+    const base = ch.normalize('NFKD').replace(/[̀-ͯ]/g, '');
+    if (/^[\x20-\x7e]+$/.test(base)) out += base;
+  }
+  return out;
+}
+
+// An A4 page whose drawText only ever receives text the font can encode.
+function addSafePage(pdfDoc) {
+  const page = pdfDoc.addPage([595, 842]);
+  const draw = page.drawText.bind(page);
+  page.drawText = (text, options) => draw(pdfSafe(text), options);
+  return page;
+}
+
+// Website claims carry the end of the claimant's 14 day cancellation period.
+// Unless they asked us to begin at once, nothing may go to the airline before
+// it — the terms they signed say work starts once the period has passed.
+// Returns that date while it is still in the future, otherwise null.
+function heldUntil(claim) {
+  if (claim.start_immediately === true) return null;
+  const date = toDate(claim.work_may_start_at);
+  return date && date.getTime() > Date.now() ? date : null;
+}
+
+// Others on the same booking, claimed under the lead passenger's authority.
+function otherPassengerNames(claim) {
+  if (!Array.isArray(claim.passengers)) return '';
+  return claim.passengers
+    .map((p) => `${(p && p.first_name) || ''} ${(p && p.last_name) || ''}`.trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
+// One line of a details table: long values are cut rather than run off the page.
+function clip(text, max) {
+  const value = String(text);
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
 }
 
 // ─── LOA PDF Builder ──────────────────────────────────────────────────────────
@@ -97,16 +156,19 @@ async function buildLoaPdf(data, claimId) {
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const reg = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-  const page = pdfDoc.addPage([595, 842]);
+  const page = addSafePage(pdfDoc);
   const navy = rgb(0, 0.157, 0.333);
   const grey = rgb(0.4, 0.4, 0.4);
   const ltGrey = rgb(0.8, 0.8, 0.8);
   const black = rgb(0, 0, 0);
   const white = rgb(1, 1, 1);
 
-  const today = formatDate();
+  // The authority is dated when the passenger signed it, which for a claim
+  // started on the website is earlier than the day this PDF is generated.
+  const today = formatDate(toDate(data.signed_at));
   const clientName = data.full_name || 'The Passenger';
   const pnr = data.pnr_number || data.pnr || data.booking_reference || 'N/A';
+  const others = otherPassengerNames(data);
 
   // Header band
   page.drawRectangle({ x: 0, y: 792, width: 595, height: 50, color: navy });
@@ -147,6 +209,7 @@ async function buildLoaPdf(data, claimId) {
 
   for (const [label, value] of [
     ['PNR / Booking Reference', pnr],
+    ...(others ? [['Also Claiming For', clip(others, 62)]] : []),
     ['Flight Number', data.flight_number || 'N/A'],
     ['Date of Travel', data.flight_date || 'N/A'],
     ['Route', `${data.departure || 'N/A'} to ${data.destination || 'N/A'}`],
@@ -218,6 +281,7 @@ async function buildLoaPdf(data, claimId) {
       y -= 16;
     }
   } else {
+    y -= 8;
     page.drawText('(No digital signature provided)', { x: 40, y, size: 10, font: reg, color: grey });
     y -= 16;
   }
@@ -239,7 +303,7 @@ async function buildDemandLetterPdf(data, claimId) {
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const reg = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-  const page = pdfDoc.addPage([595, 842]);
+  const page = addSafePage(pdfDoc);
   const navy = rgb(0, 0.157, 0.333);
   const grey = rgb(0.4, 0.4, 0.4);
   const ltGrey = rgb(0.8, 0.8, 0.8);
@@ -251,6 +315,7 @@ async function buildDemandLetterPdf(data, claimId) {
   const pnr = data.pnr_number || data.pnr || data.booking_reference || 'N/A';
   const rawAmount = data.claims_amount;
   const amountText = rawAmount || 'the applicable statutory amount';
+  const others = otherPassengerNames(data);
 
   // Header band
   page.drawRectangle({ x: 0, y: 792, width: 595, height: 50, color: navy });
@@ -288,7 +353,7 @@ async function buildDemandLetterPdf(data, claimId) {
     x: 40, y, size: 10, font: reg, color: black,
   });
   y -= 13;
-  page.drawText('Letter of Authority signed today, a copy of which is enclosed herewith.', {
+  page.drawText('signed Letter of Authority, a copy of which is enclosed herewith.', {
     x: 40, y, size: 10, font: reg, color: black,
   });
 
@@ -301,6 +366,7 @@ async function buildDemandLetterPdf(data, claimId) {
 
   for (const [label, value] of [
     ['Passenger', clientName],
+    ...(others ? [['Also Claiming For', clip(others, 62)]] : []),
     ['PNR / Booking Reference', pnr],
     ['Flight Number', data.flight_number || 'N/A'],
     ['Date of Travel', data.flight_date || 'N/A'],
@@ -496,6 +562,15 @@ exports.onTriggerAirlineEmail = functions
       return null;
     }
 
+    const held = heldUntil(newData);
+    if (held) {
+      console.log(`[onTriggerAirlineEmail] ${context.params.claimId} held until ${held.toISOString()}`);
+      return change.after.ref.update({
+        trigger_airline_email: false,
+        airline_email_status: `Held until ${formatDate(held)} (cancellation period)`,
+      });
+    }
+
     try {
     const claimId = context.params.claimId;
     const clientName = newData.full_name || 'Client';
@@ -683,6 +758,15 @@ exports.onTriggerSolicitorEmail = functions
       return null;
     }
 
+    const held = heldUntil(newData);
+    if (held) {
+      console.log(`[onTriggerSolicitorEmail] ${context.params.claimId} held until ${held.toISOString()}`);
+      return change.after.ref.update({
+        trigger_solicitor_email: false,
+        solicitor_email_status: `Held until ${formatDate(held)} (cancellation period)`,
+      });
+    }
+
     try {
     const claimId = context.params.claimId;
     const clientName = newData.full_name || 'Client';
@@ -697,7 +781,7 @@ exports.onTriggerSolicitorEmail = functions
     const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const reg = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    const page = pdfDoc.addPage([595, 842]);
+    const page = addSafePage(pdfDoc);
     const navy = rgb(0, 0.157, 0.333);
     const red = rgb(0.7, 0.05, 0.05);
     const grey = rgb(0.4, 0.4, 0.4);
@@ -1026,9 +1110,9 @@ exports.onClaimStatusChanged = functions
           <p>We're sorry to inform you that the airline has not agreed to settle your
              claim at this stage.</p>
           <p>Our team will review the airline's response and contact you to discuss
-             your options — including escalation to the NCAA or legal proceedings
-             at <strong>no upfront cost to you</strong>.</p>
-          <p>Please do not be discouraged. Many claims succeed on appeal.</p>
+             your options — including a complaint to the NCAA's consumer protection
+             directorate, and specialist solicitors where the claim justifies court
+             action, with <strong>no increase in your fee</strong>.</p>
         `;
         break;
 
@@ -1214,9 +1298,22 @@ exports.sendManualAirlineEmail = functions
         ? encodeURI(loaPdfUrl)
         : '';
 
-      const amountDisplay = compensation
-        ? `&#x20A6;${Number(compensation).toLocaleString('en-NG')}`
-        : 'the applicable statutory amount';
+      // A bare number is naira. Anything else is an amount as the CRM stores
+      // it ("₦21,250", or a sum plus the fare difference) and is quoted as is.
+      const amountDisplay = !compensation
+        ? 'the applicable statutory amount'
+        : Number.isFinite(Number(compensation))
+          ? `&#x20A6;${Number(compensation).toLocaleString('en-NG')}`
+          : escapeHtml(compensation);
+
+      const claimSnap = await admin.firestore().doc(`claims/${claimId}`).get();
+      const held = claimSnap.exists ? heldUntil(claimSnap.data()) : null;
+      if (held) {
+        return res.status(409).json({
+          error: `This claim is inside the client's cancellation period. ` +
+            `Nothing may be sent to the airline until ${formatDate(held)}.`,
+        });
+      }
 
       const mailOptions = {
         from: '"Claims Assist Legal" <info@claimshub.online>',

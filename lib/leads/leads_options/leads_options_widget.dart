@@ -216,6 +216,42 @@ class _LeadsOptionsWidgetState extends State<LeadsOptionsWidget> {
                       hoverColor: Colors.transparent,
                       highlightColor: Colors.transparent,
                       onTap: () async {
+                        // The website marks leads it did not route to us: a
+                        // flight that does not touch Nigeria, or one with no
+                        // scheme we pursue. Qualifying one opens a claim and
+                        // emails the client an evidence form, so make that a
+                        // deliberate choice rather than a slip.
+                        if (!dropdown2AccountLeadsRecord.isInHouse) {
+                          final proceed = await showDialog<bool>(
+                            context: context,
+                            builder: (dialogContext) => AlertDialog(
+                              title: Text('Not a claim we are taking on'),
+                              content: Text(
+                                'The website recorded this lead as outside '
+                                'what we act on'
+                                '${dropdown2AccountLeadsRecord.handlerReason.isEmpty ? '' : ':\n\n${dropdown2AccountLeadsRecord.handlerReason}'}'
+                                '\n\nQualifying it opens a claim and emails '
+                                'the client asking for evidence. Continue only '
+                                'if you have checked the flight and it is '
+                                'covered by Nigerian rules.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(dialogContext, false),
+                                  child: Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(dialogContext, true),
+                                  child: Text('Qualify anyway'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (proceed != true) return;
+                        }
+
                         await widget!.leadRef!.reference
                             .update(createLeadsRecordData(
                           status: 'Qualified',

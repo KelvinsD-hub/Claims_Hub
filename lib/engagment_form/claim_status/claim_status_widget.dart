@@ -76,7 +76,7 @@ class _ClaimStatusWidgetState extends State<ClaimStatusWidget> {
       case 'Won':
         return 'Congratulations! Your claim has been approved. Our team will contact you to arrange your compensation payment.';
       case 'Lost':
-        return 'The airline has not agreed to settle at this stage. Our team will contact you to discuss escalation options at no upfront cost.';
+        return 'The airline has not agreed to settle at this stage. Our team will contact you to discuss your options.';
       default:
         return 'Your claim is being processed. We will send you an email update shortly.';
     }
@@ -109,7 +109,7 @@ class _ClaimStatusWidgetState extends State<ClaimStatusWidget> {
       case 'Won':
         return 'Claims Assist will contact you within 3–5 business days to arrange payment after our success fee is deducted. Thank you for trusting us.';
       case 'Lost':
-        return 'Our team will review the airline\'s response and discuss whether to escalate to the NCAA or pursue legal proceedings — at no upfront cost to you.';
+        return 'Our team will review the airline\'s response and discuss your options with you — including a complaint to the NCAA\'s consumer protection directorate, and specialist solicitors where the claim justifies court action, with no increase in your fee.';
       default:
         return 'Our team is processing your claim. We will send you an email update shortly.';
     }
