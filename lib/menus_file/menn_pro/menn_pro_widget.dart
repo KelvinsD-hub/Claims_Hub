@@ -1,4 +1,5 @@
-﻿import '/components/brand_colors.dart';
+﻿import '/auth/firebase_auth/auth_util.dart';
+import '/components/brand_colors.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -435,6 +436,59 @@ class _MennProWidgetState extends State<MennProWidget> {
                           ),
                         ),
                         ),
+                        // Monitor: the admins' view of the whole operation.
+                        if (MonitorWidget.allows(
+                            valueOrDefault(currentUserDocument?.role, '')))
+                          InkWell(
+                            splashColor: Colors.transparent,
+                            focusColor: Colors.transparent,
+                            hoverColor: Colors.transparent,
+                            highlightColor: Colors.transparent,
+                            onTap: () async {
+                              context.pushNamed(
+                                MonitorWidget.routeName,
+                                extra: <String, dynamic>{
+                                  '__transition_info__': TransitionInfo(
+                                    hasTransition: true,
+                                    transitionType: PageTransitionType.fade,
+                                    duration: Duration(milliseconds: 0),
+                                  ),
+                                },
+                              );
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              height: 48.0,
+                              decoration: BoxDecoration(
+                                color: widget!.selectedPage == 10
+                                    ? FlutterFlowTheme.of(context).accent4
+                                    : FlutterFlowTheme.of(context).secondaryBackground,
+                                borderRadius: BorderRadius.circular(12.0),
+                              ),
+                              child: Padding(
+                                padding: EdgeInsetsDirectional.fromSTEB(12.0, 12.0, 12.0, 12.0),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.max,
+                                  children: [
+                                    Icon(
+                                      Icons.monitor_heart_outlined,
+                                      color: FlutterFlowTheme.of(context).primaryText,
+                                      size: 20.0,
+                                    ),
+                                    if (FFAppState().navOpen == true)
+                                      Text(
+                                        'Monitor',
+                                        style: FlutterFlowTheme.of(context).bodyMedium.override(
+                                              font: GoogleFonts.inter(),
+                                              color: FlutterFlowTheme.of(context).primaryText,
+                                              letterSpacing: 0.0,
+                                            ),
+                                      ),
+                                  ].divide(SizedBox(width: 12.0)),
+                                ),
+                              ),
+                            ),
+                          ),
                         InkWell(
                           splashColor: Colors.transparent,
                           focusColor: Colors.transparent,

@@ -124,6 +124,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => StaffsWidget(),
         ),
         FFRoute(
+          name: MonitorWidget.routeName,
+          path: MonitorWidget.routePath,
+          builder: (context, params) => MonitorWidget(),
+        ),
+        FFRoute(
           name: SupportsWidget.routeName,
           path: SupportsWidget.routePath,
           builder: (context, params) => SupportsWidget(),
