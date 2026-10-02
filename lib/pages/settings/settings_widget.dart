@@ -256,6 +256,7 @@ class _SettingsWidgetState extends State<SettingsWidget>
                   const WorkSidebar(selected: WorkPage.settings),
                   Expanded(
                     child: WorkBody(
+                      page: WorkPage.settings,
                       title: 'Settings',
                       subtitle: 'Your profile, the theme and your account',
                       icon: Icons.settings_outlined,

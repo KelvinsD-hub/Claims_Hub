@@ -88,6 +88,7 @@ class _EvidenceLockerWidgetState extends State<EvidenceLockerWidget> {
                 const WorkSidebar(selected: WorkPage.evidence),
                 Expanded(
                   child: WorkBody(
+                    page: WorkPage.evidence,
                     title: 'Evidence Locker',
                     subtitle:
                         'Every document a client has sent, and what is still missing',

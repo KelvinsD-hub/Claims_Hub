@@ -1,4 +1,5 @@
 import '/auth/firebase_auth/auth_util.dart';
+import '/backend/services/access.dart';
 import '/backend/services/casework.dart';
 import '/backend/services/pipeline.dart';
 import '/components/brand_colors.dart';
@@ -10,24 +11,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:page_transition/page_transition.dart';
 
+export '/backend/services/access.dart' show WorkPage, canSeePage;
+
 /// The pieces the working pages share — Leads, Claims, Demand letters and the
 /// Legal Workspace — so they look and behave as one area: the same sidebar,
 /// the same header, the same way of showing a stage or a due date.
-
-/// Every page a member of staff can go to.
-enum WorkPage {
-  dashboard,
-  leads,
-  claims,
-  demands,
-  legal,
-  evidence,
-  monitor,
-  staff,
-  notifications,
-  support,
-  settings,
-}
 
 /// Moving between pages swaps the page at once. Without this the router plays
 /// its default page animation, which reads as the screen jumping.
@@ -190,8 +178,8 @@ class WorkSidebar extends StatelessWidget {
             ),
             Expanded(
               child: SingleChildScrollView(
-                // The Monitor is for admins; who that is comes with the
-                // signed-in person's record.
+                // Each person sees the pages their role may open; the role
+                // comes with the signed-in person's record.
                 child: AuthUserStreamWidget(
                   builder: (context) => Column(
                     children: [
@@ -201,9 +189,8 @@ class WorkSidebar extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(vertical: 7.0),
                             child: Divider(height: 1.0, color: theme.alternate),
                           )
-                        else if (item.$1 != WorkPage.monitor ||
-                            MonitorWidget.allows(
-                                valueOrDefault(currentUserDocument?.role, '')))
+                        else if (canSeePage(item.$1,
+                            valueOrDefault(currentUserDocument?.role, '')))
                           entry(
                             icon: item.$2,
                             label: item.$3,
@@ -320,6 +307,7 @@ class WorkHeader extends StatelessWidget {
 class WorkBody extends StatelessWidget {
   const WorkBody({
     super.key,
+    this.page,
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -327,6 +315,9 @@ class WorkBody extends StatelessWidget {
     this.actions = const [],
   });
 
+  /// The page this is. With it, someone whose role may not open the page
+  /// sees a notice instead of its content.
+  final WorkPage? page;
   final String title;
   final String subtitle;
   final IconData icon;
@@ -335,13 +326,29 @@ class WorkBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        WorkHeader(
-            title: title, subtitle: subtitle, icon: icon, actions: actions),
-        Expanded(child: child),
-      ],
+    return AuthUserStreamWidget(
+      builder: (context) {
+        final allowed = page == null ||
+            canSeePage(page!, valueOrDefault(currentUserDocument?.role, ''));
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            WorkHeader(
+              title: title,
+              subtitle: subtitle,
+              icon: icon,
+              actions: allowed ? actions : const [],
+            ),
+            Expanded(
+              child: allowed
+                  ? child
+                  : const WorkEmpty(
+                      'This page is not available for your role.\n'
+                      'Ask an admin if you need it.'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -382,6 +389,7 @@ class WorkScaffold extends StatelessWidget {
               WorkSidebar(selected: page),
               Expanded(
                 child: WorkBody(
+                  page: page,
                   title: title,
                   subtitle: subtitle,
                   icon: icon,

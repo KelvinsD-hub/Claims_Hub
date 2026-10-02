@@ -36,7 +36,7 @@ const ready = {
   flight_date: '2026-09-01', departure: 'Lagos', destination: 'Abuja',
   signature: 'iVBORw0KGgo', claims_amount: '₦21,250', lead_ref: db.doc('leads/L1'),
 };
-const send = (id, email = 'legal@flyairpeace.com') => requestDemandLetter(admin, { id, email, staff: ada });
+const send = (id, email = 'legal@flyairpeace.com', staff = boss) => requestDemandLetter(admin, { id, email, staff });
 const get = async (id) => (await db.doc(`claims/${id}`).get()).data();
 
 (async () => {
@@ -54,6 +54,8 @@ const get = async (id) => (await db.doc(`claims/${id}`).get()).data();
     work_may_start_at: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 5 * 86400000)),
   });
 
+  check('an agent cannot send a demand letter', (await refused(send('ready', 'legal@flyairpeace.com', ada)))?.status === 403);
+  check('nor can a lawyer', (await refused(send('ready', 'legal@flyairpeace.com', sola)))?.status === 403);
   check('an address is needed', (await refused(send('ready', '')))?.status === 400);
   check('and it must be one address', (await refused(send('ready', 'a@b.com, c@d.com')))?.status === 400);
   check('a claim that is gone is reported as such', (await refused(send('nope')))?.status === 404);
@@ -67,10 +69,10 @@ const get = async (id) => (await db.doc(`claims/${id}`).get()).data();
   let r = await send('ready', ' Legal@FlyAirPeace.com ');
   let claim = await get('ready');
   check('a ready claim is sent to the address chosen', r.resend === false && claim.trigger_airline_email === true && claim.airline_email_selection === 'legal@flyairpeace.com');
-  check('with who asked', claim.letter_requested_by === 'ada' && claim.letter_requested_by_name === 'Ada Agent');
+  check('with who asked', claim.letter_requested_by === 'boss' && claim.letter_requested_by_name === 'Bola Boss');
   check('the stage is left for the sending function to move', claim.claim_status === CLAIM.DEMAND_PENDING);
   let logs = (await db.collection('activity_logs').where('claims', '==', db.doc('claims/ready')).get()).docs.map((x) => x.data());
-  check('it is in the event log, against the claim and its lead', logs.length === 1 && logs[0].action === 'Demand letter sent' && logs[0].leadRef.path === 'leads/L1' && logs[0].sent_to === 'legal@flyairpeace.com' && logs[0].performedByName === 'Ada Agent');
+  check('it is in the event log, against the claim and its lead', logs.length === 1 && logs[0].action === 'Demand letter sent' && logs[0].leadRef.path === 'leads/L1' && logs[0].sent_to === 'legal@flyairpeace.com' && logs[0].performedByName === 'Bola Boss');
   check('a second press while it is going is refused', (await refused(send('ready')))?.status === 409);
 
   r = await send('sent');

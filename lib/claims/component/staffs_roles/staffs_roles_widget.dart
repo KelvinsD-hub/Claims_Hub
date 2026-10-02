@@ -1,4 +1,4 @@
-﻿import '/backend/backend.dart';
+import '/backend/backend.dart';
 import '/claims/component/account_permission/account_permission_widget.dart';
 import '/claims/component/permission/permission_widget.dart';
 import '/flutter_flow/flutter_flow_choice_chips.dart';
@@ -80,76 +80,6 @@ class _StaffsRolesWidgetState extends State<StaffsRolesWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.max,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Color(0xFF0C519B),
-                              borderRadius: BorderRadius.circular(15.0),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(8.0),
-                              child: FaIcon(
-                                FontAwesomeIcons.paperPlane,
-                                color: Color(0xFFE6B011),
-                                size: 24.0,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            'CLAIMS',
-                            style: FlutterFlowTheme.of(context)
-                                .bodyMedium
-                                .override(
-                                  font: GoogleFonts.inter(
-                                    fontWeight: FontWeight.bold,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
-                                  ),
-                                  color: Color(0xFF0C519B),
-                                  fontSize: 35.0,
-                                  letterSpacing: 0.0,
-                                  fontWeight: FontWeight.bold,
-                                  fontStyle: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .fontStyle,
-                                ),
-                          ),
-                          Text(
-                            'ASSIST',
-                            style: FlutterFlowTheme.of(context)
-                                .bodyMedium
-                                .override(
-                                  font: GoogleFonts.inter(
-                                    fontWeight: FontWeight.bold,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
-                                  ),
-                                  color: Color(0xFFE6B011),
-                                  fontSize: 35.0,
-                                  letterSpacing: 0.0,
-                                  fontWeight: FontWeight.bold,
-                                  fontStyle: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .fontStyle,
-                                ),
-                          ),
-                        ].divide(SizedBox(width: 7.0)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
               TextFormField(
                 controller: _model.textController,
                 focusNode: _model.textFieldFocusNode,
@@ -450,7 +380,9 @@ class _StaffsRolesWidgetState extends State<StaffsRolesWidget> {
                                           [
                                             listViewUsersRecord.email,
                                             listViewUsersRecord.phoneNumber,
-                                          ].where((s) => s.isNotEmpty).join(' || '),
+                                          ]
+                                              .where((s) => s.isNotEmpty)
+                                              .join(' || '),
                                           style: FlutterFlowTheme.of(context)
                                               .labelSmall
                                               .override(

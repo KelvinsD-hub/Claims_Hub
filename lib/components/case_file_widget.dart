@@ -439,8 +439,9 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                               spacing: 8.0,
                               runSpacing: 8.0,
                               children: [
-                                if (stage == ClaimStage.demandPending ||
-                                    stage == ClaimStage.awaitingReply)
+                                if ((stage == ClaimStage.demandPending ||
+                                        stage == ClaimStage.awaitingReply) &&
+                                    isManagerRole(role))
                                   _ActionButton(
                                     icon: Icons.outgoing_mail,
                                     label: stage == ClaimStage.demandPending

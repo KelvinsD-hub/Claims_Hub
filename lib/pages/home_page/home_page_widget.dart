@@ -4,6 +4,7 @@ import '/backend/services/pipeline.dart';
 import '/components/brand_colors.dart';
 import '/components/case_file_widget.dart';
 import '/components/lead_file_widget.dart';
+import '/components/trend_charts.dart';
 import '/components/work_ui.dart';
 import '/custom_code/widgets/weekly_leads_chart.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -325,6 +326,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
               ),
             ],
           ),
+          const SizedBox(height: 26.0),
+          TrendCharts(leads: leads, claims: claims),
         ],
       ),
     );

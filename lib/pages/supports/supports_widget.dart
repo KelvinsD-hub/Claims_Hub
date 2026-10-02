@@ -127,6 +127,7 @@ class _SupportsWidgetState extends State<SupportsWidget> {
                 const WorkSidebar(selected: WorkPage.support),
                 Expanded(
                   child: WorkBody(
+                    page: WorkPage.support,
                     title: 'Support',
                     subtitle: 'Help with using Claims Hub',
                     icon: Icons.support_agent,

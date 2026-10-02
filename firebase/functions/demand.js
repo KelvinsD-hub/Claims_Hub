@@ -57,11 +57,14 @@ function heldUntil(claim, now = new Date()) {
 }
 
 /**
- * Ask for the demand letter on claim `id` to go to `email`. `staff` is
- * { uid, name, role }. Sets the trigger the sending function watches, and
+ * Ask for the demand letter on claim `id` to go to `email`. Only managers and
+ * above may. `staff` is { uid, name, role }. Sets the trigger the sending function watches, and
  * records who asked. Returns { email, resend }.
  */
 async function requestDemandLetter(admin, { id, email, staff }) {
+  if (!casework.MANAGERS.includes(staff.role)) {
+    throw new StageError(403, 'Demand letters are sent by a manager.');
+  }
   const db = admin.firestore();
   const ref = db.doc(`claims/${id}`);
   const to = text(email).toLowerCase();

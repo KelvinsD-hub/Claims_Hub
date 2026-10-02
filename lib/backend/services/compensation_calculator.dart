@@ -136,8 +136,7 @@ class CompensationCalculator {
     final domestic = flightType == FlightType.domestic;
     final pct = ratePercent(flightType);
     final share = _shareOfFare(pct, fare);
-    final scope =
-        domestic ? 'flights within Nigeria' : 'international flights';
+    final scope = domestic ? 'flights within Nigeria' : 'international flights';
     final rate = 'Part 19.8.1.1 sets compensation at a minimum of $pct% of '
         'the ticket price for $scope.';
     final badReason = isExtraordinaryCircumstance;

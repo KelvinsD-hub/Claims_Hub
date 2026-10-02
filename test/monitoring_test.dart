@@ -119,9 +119,24 @@ void main() {
       lead('d', LeadStage.newLead, handler: 'ada', dueIn: 1),
     ];
     final events = [
-      LogEvent(action: 'Stage changed', description: '', actorUid: 'ada', actorName: 'Ada', at: days(-1)),
-      LogEvent(action: 'Note added', description: '', actorUid: 'ada', actorName: 'Ada', at: days(-20)),
-      LogEvent(action: 'Stage changed', description: '', actorUid: '', actorName: 'System', at: days(0)),
+      LogEvent(
+          action: 'Stage changed',
+          description: '',
+          actorUid: 'ada',
+          actorName: 'Ada',
+          at: days(-1)),
+      LogEvent(
+          action: 'Note added',
+          description: '',
+          actorUid: 'ada',
+          actorName: 'Ada',
+          at: days(-20)),
+      LogEvent(
+          action: 'Stage changed',
+          description: '',
+          actorUid: '',
+          actorName: 'System',
+          at: days(0)),
     ];
     final loads = staffLoads([
       (uid: 'sola', name: 'Sola', role: 'Solicitor'),
@@ -137,7 +152,8 @@ void main() {
     expect(ada.overdue, 1);
     expect(ada.actionsThisWeek, 1);
     expect(ada.lastActive!.isAfter(days(-2)), isTrue);
-    expect(loads[1].openClaims, 1, reason: 'the lawyer on a claim carries it too');
+    expect(loads[1].openClaims, 1,
+        reason: 'the lawyer on a claim carries it too');
     expect(loads[2].open, 0);
     expect(loads[2].lastActive, isNull);
   });

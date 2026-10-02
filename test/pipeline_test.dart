@@ -18,8 +18,8 @@ void main() {
         [LeadStage.qualified, LeadStage.rejected]);
     expect(allowedMoves(lead, LeadStage.qualified, 'Super Admin'), isEmpty);
     expect(allowedMoves(lead, LeadStage.rejected, 'Agent'), isEmpty);
-    expect(allowedMoves(lead, LeadStage.rejected, 'Manager'),
-        [LeadStage.newLead]);
+    expect(
+        allowedMoves(lead, LeadStage.rejected, 'Manager'), [LeadStage.newLead]);
   });
 
   test('claim moves along the normal road', () {
@@ -52,8 +52,8 @@ void main() {
 
   test('old stage names are understood', () {
     expect(canonicalStage(claim, 'Claim Won'), ClaimStage.won);
-    expect(canonicalStage(claim, 'Submit to Solicitor'),
-        ClaimStage.demandPending);
+    expect(
+        canonicalStage(claim, 'Submit to Solicitor'), ClaimStage.demandPending);
     expect(canonicalStage(lead, 'Not Qualified'), LeadStage.rejected);
     expect(canonicalStage(lead, ''), LeadStage.newLead);
     expect(allowedMoves(claim, 'Submit to Solicitor', 'Agent'),

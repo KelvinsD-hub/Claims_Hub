@@ -169,6 +169,7 @@ class _MonitorWidgetState extends State<MonitorWidget> {
               const WorkSidebar(selected: WorkPage.monitor),
               Expanded(
                 child: WorkBody(
+                  page: WorkPage.monitor,
                   title: 'Monitor',
                   subtitle:
                       'Where every lead and claim stands, what needs attention, and who is carrying what',

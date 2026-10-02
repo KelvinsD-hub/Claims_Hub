@@ -49,7 +49,8 @@ class CaseworkPanelWidget extends StatefulWidget {
 class _CaseworkPanelWidgetState extends State<CaseworkPanelWidget> {
   bool _busy = false;
 
-  Future<void> _run(Future<CaseActionResult> Function() action, String done) async {
+  Future<void> _run(
+      Future<CaseActionResult> Function() action, String done) async {
     if (_busy) return;
     setState(() => _busy = true);
     final result = await action();
@@ -77,8 +78,8 @@ class _CaseworkPanelWidgetState extends State<CaseworkPanelWidget> {
   Future<void> _editNextAction(Casework work) async {
     final edited = await showDialog<_NextActionEdit>(
       context: context,
-      builder: (_) => _NextActionDialog(
-          text: work.nextAction, due: work.nextActionDue),
+      builder: (_) =>
+          _NextActionDialog(text: work.nextAction, due: work.nextActionDue),
     );
     if (edited == null || !mounted) return;
     await _run(

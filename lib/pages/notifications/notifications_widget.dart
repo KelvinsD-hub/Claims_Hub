@@ -68,6 +68,7 @@ class _NotificationsWidgetState extends State<NotificationsWidget> {
                 const WorkSidebar(selected: WorkPage.notifications),
                 Expanded(
                   child: WorkBody(
+                    page: WorkPage.notifications,
                     title: 'Notifications',
                     subtitle:
                         'What has happened across leads and claims, newest first',

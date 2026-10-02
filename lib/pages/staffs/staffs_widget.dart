@@ -62,6 +62,7 @@ class _StaffsWidgetState extends State<StaffsWidget> {
                   const WorkSidebar(selected: WorkPage.staff),
                   Expanded(
                     child: WorkBody(
+                      page: WorkPage.staff,
                       title: 'Staff',
                       subtitle: 'Who can sign in, and what each person may do',
                       icon: Icons.groups_outlined,

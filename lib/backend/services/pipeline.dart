@@ -91,8 +91,8 @@ class _Moves {
 const _managers = ['Manager', 'Admin', 'Super Admin'];
 
 const Map<String, _Moves> _leadMoves = {
-  LeadStage.newLead: _Moves(
-      [LeadStage.contacted, LeadStage.qualified, LeadStage.rejected]),
+  LeadStage.newLead:
+      _Moves([LeadStage.contacted, LeadStage.qualified, LeadStage.rejected]),
   LeadStage.contacted: _Moves([LeadStage.qualified, LeadStage.rejected]),
   LeadStage.qualified: _Moves([]),
   LeadStage.rejected: _Moves([], [LeadStage.newLead]),
@@ -120,11 +120,8 @@ const Map<String, _Moves> _claimMoves = {
     ClaimStage.detailsPending,
     ClaimStage.withdrawn
   ]),
-  ClaimStage.demandPending: _Moves([
-    ClaimStage.awaitingReply,
-    ClaimStage.underReview,
-    ClaimStage.withdrawn
-  ]),
+  ClaimStage.demandPending: _Moves(
+      [ClaimStage.awaitingReply, ClaimStage.underReview, ClaimStage.withdrawn]),
   ClaimStage.awaitingReply: _Moves([
     ClaimStage.won,
     ClaimStage.lost,
@@ -173,8 +170,9 @@ String canonicalStage(RecordKind kind, String stage) {
 
 /// Every stage someone with [role] may move a record to from [stage].
 List<String> allowedMoves(RecordKind kind, String stage, String role) {
-  final moves = (kind == RecordKind.lead ? _leadMoves : _claimMoves)[
-      canonicalStage(kind, stage)];
+  final moves = (kind == RecordKind.lead
+      ? _leadMoves
+      : _claimMoves)[canonicalStage(kind, stage)];
   if (moves == null) return const [];
   return [
     ...moves.to,
@@ -215,7 +213,9 @@ String moveLabel(RecordKind kind, String from, String to) {
     case ClaimStage.demandPending:
       return 'Approve — ready for demand letter';
     case ClaimStage.awaitingReply:
-      return reopening ? 'Reopen — awaiting airline' : 'Demand sent — await reply';
+      return reopening
+          ? 'Reopen — awaiting airline'
+          : 'Demand sent — await reply';
     case ClaimStage.withSolicitor:
       return 'Escalate to legal team';
     case ClaimStage.won:
@@ -263,7 +263,8 @@ Future<StageChangeResult> changeStage({
     final user = FirebaseAuth.instance.currentUser;
     final idToken = await user?.getIdToken();
     if (idToken == null) {
-      return const StageChangeResult.failed('You are signed out. Sign in again.');
+      return const StageChangeResult.failed(
+          'You are signed out. Sign in again.');
     }
     final response = await http
         .post(

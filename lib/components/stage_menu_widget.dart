@@ -132,7 +132,8 @@ class _StageMenuWidgetState extends State<StageMenuWidget> {
                   maxLines: 4,
                   maxLength: 1000,
                   decoration: InputDecoration(
-                    labelText: required ? 'Reason (required)' : 'Note (optional)',
+                    labelText:
+                        required ? 'Reason (required)' : 'Note (optional)',
                     hintText: required
                         ? 'Why is this being closed?'
                         : 'Anything the next person should know',
@@ -317,7 +318,8 @@ class _StageMenuWidgetState extends State<StageMenuWidget> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12.0, 0.0, 12.0, 8.0),
                   child: Text(
-                    widget.kind == RecordKind.lead && stage == LeadStage.qualified
+                    widget.kind == RecordKind.lead &&
+                            stage == LeadStage.qualified
                         ? 'This lead has a claim. Its progress is tracked on '
                             'the claim from here.'
                         : 'This is closed. A Manager or above can reopen it.',

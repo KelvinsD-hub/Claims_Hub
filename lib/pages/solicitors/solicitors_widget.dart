@@ -88,252 +88,296 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
               children: [
                 const WorkSidebar(selected: WorkPage.legal),
                 Expanded(
-                  child: StreamBuilder<List<ClaimsRecord>>(
-                    // Everything with the legal team now, and everything
-                    // closed, from which the ones they handled are picked out.
-                    stream: queryClaimsRecord(
-                      queryBuilder: (q) => q.where('claim_status', whereIn: [
-                        ClaimStage.withSolicitor,
-                        ClaimStage.won,
-                        ClaimStage.lost,
-                        ClaimStage.paid,
-                        ClaimStage.withdrawn,
-                      ]),
-                    ),
-                    builder: (context, snapshot) {
-                      final all = snapshot.data ?? [];
-                      final open = all
-                          .where(
-                              (c) => c.claimStatus == ClaimStage.withSolicitor)
-                          .toList();
-                      // A closed claim counts as the legal team's if it ever
-                      // reached them.
-                      final closed = all
-                          .where((c) =>
-                              c.claimStatus != ClaimStage.withSolicitor &&
-                              Casework.of(c.snapshotData).legalStage.isNotEmpty)
-                          .toList();
-                      final mine = open
-                          .where((c) =>
-                              Casework.of(c.snapshotData).lawyerUid ==
-                              currentUserUid)
-                          .toList();
-                      final queue = open
-                          .where((c) => !Casework.of(c.snapshotData).hasLawyer)
-                          .toList();
-                      final overdue = open
-                          .where((c) => Casework.of(c.snapshotData).isOverdue)
-                          .length;
-                      final atStake = open.fold<double>(
-                          0, (total, c) => total + _amountClaimed(c));
-                      final won = closed
-                          .where((c) =>
-                              c.claimStatus == ClaimStage.won ||
-                              c.claimStatus == ClaimStage.paid)
-                          .toList();
-                      final lost = closed
-                          .where((c) => c.claimStatus == ClaimStage.lost)
-                          .length;
-                      final recovered = won.fold<double>(
-                          0,
-                          (total, c) =>
-                              total +
-                              (Casework.of(c.snapshotData).amountRecovered ??
-                                  0));
-
-                      final search =
-                          _model.searchController?.text.toLowerCase() ?? '';
-                      var shown = switch (_view) {
-                        _View.mine => mine,
-                        _View.queue => queue,
-                        _View.open => open,
-                        _View.closed => closed,
-                      };
-                      if (_legalStage != null && _view != _View.closed) {
-                        shown = shown
-                            .where((c) => _legalStageOf(c) == _legalStage)
-                            .toList();
-                      }
-                      if (search.isNotEmpty) {
-                        shown = shown
-                            .where((c) =>
-                                c.fullName.toLowerCase().contains(search) ||
-                                c.airlineName.toLowerCase().contains(search) ||
-                                c.pnrNumber.toLowerCase().contains(search) ||
-                                c.flightNumber.toLowerCase().contains(search))
-                            .toList();
-                      }
-                      // Most urgent first; anything with no date last.
-                      shown.sort((a, b) =>
-                          (Casework.of(a.snapshotData).nextActionDue ??
-                                  DateTime(2100))
-                              .compareTo(
-                                  Casework.of(b.snapshotData).nextActionDue ??
-                                      DateTime(2100)));
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          WorkHeader(
+                  child: AuthUserStreamWidget(
+                    builder: (context) => !canSeePage(WorkPage.legal,
+                            valueOrDefault(currentUserDocument?.role, ''))
+                        ? const WorkBody(
                             title: 'Legal Workspace',
-                            subtitle:
-                                'Claims with the legal team: whose they are, and what is due',
+                            subtitle: 'Claims with the legal team',
                             icon: Icons.gavel_outlined,
-                            actions: [
-                              WorkSearchBox(
-                                controller: _model.searchController!,
-                                hint: 'Search client, airline, PNR…',
-                                onChanged: (_) => safeSetState(() {}),
-                              ),
-                            ],
-                          ),
-
-                          // Dashboard
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-                            child: Row(
-                              children: [
-                                _StatCard(
-                                  label: 'Open cases',
-                                  value: '${open.length}',
-                                  note: '${mine.length} yours',
-                                  color: brandBlue(context),
-                                  icon: Icons.folder_open_outlined,
-                                ),
-                                const SizedBox(width: 16),
-                                _StatCard(
-                                  label: 'Waiting for a lawyer',
-                                  value: '${queue.length}',
-                                  note: 'in the legal queue',
-                                  color: queue.isEmpty
-                                      ? theme.secondaryText
-                                      : const Color(0xFFF08156),
-                                  icon: Icons.inbox_outlined,
-                                ),
-                                const SizedBox(width: 16),
-                                _StatCard(
-                                  label: 'Overdue',
-                                  value: '$overdue',
-                                  note: 'past their due date',
-                                  color: overdue == 0
-                                      ? theme.secondaryText
-                                      : overdueRed(context),
-                                  icon: Icons.schedule_outlined,
-                                ),
-                                const SizedBox(width: 16),
-                                _StatCard(
-                                  label: 'Value at stake',
-                                  value: naira(atStake),
-                                  note: 'claimed on open cases',
-                                  color: const Color(0xFFE6B011),
-                                  icon: Icons.account_balance_wallet_outlined,
-                                ),
-                                const SizedBox(width: 16),
-                                _StatCard(
-                                  label: 'Outcomes',
-                                  value: '${won.length} won · $lost lost',
-                                  note: '${naira(recovered)} recovered',
-                                  color: const Color(0xFF3BA55D),
-                                  icon: Icons.emoji_events_outlined,
-                                ),
-                              ],
+                            child: WorkEmpty(
+                                'This page is not available for your role.\n'
+                                'Ask an admin if you need it.'),
+                          )
+                        : StreamBuilder<List<ClaimsRecord>>(
+                            // Everything with the legal team now, and everything
+                            // closed, from which the ones they handled are picked out.
+                            stream: queryClaimsRecord(
+                              queryBuilder: (q) =>
+                                  q.where('claim_status', whereIn: [
+                                ClaimStage.withSolicitor,
+                                ClaimStage.won,
+                                ClaimStage.lost,
+                                ClaimStage.paid,
+                                ClaimStage.withdrawn,
+                              ]),
                             ),
-                          ),
+                            builder: (context, snapshot) {
+                              final all = snapshot.data ?? [];
+                              final open = all
+                                  .where((c) =>
+                                      c.claimStatus == ClaimStage.withSolicitor)
+                                  .toList();
+                              // A closed claim counts as the legal team's if it ever
+                              // reached them.
+                              final closed = all
+                                  .where((c) =>
+                                      c.claimStatus !=
+                                          ClaimStage.withSolicitor &&
+                                      Casework.of(c.snapshotData)
+                                          .legalStage
+                                          .isNotEmpty)
+                                  .toList();
+                              final mine = open
+                                  .where((c) =>
+                                      Casework.of(c.snapshotData).lawyerUid ==
+                                      currentUserUid)
+                                  .toList();
+                              final queue = open
+                                  .where((c) =>
+                                      !Casework.of(c.snapshotData).hasLawyer)
+                                  .toList();
+                              final overdue = open
+                                  .where((c) =>
+                                      Casework.of(c.snapshotData).isOverdue)
+                                  .length;
+                              final atStake = open.fold<double>(
+                                  0, (total, c) => total + _amountClaimed(c));
+                              final won = closed
+                                  .where((c) =>
+                                      c.claimStatus == ClaimStage.won ||
+                                      c.claimStatus == ClaimStage.paid)
+                                  .toList();
+                              final lost = closed
+                                  .where(
+                                      (c) => c.claimStatus == ClaimStage.lost)
+                                  .length;
+                              final recovered = won.fold<double>(
+                                  0,
+                                  (total, c) =>
+                                      total +
+                                      (Casework.of(c.snapshotData)
+                                              .amountRecovered ??
+                                          0));
 
-                          // Views and the legal stage filter
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 18, 24, 12),
-                            child: Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                _Chip(
-                                  label: 'My cases (${mine.length})',
-                                  selected: _view == _View.mine,
-                                  onTap: () =>
-                                      setState(() => _view = _View.mine),
-                                ),
-                                _Chip(
-                                  label: 'Legal queue (${queue.length})',
-                                  selected: _view == _View.queue,
-                                  onTap: () =>
-                                      setState(() => _view = _View.queue),
-                                ),
-                                _Chip(
-                                  label: 'All open (${open.length})',
-                                  selected: _view == _View.open,
-                                  onTap: () =>
-                                      setState(() => _view = _View.open),
-                                ),
-                                _Chip(
-                                  label: 'Closed (${closed.length})',
-                                  selected: _view == _View.closed,
-                                  onTap: () =>
-                                      setState(() => _view = _View.closed),
-                                ),
-                                if (_view != _View.closed) ...[
-                                  Container(
-                                    width: 1,
-                                    height: 22,
-                                    margin: const EdgeInsets.symmetric(
-                                        horizontal: 6),
-                                    color: theme.alternate,
-                                  ),
-                                  for (final stage in LegalStage.all)
-                                    _Chip(
-                                      label:
-                                          '$stage (${open.where((c) => _legalStageOf(c) == stage).length})',
-                                      selected: _legalStage == stage,
-                                      quiet: true,
-                                      onTap: () => setState(() => _legalStage =
-                                          _legalStage == stage ? null : stage),
-                                    ),
-                                ],
-                              ],
-                            ),
-                          ),
+                              final search =
+                                  _model.searchController?.text.toLowerCase() ??
+                                      '';
+                              var shown = switch (_view) {
+                                _View.mine => mine,
+                                _View.queue => queue,
+                                _View.open => open,
+                                _View.closed => closed,
+                              };
+                              if (_legalStage != null &&
+                                  _view != _View.closed) {
+                                shown = shown
+                                    .where(
+                                        (c) => _legalStageOf(c) == _legalStage)
+                                    .toList();
+                              }
+                              if (search.isNotEmpty) {
+                                shown = shown
+                                    .where((c) =>
+                                        c.fullName
+                                            .toLowerCase()
+                                            .contains(search) ||
+                                        c.airlineName
+                                            .toLowerCase()
+                                            .contains(search) ||
+                                        c.pnrNumber
+                                            .toLowerCase()
+                                            .contains(search) ||
+                                        c.flightNumber
+                                            .toLowerCase()
+                                            .contains(search))
+                                    .toList();
+                              }
+                              // Most urgent first; anything with no date last.
+                              shown.sort((a, b) =>
+                                  (Casework.of(a.snapshotData).nextActionDue ??
+                                          DateTime(2100))
+                                      .compareTo(Casework.of(b.snapshotData)
+                                              .nextActionDue ??
+                                          DateTime(2100)));
 
-                          // Cases
-                          Expanded(
-                            child: snapshot.connectionState ==
-                                    ConnectionState.waiting
-                                ? const Center(
-                                    child: CircularProgressIndicator())
-                                : shown.isEmpty
-                                    ? _EmptyState(
-                                        message: search.isNotEmpty ||
-                                                _legalStage != null
-                                            ? 'No cases match.'
-                                            : switch (_view) {
-                                                _View.mine =>
-                                                  'You have no cases. Take one from the legal queue.',
-                                                _View.queue =>
-                                                  'The legal queue is empty.',
-                                                _View.open =>
-                                                  'No claims are with the legal team.',
-                                                _View.closed =>
-                                                  'No closed cases yet.',
-                                              },
-                                      )
-                                    : ListView.separated(
-                                        padding: const EdgeInsets.fromLTRB(
-                                            24, 0, 24, 24),
-                                        itemCount: shown.length,
-                                        separatorBuilder: (_, __) =>
-                                            const SizedBox(height: 10),
-                                        itemBuilder: (context, i) => _CaseCard(
-                                          claim: shown[i],
-                                          legalStage: _legalStageOf(shown[i]),
-                                          amountClaimed: displayClaimAmount(
-                                              shown[i].claimsAmount,
-                                              empty: ''),
-                                        ),
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  WorkHeader(
+                                    title: 'Legal Workspace',
+                                    subtitle:
+                                        'Claims with the legal team: whose they are, and what is due',
+                                    icon: Icons.gavel_outlined,
+                                    actions: [
+                                      WorkSearchBox(
+                                        controller: _model.searchController!,
+                                        hint: 'Search client, airline, PNR…',
+                                        onChanged: (_) => safeSetState(() {}),
                                       ),
+                                    ],
+                                  ),
+
+                                  // Dashboard
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        24, 20, 24, 0),
+                                    child: Row(
+                                      children: [
+                                        _StatCard(
+                                          label: 'Open cases',
+                                          value: '${open.length}',
+                                          note: '${mine.length} yours',
+                                          color: brandBlue(context),
+                                          icon: Icons.folder_open_outlined,
+                                        ),
+                                        const SizedBox(width: 16),
+                                        _StatCard(
+                                          label: 'Waiting for a lawyer',
+                                          value: '${queue.length}',
+                                          note: 'in the legal queue',
+                                          color: queue.isEmpty
+                                              ? theme.secondaryText
+                                              : const Color(0xFFF08156),
+                                          icon: Icons.inbox_outlined,
+                                        ),
+                                        const SizedBox(width: 16),
+                                        _StatCard(
+                                          label: 'Overdue',
+                                          value: '$overdue',
+                                          note: 'past their due date',
+                                          color: overdue == 0
+                                              ? theme.secondaryText
+                                              : overdueRed(context),
+                                          icon: Icons.schedule_outlined,
+                                        ),
+                                        const SizedBox(width: 16),
+                                        _StatCard(
+                                          label: 'Value at stake',
+                                          value: naira(atStake),
+                                          note: 'claimed on open cases',
+                                          color: const Color(0xFFE6B011),
+                                          icon: Icons
+                                              .account_balance_wallet_outlined,
+                                        ),
+                                        const SizedBox(width: 16),
+                                        _StatCard(
+                                          label: 'Outcomes',
+                                          value:
+                                              '${won.length} won · $lost lost',
+                                          note: '${naira(recovered)} recovered',
+                                          color: const Color(0xFF3BA55D),
+                                          icon: Icons.emoji_events_outlined,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Views and the legal stage filter
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        24, 18, 24, 12),
+                                    child: Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        _Chip(
+                                          label: 'My cases (${mine.length})',
+                                          selected: _view == _View.mine,
+                                          onTap: () => setState(
+                                              () => _view = _View.mine),
+                                        ),
+                                        _Chip(
+                                          label:
+                                              'Legal queue (${queue.length})',
+                                          selected: _view == _View.queue,
+                                          onTap: () => setState(
+                                              () => _view = _View.queue),
+                                        ),
+                                        _Chip(
+                                          label: 'All open (${open.length})',
+                                          selected: _view == _View.open,
+                                          onTap: () => setState(
+                                              () => _view = _View.open),
+                                        ),
+                                        _Chip(
+                                          label: 'Closed (${closed.length})',
+                                          selected: _view == _View.closed,
+                                          onTap: () => setState(
+                                              () => _view = _View.closed),
+                                        ),
+                                        if (_view != _View.closed) ...[
+                                          Container(
+                                            width: 1,
+                                            height: 22,
+                                            margin: const EdgeInsets.symmetric(
+                                                horizontal: 6),
+                                            color: theme.alternate,
+                                          ),
+                                          for (final stage in LegalStage.all)
+                                            _Chip(
+                                              label:
+                                                  '$stage (${open.where((c) => _legalStageOf(c) == stage).length})',
+                                              selected: _legalStage == stage,
+                                              quiet: true,
+                                              onTap: () => setState(() =>
+                                                  _legalStage =
+                                                      _legalStage == stage
+                                                          ? null
+                                                          : stage),
+                                            ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Cases
+                                  Expanded(
+                                    child: snapshot.connectionState ==
+                                            ConnectionState.waiting
+                                        ? const Center(
+                                            child: CircularProgressIndicator())
+                                        : shown.isEmpty
+                                            ? _EmptyState(
+                                                message: search.isNotEmpty ||
+                                                        _legalStage != null
+                                                    ? 'No cases match.'
+                                                    : switch (_view) {
+                                                        _View.mine =>
+                                                          'You have no cases. Take one from the legal queue.',
+                                                        _View.queue =>
+                                                          'The legal queue is empty.',
+                                                        _View.open =>
+                                                          'No claims are with the legal team.',
+                                                        _View.closed =>
+                                                          'No closed cases yet.',
+                                                      },
+                                              )
+                                            : ListView.separated(
+                                                padding:
+                                                    const EdgeInsets.fromLTRB(
+                                                        24, 0, 24, 24),
+                                                itemCount: shown.length,
+                                                separatorBuilder: (_, __) =>
+                                                    const SizedBox(height: 10),
+                                                itemBuilder: (context, i) =>
+                                                    _CaseCard(
+                                                  claim: shown[i],
+                                                  legalStage:
+                                                      _legalStageOf(shown[i]),
+                                                  amountClaimed:
+                                                      displayClaimAmount(
+                                                          shown[i].claimsAmount,
+                                                          empty: ''),
+                                                ),
+                                              ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
-                        ],
-                      );
-                    },
                   ),
                 ),
               ],
