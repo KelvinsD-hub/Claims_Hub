@@ -174,60 +174,18 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Top bar
-                          Container(
-                            color: theme.secondaryBackground,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 16),
-                            child: Row(
-                              children: [
-                                Icon(Icons.gavel_rounded,
-                                    color: brandBlue(context), size: 22),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Legal Workspace',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: theme.primaryText,
-                                  ),
-                                ),
-                                const Spacer(),
-                                SizedBox(
-                                  width: 260,
-                                  height: 40,
-                                  child: TextField(
-                                    controller: _model.searchController,
-                                    focusNode: _model.searchFocusNode,
-                                    onChanged: (_) => safeSetState(() {}),
-                                    style: GoogleFonts.inter(
-                                        fontSize: 13, color: theme.primaryText),
-                                    decoration: InputDecoration(
-                                      hintText:
-                                          'Search client, airline, PNR...',
-                                      hintStyle: GoogleFonts.inter(
-                                          fontSize: 13,
-                                          color: theme.secondaryText),
-                                      prefixIcon: Icon(Icons.search,
-                                          size: 18, color: theme.secondaryText),
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 12),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                        borderSide:
-                                            BorderSide(color: theme.alternate),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                        borderSide:
-                                            BorderSide(color: theme.alternate),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          WorkHeader(
+                            title: 'Legal Workspace',
+                            subtitle:
+                                'Claims with the legal team: whose they are, and what is due',
+                            icon: Icons.gavel_outlined,
+                            actions: [
+                              WorkSearchBox(
+                                controller: _model.searchController!,
+                                hint: 'Search client, airline, PNR…',
+                                onChanged: (_) => safeSetState(() {}),
+                              ),
+                            ],
                           ),
 
                           // Dashboard
