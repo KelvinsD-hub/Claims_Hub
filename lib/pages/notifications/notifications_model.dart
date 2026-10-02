@@ -1,21 +1,13 @@
 import '/flutter_flow/flutter_flow_util.dart';
-import '/menus_file/menn_pro/menn_pro_widget.dart';
 import 'notifications_widget.dart' show NotificationsWidget;
 import 'package:flutter/material.dart';
 
 class NotificationsModel extends FlutterFlowModel<NotificationsWidget> {
   ///  State fields for stateful widgets in this page.
 
-  // Model for MennPro component.
-  late MennProModel mennProModel;
+  @override
+  void initState(BuildContext context) {}
 
   @override
-  void initState(BuildContext context) {
-    mennProModel = createModel(context, () => MennProModel());
-  }
-
-  @override
-  void dispose() {
-    mennProModel.dispose();
-  }
+  void dispose() {}
 }

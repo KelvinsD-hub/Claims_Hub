@@ -5,10 +5,10 @@ import '/backend/services/monitoring.dart';
 import '/backend/services/pipeline.dart';
 import '/components/brand_colors.dart';
 import '/components/case_file_widget.dart';
+import '/components/work_ui.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/components/lead_file_widget.dart';
-import '/menus_file/menn_pro/menn_pro_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -166,23 +166,25 @@ class _MonitorWidgetState extends State<MonitorWidget> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              wrapWithModel(
-                model: _model.mennProModel,
-                updateCallback: () => safeSetState(() {}),
-                child: MennProWidget(selectedPage: 10),
-              ),
+              const WorkSidebar(selected: WorkPage.monitor),
               Expanded(
-                child: AuthUserStreamWidget(
-                  builder: (context) => MonitorWidget.allows(
-                          valueOrDefault(currentUserDocument?.role, ''))
-                      ? _content(context)
-                      : Center(
-                          child: Text(
-                            'This page is for Admins and Super Admins.',
-                            style: GoogleFonts.inter(
-                                fontSize: 15, color: theme.secondaryText),
+                child: WorkBody(
+                  title: 'Monitor',
+                  subtitle:
+                      'Where every lead and claim stands, what needs attention, and who is carrying what',
+                  icon: Icons.monitor_heart_outlined,
+                  child: AuthUserStreamWidget(
+                    builder: (context) => MonitorWidget.allows(
+                            valueOrDefault(currentUserDocument?.role, ''))
+                        ? _content(context)
+                        : Center(
+                            child: Text(
+                              'This page is for Admins and Super Admins.',
+                              style: GoogleFonts.inter(
+                                  fontSize: 15, color: theme.secondaryText),
+                            ),
                           ),
-                        ),
+                  ),
                 ),
               ),
             ],
@@ -268,14 +270,6 @@ class _MonitorWidgetState extends State<MonitorWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Monitor',
-            style: GoogleFonts.inter(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: theme.primaryText),
-          ),
-          const SizedBox(height: 2),
           Text(
             'Live · ${dateTimeFormat('EEE d MMM, HH:mm', now)}',
             style: GoogleFonts.inter(fontSize: 13, color: theme.secondaryText),

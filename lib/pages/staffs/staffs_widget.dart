@@ -1,8 +1,8 @@
 import '/claims/component/staffs_roles/staffs_roles_widget.dart';
+import '/components/work_ui.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
-import '/menus_file/menn_pro/menn_pro_widget.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -59,33 +59,31 @@ class _StaffsWidgetState extends State<StaffsWidget> {
                 mainAxisSize: MainAxisSize.max,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  wrapWithModel(
-                    model: _model.mennProModel,
-                    updateCallback: () => safeSetState(() {}),
-                    child: MennProWidget(
-                      selectedPage: 6,
-                    ),
-                  ),
+                  const WorkSidebar(selected: WorkPage.staff),
                   Expanded(
-                    flex: 1,
-                    child: Container(
-                      decoration: BoxDecoration(),
-                      child: Padding(
-                        padding: EdgeInsetsDirectional.fromSTEB(
-                            40.0, 40.0, 40.0, 40.0),
-                        child: SingleChildScrollView(
-                          primary: false,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              wrapWithModel(
-                                model: _model.staffsRolesModel,
-                                updateCallback: () => safeSetState(() {}),
-                                child: StaffsRolesWidget(),
-                              ),
-                            ],
+                    child: WorkBody(
+                      title: 'Staff',
+                      subtitle: 'Who can sign in, and what each person may do',
+                      icon: Icons.groups_outlined,
+                      child: Container(
+                        decoration: BoxDecoration(),
+                        child: Padding(
+                          padding: EdgeInsetsDirectional.fromSTEB(
+                              40.0, 40.0, 40.0, 40.0),
+                          child: SingleChildScrollView(
+                            primary: false,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                wrapWithModel(
+                                  model: _model.staffsRolesModel,
+                                  updateCallback: () => safeSetState(() {}),
+                                  child: StaffsRolesWidget(),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

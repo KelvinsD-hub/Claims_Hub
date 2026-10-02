@@ -4,6 +4,7 @@ import '/backend/services/pipeline.dart';
 import '/components/brand_colors.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/forms/log_out/log_out_widget.dart';
 import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,11 +14,23 @@ import 'package:page_transition/page_transition.dart';
 /// Legal Workspace — so they look and behave as one area: the same sidebar,
 /// the same header, the same way of showing a stage or a due date.
 
-enum WorkPage { leads, claims, demands, legal }
+/// Every page a member of staff can go to.
+enum WorkPage {
+  dashboard,
+  leads,
+  claims,
+  demands,
+  legal,
+  evidence,
+  monitor,
+  staff,
+  notifications,
+  support,
+  settings,
+}
 
-/// Moving between the working pages swaps the page at once. Without this the
-/// router plays its default page animation, which reads as the screen
-/// jumping.
+/// Moving between pages swaps the page at once. Without this the router plays
+/// its default page animation, which reads as the screen jumping.
 const _atOnce = <String, dynamic>{
   kTransitionInfoKey: TransitionInfo(
     hasTransition: true,
@@ -29,138 +42,306 @@ const _atOnce = <String, dynamic>{
 /// Whether the sidebar is folded down to its icons. Kept across pages.
 final _sidebarFolded = ValueNotifier<bool>(false);
 
-/// The sidebar for the working pages.
+/// The sidebar: the same on every staff page.
 class WorkSidebar extends StatelessWidget {
   const WorkSidebar({super.key, required this.selected});
 
   final WorkPage selected;
 
-  static const _items = <(WorkPage, IconData, String)>[
+  /// The pages in the order shown; a null starts a new group.
+  static const _items = <(WorkPage, IconData, String)?>[
+    (WorkPage.dashboard, Icons.dashboard_outlined, 'Dashboard'),
+    null,
     (WorkPage.leads, Icons.person_search_outlined, 'Leads'),
     (WorkPage.claims, Icons.folder_copy_outlined, 'Claims'),
     (WorkPage.demands, Icons.outgoing_mail, 'Demand letters'),
     (WorkPage.legal, Icons.gavel_outlined, 'Legal Workspace'),
+    (WorkPage.evidence, Icons.lock_outline, 'Evidence Locker'),
+    null,
+    (WorkPage.monitor, Icons.monitor_heart_outlined, 'Monitor'),
+    (WorkPage.staff, Icons.groups_outlined, 'Staff'),
+    null,
+    (WorkPage.notifications, Icons.notifications_none, 'Notifications'),
+    (WorkPage.support, Icons.support_agent, 'Support'),
+    (WorkPage.settings, Icons.settings_outlined, 'Settings'),
   ];
 
   static String _route(WorkPage page) => switch (page) {
+        WorkPage.dashboard => HomePageWidget.routeName,
         WorkPage.leads => LeadsWidget.routeName,
         WorkPage.claims => ClaimsDashboardWidget.routeName,
         WorkPage.demands => EmailAirlinesWidget.routeName,
         WorkPage.legal => SolicitorsWidget.routeName,
+        WorkPage.evidence => EvidenceLockerWidget.routeName,
+        WorkPage.monitor => MonitorWidget.routeName,
+        WorkPage.staff => StaffsWidget.routeName,
+        WorkPage.notifications => NotificationsWidget.routeName,
+        WorkPage.support => SupportsWidget.routeName,
+        WorkPage.settings => SettingsWidget.routeName,
       };
+
+  void _logOut(BuildContext context) {
+    showModalBottomSheet<void>(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      enableDrag: false,
+      context: context,
+      builder: (context) => Padding(
+        padding: MediaQuery.viewInsetsOf(context),
+        child: const LogOutWidget(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
+
+    Widget entry({
+      required IconData icon,
+      required String label,
+      required bool folded,
+      required VoidCallback? onTap,
+      bool current = false,
+      Color? color,
+    }) {
+      final tint =
+          color ?? (current ? brandBlue(context) : theme.secondaryText);
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 3.0),
+        child: Tooltip(
+          message: folded ? label : '',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10.0),
+            onTap: onTap,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+              decoration: BoxDecoration(
+                color: current
+                    ? brandBlue(context).withValues(alpha: 0.16)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(10.0),
+              ),
+              child: Row(
+                children: [
+                  Icon(icon, size: 19.0, color: tint),
+                  if (!folded) ...[
+                    const SizedBox(width: 12.0),
+                    Expanded(
+                      child: Text(
+                        label,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 13.5,
+                          fontWeight:
+                              current ? FontWeight.w700 : FontWeight.w500,
+                          color: color ??
+                              (current
+                                  ? theme.primaryText
+                                  : theme.secondaryText),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return ValueListenableBuilder<bool>(
       valueListenable: _sidebarFolded,
       builder: (context, folded, _) => AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        width: folded ? 68.0 : 212.0,
+        width: folded ? 68.0 : 216.0,
         decoration: BoxDecoration(
           color: theme.secondaryBackground,
           border: Border(right: BorderSide(color: theme.alternate)),
         ),
-        padding: const EdgeInsets.fromLTRB(12.0, 18.0, 12.0, 14.0),
+        padding: const EdgeInsets.fromLTRB(12.0, 18.0, 12.0, 12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Tooltip(
-              message: 'Back to the home page',
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10.0),
-                onTap: () =>
-                    context.goNamed(HomePageWidget.routeName, extra: _atOnce),
-                child: Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10.0, 4.0, 4.0, 18.0),
+              child: folded
+                  ? Text('CA',
+                      style: GoogleFonts.interTight(
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.w800,
+                          color: brandBlue(context)))
+                  : Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                              text: 'Claims ',
+                              style: TextStyle(color: brandBlue(context))),
+                          const TextSpan(
+                              text: 'Assist',
+                              style: TextStyle(color: Color(0xFFD99A00))),
+                        ],
+                      ),
+                      style: GoogleFonts.interTight(
+                          fontSize: 18.0, fontWeight: FontWeight.w800),
+                    ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                // The Monitor is for admins; who that is comes with the
+                // signed-in person's record.
+                child: AuthUserStreamWidget(
+                  builder: (context) => Column(
                     children: [
-                      Icon(Icons.arrow_back,
-                          size: 20.0, color: theme.primaryText),
-                      if (!folded) ...[
-                        const SizedBox(width: 10.0),
-                        Text('Home',
-                            style: GoogleFonts.inter(
-                                fontSize: 13.5, color: theme.secondaryText)),
-                      ],
+                      for (final item in _items)
+                        if (item == null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 7.0),
+                            child: Divider(height: 1.0, color: theme.alternate),
+                          )
+                        else if (item.$1 != WorkPage.monitor ||
+                            MonitorWidget.allows(
+                                valueOrDefault(currentUserDocument?.role, '')))
+                          entry(
+                            icon: item.$2,
+                            label: item.$3,
+                            folded: folded,
+                            current: item.$1 == selected,
+                            onTap: item.$1 == selected
+                                ? null
+                                : () => context.goNamed(_route(item.$1),
+                                    extra: _atOnce),
+                          ),
                     ],
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 18.0),
-            for (final (page, icon, label) in _items)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4.0),
-                child: Tooltip(
-                  message: folded ? label : '',
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10.0),
-                    onTap: page == selected
-                        ? null
-                        : () => context.goNamed(_route(page), extra: _atOnce),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12.0, vertical: 11.0),
-                      decoration: BoxDecoration(
-                        color: page == selected
-                            ? brandBlue(context).withValues(alpha: 0.16)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(icon,
-                              size: 19.0,
-                              color: page == selected
-                                  ? brandBlue(context)
-                                  : theme.secondaryText),
-                          if (!folded) ...[
-                            const SizedBox(width: 12.0),
-                            Expanded(
-                              child: Text(
-                                label,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  fontSize: 13.5,
-                                  fontWeight: page == selected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                  color: page == selected
-                                      ? theme.primaryText
-                                      : theme.secondaryText,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            const Spacer(),
-            Tooltip(
-              message: folded ? 'Show the menu' : 'Fold the menu',
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10.0),
-                onTap: () => _sidebarFolded.value = !folded,
-                child: Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Icon(
-                    folded
-                        ? Icons.keyboard_double_arrow_right
-                        : Icons.keyboard_double_arrow_left,
-                    size: 20.0,
-                    color: theme.secondaryText,
-                  ),
-                ),
-              ),
+            Divider(height: 14.0, color: theme.alternate),
+            entry(
+              icon: folded
+                  ? Icons.keyboard_double_arrow_right
+                  : Icons.keyboard_double_arrow_left,
+              label: folded ? 'Show the menu' : 'Fold the menu',
+              folded: folded,
+              onTap: () => _sidebarFolded.value = !folded,
+            ),
+            entry(
+              icon: Icons.logout_rounded,
+              label: 'Log out',
+              folded: folded,
+              color: overdueRed(context),
+              onTap: () => _logOut(context),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The bar across the top of a page: what the page is, its controls, the
+/// theme switch and who is signed in.
+class WorkHeader extends StatelessWidget {
+  const WorkHeader({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    this.actions = const [],
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  /// Controls on the right: search, buttons.
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(28.0, 18.0, 24.0, 18.0),
+      decoration: BoxDecoration(
+        color: theme.secondaryBackground,
+        border: Border(bottom: BorderSide(color: theme.alternate)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9.0),
+            decoration: BoxDecoration(
+              color: brandBlue(context).withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            child: Icon(icon, size: 22.0, color: brandBlue(context)),
+          ),
+          const SizedBox(width: 12.0),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.interTight(
+                    fontSize: 21.0,
+                    fontWeight: FontWeight.w700,
+                    color: theme.primaryText,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                      fontSize: 12.5, color: theme.secondaryText),
+                ),
+              ],
+            ),
+          ),
+          for (final action in actions) ...[
+            const SizedBox(width: 10.0),
+            action,
+          ],
+          const SizedBox(width: 14.0),
+          const _ThemeButton(),
+          const SizedBox(width: 10.0),
+          const _WhoAmI(),
+        ],
+      ),
+    );
+  }
+}
+
+/// A page's header over its content, for a page that builds its own
+/// scaffold. Goes beside a [WorkSidebar].
+class WorkBody extends StatelessWidget {
+  const WorkBody({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.child,
+    this.actions = const [],
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<Widget> actions;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        WorkHeader(
+            title: title, subtitle: subtitle, icon: icon, actions: actions),
+        Expanded(child: child),
+      ],
     );
   }
 }
@@ -200,64 +381,12 @@ class WorkScaffold extends StatelessWidget {
             children: [
               WorkSidebar(selected: page),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      padding:
-                          const EdgeInsets.fromLTRB(28.0, 18.0, 24.0, 18.0),
-                      decoration: BoxDecoration(
-                        color: theme.secondaryBackground,
-                        border:
-                            Border(bottom: BorderSide(color: theme.alternate)),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(9.0),
-                            decoration: BoxDecoration(
-                              color: brandBlue(context).withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(12.0),
-                            ),
-                            child: Icon(icon,
-                                size: 22.0, color: brandBlue(context)),
-                          ),
-                          const SizedBox(width: 12.0),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  title,
-                                  style: GoogleFonts.interTight(
-                                    fontSize: 21.0,
-                                    fontWeight: FontWeight.w700,
-                                    color: theme.primaryText,
-                                  ),
-                                ),
-                                Text(
-                                  subtitle,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.inter(
-                                      fontSize: 12.5,
-                                      color: theme.secondaryText),
-                                ),
-                              ],
-                            ),
-                          ),
-                          for (final action in actions) ...[
-                            const SizedBox(width: 10.0),
-                            action,
-                          ],
-                          const SizedBox(width: 14.0),
-                          const _ThemeButton(),
-                          const SizedBox(width: 10.0),
-                          const _WhoAmI(),
-                        ],
-                      ),
-                    ),
-                    Expanded(child: child),
-                  ],
+                child: WorkBody(
+                  title: title,
+                  subtitle: subtitle,
+                  icon: icon,
+                  actions: actions,
+                  child: child,
                 ),
               ),
             ],

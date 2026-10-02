@@ -1,6 +1,7 @@
+import '/components/work_ui.dart';
+import '/components/brand_colors.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/menus_file/menn_pro/menn_pro_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -123,219 +124,183 @@ class _SupportsWidgetState extends State<SupportsWidget> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                wrapWithModel(
-                  model: _model.mennProModel,
-                  updateCallback: () => safeSetState(() {}),
-                  child: MennProWidget(selectedPage: 8),
-                ),
+                const WorkSidebar(selected: WorkPage.support),
                 Expanded(
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // -- Header -----------------------------------
-                              Row(
+                  child: WorkBody(
+                    title: 'Support',
+                    subtitle: 'Help with using Claims Hub',
+                    icon: Icons.support_agent,
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // -- Contact card -----------------------------
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(22),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [_kNavy, Color(0xFF013a78)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      color: _kNavy.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Center(
-                                      child: Icon(Icons.support_agent_rounded,
-                                          color: _kNavy, size: 26),
-                                    ),
+                                  Text('Get in touch',
+                                      style: GoogleFonts.interTight(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Reach the Claims Assist team — we usually reply within a few hours.',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 13, color: Colors.white70),
                                   ),
-                                  const SizedBox(width: 14),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                  const SizedBox(height: 18),
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 12,
                                     children: [
-                                      Text('Support',
-                                          style: GoogleFonts.interTight(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: _kNavy)),
-                                      Text("We're here to help",
+                                      _ContactButton(
+                                        icon: Icons.email_outlined,
+                                        label: 'Email us',
+                                        onTap: () => _open(
+                                            'mailto:$_supportEmail?subject=Claims%20Hub%20Support'),
+                                      ),
+                                      if (_isRealNumber(_supportWhatsApp))
+                                        _ContactButton(
+                                          icon: FontAwesomeIcons.whatsapp,
+                                          label: 'WhatsApp',
+                                          onTap: () => _open(
+                                              'https://wa.me/$_supportWhatsApp'),
+                                          faIcon: true,
+                                        ),
+                                      if (_isRealNumber(_supportPhone))
+                                        _ContactButton(
+                                          icon: Icons.call_outlined,
+                                          label: 'Call',
+                                          onTap: () =>
+                                              _open('tel:$_supportPhone'),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.email_outlined,
+                                          size: 15, color: Colors.white70),
+                                      const SizedBox(width: 6),
+                                      SelectableText(_supportEmail,
                                           style: GoogleFonts.inter(
-                                              fontSize: 14,
-                                              color: Colors.grey)),
+                                              fontSize: 13,
+                                              color: Colors.white)),
                                     ],
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 24),
+                            ),
+                            const SizedBox(height: 28),
 
-                              // -- Contact card -----------------------------
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(22),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [_kNavy, Color(0xFF013a78)],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Get in touch',
-                                        style: GoogleFonts.interTight(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white)),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Reach the Claims Assist team — we usually reply within a few hours.',
-                                      style: GoogleFonts.inter(
-                                          fontSize: 13,
-                                          color: Colors.white70),
-                                    ),
-                                    const SizedBox(height: 18),
-                                    Wrap(
-                                      spacing: 12,
-                                      runSpacing: 12,
-                                      children: [
-                                        _ContactButton(
-                                          icon: Icons.email_outlined,
-                                          label: 'Email us',
-                                          onTap: () => _open(
-                                              'mailto:$_supportEmail?subject=Claims%20Hub%20Support'),
-                                        ),
-                                        if (_isRealNumber(_supportWhatsApp))
-                                          _ContactButton(
-                                            icon: FontAwesomeIcons.whatsapp,
-                                            label: 'WhatsApp',
-                                            onTap: () => _open(
-                                                'https://wa.me/$_supportWhatsApp'),
-                                            faIcon: true,
-                                          ),
-                                        if (_isRealNumber(_supportPhone))
-                                          _ContactButton(
-                                            icon: Icons.call_outlined,
-                                            label: 'Call',
-                                            onTap: () =>
-                                                _open('tel:$_supportPhone'),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.email_outlined,
-                                            size: 15, color: Colors.white70),
-                                        const SizedBox(width: 6),
-                                        SelectableText(_supportEmail,
-                                            style: GoogleFonts.inter(
-                                                fontSize: 13,
-                                                color: Colors.white)),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 28),
-
-                              // -- FAQ header + search ----------------------
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('Frequently asked questions',
-                                      style: GoogleFonts.interTight(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: _kNavy)),
-                                  SizedBox(
-                                    width: 240,
-                                    height: 40,
-                                    child: TextField(
-                                      controller: _model.searchController,
-                                      focusNode: _model.searchFocusNode,
-                                      onChanged: (_) => safeSetState(() {}),
-                                      decoration: InputDecoration(
-                                        hintText: 'Search help...',
-                                        hintStyle: const TextStyle(
-                                            fontSize: 13, color: Colors.grey),
-                                        prefixIcon: const Icon(Icons.search,
-                                            size: 18, color: Colors.grey),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 12),
-                                        border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                          borderSide: BorderSide(
-                                              color: Colors.grey.shade300),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                          borderSide: BorderSide(
-                                              color: Colors.grey.shade300),
-                                        ),
+                            // -- FAQ header + search ----------------------
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Frequently asked questions',
+                                    style: GoogleFonts.interTight(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: brandBlue(context))),
+                                SizedBox(
+                                  width: 240,
+                                  height: 40,
+                                  child: TextField(
+                                    controller: _model.searchController,
+                                    focusNode: _model.searchFocusNode,
+                                    onChanged: (_) => safeSetState(() {}),
+                                    decoration: InputDecoration(
+                                      hintText: 'Search help...',
+                                      hintStyle: const TextStyle(
+                                          fontSize: 13, color: Colors.grey),
+                                      prefixIcon: const Icon(Icons.search,
+                                          size: 18, color: Colors.grey),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 12),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide(
+                                            color: FlutterFlowTheme.of(context)
+                                                .alternate),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide(
+                                            color: FlutterFlowTheme.of(context)
+                                                .alternate),
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
 
-                              // -- FAQ list ---------------------------------
-                              if (faqs.isEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 32),
-                                  child: Center(
-                                    child: Text(
-                                      'No help articles match "$query".',
-                                      style: GoogleFonts.inter(
-                                          fontSize: 14, color: Colors.grey),
-                                    ),
-                                  ),
-                                )
-                              else
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: FlutterFlowTheme.of(context)
-                                        .secondaryBackground,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                        color: Colors.grey.shade200),
-                                  ),
-                                  child: Theme(
-                                    data: Theme.of(context).copyWith(
-                                        dividerColor: Colors.grey.shade200),
-                                    child: Column(
-                                      children: [
-                                        for (var i = 0; i < faqs.length; i++)
-                                          _FaqTile(
-                                            faq: faqs[i],
-                                            isLast: i == faqs.length - 1,
-                                          ),
-                                      ],
-                                    ),
+                            // -- FAQ list ---------------------------------
+                            if (faqs.isEmpty)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 32),
+                                child: Center(
+                                  child: Text(
+                                    'No help articles match "$query".',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 14, color: Colors.grey),
                                   ),
                                 ),
-
-                              const SizedBox(height: 28),
-                              Center(
-                                child: Text(
-                                  'Claims Assist  -  v1.0.0',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade400),
+                              )
+                            else
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: FlutterFlowTheme.of(context)
+                                      .secondaryBackground,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                      color: FlutterFlowTheme.of(context)
+                                          .alternate),
+                                ),
+                                child: Theme(
+                                  data: Theme.of(context).copyWith(
+                                      dividerColor: FlutterFlowTheme.of(context)
+                                          .alternate),
+                                  child: Column(
+                                    children: [
+                                      for (var i = 0; i < faqs.length; i++)
+                                        _FaqTile(
+                                          faq: faqs[i],
+                                          isLast: i == faqs.length - 1,
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ],
-                          ),
+
+                            const SizedBox(height: 28),
+                            Center(
+                              child: Text(
+                                'Claims Assist  -  v1.0.0',
+                                style: GoogleFonts.inter(
+                                    fontSize: 12, color: Colors.grey.shade400),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -367,14 +332,16 @@ class _FaqTile extends StatelessWidget {
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : Border(bottom: BorderSide(color: Colors.grey.shade200)),
+            : Border(
+                bottom:
+                    BorderSide(color: FlutterFlowTheme.of(context).alternate)),
       ),
       child: ExpansionTile(
         shape: const Border(),
         collapsedShape: const Border(),
         tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
         childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
-        iconColor: _kNavy,
+        iconColor: brandBlue(context),
         collapsedIconColor: Colors.grey,
         title: Text(
           faq.question,
@@ -425,14 +392,14 @@ class _ContactButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             faIcon
-                ? FaIcon(icon, size: 16, color: _kNavy)
-                : Icon(icon, size: 18, color: _kNavy),
+                ? FaIcon(icon, size: 16, color: brandBlue(context))
+                : Icon(icon, size: 18, color: brandBlue(context)),
             const SizedBox(width: 8),
             Text(label,
                 style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: _kNavy)),
+                    color: brandBlue(context))),
           ],
         ),
       ),

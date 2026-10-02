@@ -103,8 +103,8 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
                     builder: (context, snapshot) {
                       final all = snapshot.data ?? [];
                       final open = all
-                          .where((c) =>
-                              c.claimStatus == ClaimStage.withSolicitor)
+                          .where(
+                              (c) => c.claimStatus == ClaimStage.withSolicitor)
                           .toList();
                       // A closed claim counts as the legal team's if it ever
                       // reached them.
@@ -124,8 +124,8 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
                       final overdue = open
                           .where((c) => Casework.of(c.snapshotData).isOverdue)
                           .length;
-                      final atStake =
-                          open.fold<double>(0, (total, c) => total + _amountClaimed(c));
+                      final atStake = open.fold<double>(
+                          0, (total, c) => total + _amountClaimed(c));
                       final won = closed
                           .where((c) =>
                               c.claimStatus == ClaimStage.won ||
@@ -138,7 +138,8 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
                           0,
                           (total, c) =>
                               total +
-                              (Casework.of(c.snapshotData).amountRecovered ?? 0));
+                              (Casework.of(c.snapshotData).amountRecovered ??
+                                  0));
 
                       final search =
                           _model.searchController?.text.toLowerCase() ?? '';
@@ -202,7 +203,8 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
                                     style: GoogleFonts.inter(
                                         fontSize: 13, color: theme.primaryText),
                                     decoration: InputDecoration(
-                                      hintText: 'Search client, airline, PNR...',
+                                      hintText:
+                                          'Search client, airline, PNR...',
                                       hintStyle: GoogleFonts.inter(
                                           fontSize: 13,
                                           color: theme.secondaryText),
@@ -291,17 +293,20 @@ class _SolicitorsWidgetState extends State<SolicitorsWidget> {
                                 _Chip(
                                   label: 'My cases (${mine.length})',
                                   selected: _view == _View.mine,
-                                  onTap: () => setState(() => _view = _View.mine),
+                                  onTap: () =>
+                                      setState(() => _view = _View.mine),
                                 ),
                                 _Chip(
                                   label: 'Legal queue (${queue.length})',
                                   selected: _view == _View.queue,
-                                  onTap: () => setState(() => _view = _View.queue),
+                                  onTap: () =>
+                                      setState(() => _view = _View.queue),
                                 ),
                                 _Chip(
                                   label: 'All open (${open.length})',
                                   selected: _view == _View.open,
-                                  onTap: () => setState(() => _view = _View.open),
+                                  onTap: () =>
+                                      setState(() => _view = _View.open),
                                 ),
                                 _Chip(
                                   label: 'Closed (${closed.length})',
@@ -439,7 +444,8 @@ class _StatCard extends StatelessWidget {
             Text(
               note,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(fontSize: 11.5, color: theme.secondaryText),
+              style:
+                  GoogleFonts.inter(fontSize: 11.5, color: theme.secondaryText),
             ),
           ],
         ),
@@ -554,7 +560,9 @@ class _CaseCardState extends State<_CaseCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    claim.fullName.isNotEmpty ? claim.fullName : 'Unnamed client',
+                    claim.fullName.isNotEmpty
+                        ? claim.fullName
+                        : 'Unnamed client',
                     style: GoogleFonts.inter(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -621,7 +629,9 @@ class _CaseCardState extends State<_CaseCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          work.hasNextAction ? work.nextAction : 'No next action',
+                          work.hasNextAction
+                              ? work.nextAction
+                              : 'No next action',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(

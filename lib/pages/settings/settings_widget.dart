@@ -1,9 +1,10 @@
-﻿import '/auth/firebase_auth/auth_util.dart';
+import '/auth/firebase_auth/auth_util.dart';
 import '/flutter_flow/flutter_flow_animations.dart';
+import '/components/work_ui.dart';
+import '/components/brand_colors.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
-import '/menus_file/menn_pro/menn_pro_widget.dart';
 import 'dart:math';
 import 'dart:ui';
 import '/index.dart';
@@ -113,7 +114,8 @@ class _SettingsWidgetState extends State<SettingsWidget>
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Log out', style: TextStyle(color: Colors.white)),
           ),
@@ -132,7 +134,8 @@ class _SettingsWidgetState extends State<SettingsWidget>
   Future<void> _resetPassword() async {
     final email = currentUserEmail;
     if (email.isEmpty) {
-      _snack('No email on file for this account.', color: Colors.orange.shade700);
+      _snack('No email on file for this account.',
+          color: Colors.orange.shade700);
       return;
     }
     await authManager.resetPassword(email: email, context: context);
@@ -175,8 +178,7 @@ class _SettingsWidgetState extends State<SettingsWidget>
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF002855)),
@@ -251,428 +253,22 @@ class _SettingsWidgetState extends State<SettingsWidget>
               child: Row(
                 mainAxisSize: MainAxisSize.max,
                 children: [
-                  wrapWithModel(
-                    model: _model.mennProModel,
-                    updateCallback: () => safeSetState(() {}),
-                    child: MennProWidget(
-                      selectedPage: 9,
-                    ),
-                  ),
+                  const WorkSidebar(selected: WorkPage.settings),
                   Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.max,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: FlutterFlowTheme.of(context)
-                                .secondaryBackground,
-                            border: Border.all(
-                              color: FlutterFlowTheme.of(context).divider,
-                              width: 1.0,
+                    child: WorkBody(
+                      title: 'Settings',
+                      subtitle: 'Your profile, the theme and your account',
+                      icon: Icons.settings_outlined,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.max,
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: _buildSettingsBody(context),
                             ),
                           ),
-                          child: Padding(
-                            padding: EdgeInsets.all(30.0),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.max,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.start,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.max,
-                                      children: [
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            color: Color(0xFF0C519B),
-                                            borderRadius:
-                                                BorderRadius.circular(15.0),
-                                          ),
-                                          child: Padding(
-                                            padding: EdgeInsets.all(8.0),
-                                            child: FaIcon(
-                                              FontAwesomeIcons.paperPlane,
-                                              color: Color(0xFFE6B011),
-                                              size: 24.0,
-                                            ),
-                                          ),
-                                        ),
-                                        Text(
-                                          'CLAIMS',
-                                          style: FlutterFlowTheme.of(context)
-                                              .bodyMedium
-                                              .override(
-                                                font: GoogleFonts.inter(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontStyle:
-                                                      FlutterFlowTheme.of(
-                                                              context)
-                                                          .bodyMedium
-                                                          .fontStyle,
-                                                ),
-                                                color: Color(0xFF0C519B),
-                                                fontSize: 30.0,
-                                                letterSpacing: 0.0,
-                                                fontWeight: FontWeight.bold,
-                                                fontStyle:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
-                                              ),
-                                        ),
-                                        Text(
-                                          'ASSIST',
-                                          style: FlutterFlowTheme.of(context)
-                                              .bodyMedium
-                                              .override(
-                                                font: GoogleFonts.inter(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontStyle:
-                                                      FlutterFlowTheme.of(
-                                                              context)
-                                                          .bodyMedium
-                                                          .fontStyle,
-                                                ),
-                                                color: Color(0xFFE6B011),
-                                                fontSize: 30.0,
-                                                letterSpacing: 0.0,
-                                                fontWeight: FontWeight.bold,
-                                                fontStyle:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
-                                              ),
-                                        ),
-                                      ].divide(SizedBox(width: 7.0)),
-                                    ),
-                                    Text(
-                                      'Manage and track all agency client relationships',
-                                      style: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .override(
-                                            font: GoogleFonts.roboto(
-                                              fontWeight: FontWeight.normal,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                            color: FlutterFlowTheme.of(context)
-                                                .secondaryText,
-                                            fontSize: 14.0,
-                                            letterSpacing: 0.0,
-                                            fontWeight: FontWeight.normal,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                            lineHeight: 1.5,
-                                          ),
-                                    ),
-                                  ].divide(SizedBox(height: 4.0)),
-                                ),
-                                InkWell(
-                                  splashColor: Colors.transparent,
-                                  focusColor: Colors.transparent,
-                                  hoverColor: Colors.transparent,
-                                  highlightColor: Colors.transparent,
-                                  onTap: () async {
-                                    context
-                                        .pushNamed(EditProfileWidget.routeName);
-                                  },
-                                  child: Icon(
-                                    Icons.person_add,
-                                    color: FlutterFlowTheme.of(context)
-                                        .primaryText,
-                                    size: 24.0,
-                                  ),
-                                ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: FlutterFlowTheme.of(context)
-                                        .primaryBackground,
-                                    borderRadius: BorderRadius.circular(15.0),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.max,
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 48.0,
-                                        height: 48.0,
-                                        decoration: BoxDecoration(
-                                          color: FlutterFlowTheme.of(context)
-                                              .accent2,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: FlutterFlowTheme.of(context)
-                                                .secondary,
-                                            width: 2.0,
-                                          ),
-                                        ),
-                                        child: Padding(
-                                          padding:
-                                              EdgeInsetsDirectional.fromSTEB(
-                                                  2.0, 2.0, 2.0, 2.0),
-                                          child: AuthUserStreamWidget(
-                                            builder: (context) => ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(24.0),
-                                              child: Image.network(
-                                                getCORSProxyUrl(
-                                                  currentUserPhoto,
-                                                ),
-                                                fit: BoxFit.cover,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
-                                            0.0, 0.0, 16.0, 0.0),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.max,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            AuthUserStreamWidget(
-                                              builder: (context) => Text(
-                                                currentUserDisplayName,
-                                                style:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .override(
-                                                          font:
-                                                              GoogleFonts.inter(
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            fontStyle:
-                                                                FlutterFlowTheme.of(
-                                                                        context)
-                                                                    .bodyMedium
-                                                                    .fontStyle,
-                                                          ),
-                                                          letterSpacing: 0.0,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                              ),
-                                            ),
-                                            AuthUserStreamWidget(
-                                              builder: (context) => Text(
-                                                '@${valueOrDefault(currentUserDocument?.role, '')}',
-                                                style:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .override(
-                                                          font:
-                                                              GoogleFonts.inter(
-                                                            fontWeight:
-                                                                FlutterFlowTheme.of(
-                                                                        context)
-                                                                    .bodyMedium
-                                                                    .fontWeight,
-                                                            fontStyle:
-                                                                FlutterFlowTheme.of(
-                                                                        context)
-                                                                    .bodyMedium
-                                                                    .fontStyle,
-                                                          ),
-                                                          letterSpacing: 0.0,
-                                                          fontWeight:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontWeight,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (responsiveVisibility(
-                                        context: context,
-                                        phone: false,
-                                      ))
-                                        Padding(
-                                          padding:
-                                              EdgeInsetsDirectional.fromSTEB(
-                                                  0.0, 0.0, 12.0, 0.0),
-                                          child: InkWell(
-                                            splashColor: Colors.transparent,
-                                            focusColor: Colors.transparent,
-                                            hoverColor: Colors.transparent,
-                                            highlightColor: Colors.transparent,
-                                            onTap: () async {
-                                              if ((Theme.of(context)
-                                                          .brightness ==
-                                                      Brightness.light) ==
-                                                  true) {
-                                                setDarkModeSetting(
-                                                    context, ThemeMode.dark);
-                                                if (animationsMap[
-                                                        'containerOnActionTriggerAnimation'] !=
-                                                    null) {
-                                                  animationsMap[
-                                                          'containerOnActionTriggerAnimation']!
-                                                      .controller
-                                                      .forward(from: 0.0);
-                                                }
-                                              } else {
-                                                setDarkModeSetting(
-                                                    context, ThemeMode.light);
-                                                if (animationsMap[
-                                                        'containerOnActionTriggerAnimation'] !=
-                                                    null) {
-                                                  animationsMap[
-                                                          'containerOnActionTriggerAnimation']!
-                                                      .controller
-                                                      .reverse();
-                                                }
-                                              }
-                                            },
-                                            child: Container(
-                                              width: 80.0,
-                                              height: 40.0,
-                                              decoration: BoxDecoration(
-                                                color:
-                                                    FlutterFlowTheme.of(context)
-                                                        .alternate,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    blurRadius: 3.0,
-                                                    color: Color(0x33000000),
-                                                    offset: Offset(
-                                                      0.0,
-                                                      1.0,
-                                                    ),
-                                                  )
-                                                ],
-                                                borderRadius:
-                                                    BorderRadius.circular(20.0),
-                                              ),
-                                              child: Padding(
-                                                padding: EdgeInsets.all(2.0),
-                                                child: Stack(
-                                                  alignment:
-                                                      AlignmentDirectional(
-                                                          0.0, 0.0),
-                                                  children: [
-                                                    Align(
-                                                      alignment:
-                                                          AlignmentDirectional(
-                                                              -0.9, 0.0),
-                                                      child: Padding(
-                                                        padding:
-                                                            EdgeInsetsDirectional
-                                                                .fromSTEB(
-                                                                    6.0,
-                                                                    0.0,
-                                                                    0.0,
-                                                                    0.0),
-                                                        child: Icon(
-                                                          Icons
-                                                              .wb_sunny_outlined,
-                                                          color: FlutterFlowTheme
-                                                                  .of(context)
-                                                              .secondaryText,
-                                                          size: 24.0,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    Align(
-                                                      alignment:
-                                                          AlignmentDirectional(
-                                                              1.0, 0.0),
-                                                      child: Padding(
-                                                        padding:
-                                                            EdgeInsetsDirectional
-                                                                .fromSTEB(
-                                                                    0.0,
-                                                                    0.0,
-                                                                    6.0,
-                                                                    0.0),
-                                                        child: FaIcon(
-                                                          FontAwesomeIcons.moon,
-                                                          color: FlutterFlowTheme
-                                                                  .of(context)
-                                                              .secondaryText,
-                                                          size: 24.0,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    Align(
-                                                      alignment:
-                                                          AlignmentDirectional(
-                                                              1.0, 0.0),
-                                                      child: Container(
-                                                        width: 36.0,
-                                                        height: 36.0,
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: FlutterFlowTheme
-                                                                  .of(context)
-                                                              .secondaryBackground,
-                                                          boxShadow: [
-                                                            BoxShadow(
-                                                              blurRadius: 4.0,
-                                                              color: Color(
-                                                                  0x430B0D0F),
-                                                              offset: Offset(
-                                                                0.0,
-                                                                2.0,
-                                                              ),
-                                                            )
-                                                          ],
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(
-                                                                      30.0),
-                                                          shape: BoxShape
-                                                              .rectangle,
-                                                        ),
-                                                      ).animateOnActionTrigger(
-                                                        animationsMap[
-                                                            'containerOnActionTriggerAnimation']!,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                    ].divide(SizedBox(width: 8.0)),
-                                  ),
-                                ),
-                              ],
-                            ).animateOnPageLoad(
-                                animationsMap['rowOnPageLoadAnimation']!),
-                          ),
-                        ),
-                        Expanded(
-                          child: SingleChildScrollView(
-                            child: _buildSettingsBody(context),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -686,128 +282,125 @@ class _SettingsWidgetState extends State<SettingsWidget>
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
       child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // -- Profile -------------------------------------------------
+          _SettingsSection(
+            title: 'Profile',
+            icon: Icons.person_outline,
             children: [
-              // -- Profile -------------------------------------------------
-              _SettingsSection(
-                title: 'Profile',
-                icon: Icons.person_outline,
-                children: [
-                  AuthUserStreamWidget(
-                    builder: (context) => _SettingsTile(
-                      icon: Icons.badge_outlined,
-                      title: currentUserDisplayName.isNotEmpty
-                          ? currentUserDisplayName
-                          : 'Your profile',
-                      subtitle: [
-                        if (currentUserEmail.isNotEmpty) currentUserEmail,
-                        if ((currentUserDocument?.role ?? '').isNotEmpty)
-                          '@${currentUserDocument!.role}',
-                      ].join('  -  '),
-                      actionLabel: 'Edit',
-                      onTap: () =>
-                          context.pushNamed(EditProfileWidget.routeName),
-                    ),
-                  ),
-                ],
-              ),
-
-              // -- Appearance ----------------------------------------------
-              _SettingsSection(
-                title: 'Appearance',
-                icon: Icons.palette_outlined,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.brightness_6_outlined,
-                            color: _kNavy, size: 20),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text('Theme',
-                              style: GoogleFonts.inter(
-                                  fontSize: 14, fontWeight: FontWeight.w500)),
-                        ),
-                        _ThemeToggle(
-                          current: Theme.of(context).brightness ==
-                                  Brightness.dark
-                              ? ThemeMode.dark
-                              : ThemeMode.light,
-                          onChanged: (mode) =>
-                              setDarkModeSetting(context, mode),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              // -- Security ------------------------------------------------
-              _SettingsSection(
-                title: 'Security',
-                icon: Icons.lock_outline,
-                children: [
-                  _SettingsTile(
-                    icon: Icons.password_outlined,
-                    title: 'Change password',
-                    subtitle: 'Set a new password for your account',
-                    onTap: _changePassword,
-                  ),
-                  _SettingsTile(
-                    icon: Icons.mark_email_read_outlined,
-                    title: 'Send password reset email',
-                    subtitle: 'We\'ll email you a reset link',
-                    onTap: _resetPassword,
-                  ),
-                ],
-              ),
-
-              // -- Support / About -----------------------------------------
-              _SettingsSection(
-                title: 'About & Support',
-                icon: Icons.info_outline,
-                children: [
-                  _SettingsTile(
-                    icon: Icons.support_agent_outlined,
-                    title: 'Help & Support',
-                    subtitle: 'FAQs and ways to reach us',
-                    onTap: () => context.pushNamed(SupportsWidget.routeName),
-                  ),
-                  const _SettingsTile(
-                    icon: Icons.verified_outlined,
-                    title: 'App version',
-                    subtitle: 'Claims Assist  -  v1.0.0',
-                  ),
-                ],
-              ),
-
-              // -- Account / danger zone -----------------------------------
-              _SettingsSection(
-                title: 'Account',
-                icon: Icons.manage_accounts_outlined,
-                children: [
-                  _SettingsTile(
-                    icon: Icons.logout,
-                    title: 'Log out',
-                    subtitle: 'Sign out of this device',
-                    iconColor: Colors.orange.shade800,
-                    onTap: _signOut,
-                  ),
-                  _SettingsTile(
-                    icon: Icons.delete_forever_outlined,
-                    title: 'Delete account',
-                    subtitle: 'Permanently delete your account',
-                    iconColor: Colors.red.shade600,
-                    titleColor: Colors.red.shade600,
-                    onTap: _deleteAccount,
-                  ),
-                ],
+              AuthUserStreamWidget(
+                builder: (context) => _SettingsTile(
+                  icon: Icons.badge_outlined,
+                  title: currentUserDisplayName.isNotEmpty
+                      ? currentUserDisplayName
+                      : 'Your profile',
+                  subtitle: [
+                    if (currentUserEmail.isNotEmpty) currentUserEmail,
+                    if ((currentUserDocument?.role ?? '').isNotEmpty)
+                      '@${currentUserDocument!.role}',
+                  ].join('  -  '),
+                  actionLabel: 'Edit',
+                  onTap: () => context.pushNamed(EditProfileWidget.routeName),
+                ),
               ),
             ],
           ),
-        );
+
+          // -- Appearance ----------------------------------------------
+          _SettingsSection(
+            title: 'Appearance',
+            icon: Icons.palette_outlined,
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(Icons.brightness_6_outlined,
+                        color: brandBlue(context), size: 20),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text('Theme',
+                          style: GoogleFonts.inter(
+                              fontSize: 14, fontWeight: FontWeight.w500)),
+                    ),
+                    _ThemeToggle(
+                      current: Theme.of(context).brightness == Brightness.dark
+                          ? ThemeMode.dark
+                          : ThemeMode.light,
+                      onChanged: (mode) => setDarkModeSetting(context, mode),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // -- Security ------------------------------------------------
+          _SettingsSection(
+            title: 'Security',
+            icon: Icons.lock_outline,
+            children: [
+              _SettingsTile(
+                icon: Icons.password_outlined,
+                title: 'Change password',
+                subtitle: 'Set a new password for your account',
+                onTap: _changePassword,
+              ),
+              _SettingsTile(
+                icon: Icons.mark_email_read_outlined,
+                title: 'Send password reset email',
+                subtitle: 'We\'ll email you a reset link',
+                onTap: _resetPassword,
+              ),
+            ],
+          ),
+
+          // -- Support / About -----------------------------------------
+          _SettingsSection(
+            title: 'About & Support',
+            icon: Icons.info_outline,
+            children: [
+              _SettingsTile(
+                icon: Icons.support_agent_outlined,
+                title: 'Help & Support',
+                subtitle: 'FAQs and ways to reach us',
+                onTap: () => context.pushNamed(SupportsWidget.routeName),
+              ),
+              const _SettingsTile(
+                icon: Icons.verified_outlined,
+                title: 'App version',
+                subtitle: 'Claims Assist  -  v1.0.0',
+              ),
+            ],
+          ),
+
+          // -- Account / danger zone -----------------------------------
+          _SettingsSection(
+            title: 'Account',
+            icon: Icons.manage_accounts_outlined,
+            children: [
+              _SettingsTile(
+                icon: Icons.logout,
+                title: 'Log out',
+                subtitle: 'Sign out of this device',
+                iconColor: Colors.orange.shade800,
+                onTap: _signOut,
+              ),
+              _SettingsTile(
+                icon: Icons.delete_forever_outlined,
+                title: 'Delete account',
+                subtitle: 'Permanently delete your account',
+                iconColor: Colors.red.shade600,
+                titleColor: Colors.red.shade600,
+                onTap: _deleteAccount,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -837,13 +430,13 @@ class _SettingsSection extends StatelessWidget {
             padding: const EdgeInsets.only(left: 4, bottom: 10),
             child: Row(
               children: [
-                Icon(icon, size: 18, color: _kNavy),
+                Icon(icon, size: 18, color: brandBlue(context)),
                 const SizedBox(width: 8),
                 Text(title,
                     style: GoogleFonts.interTight(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: _kNavy)),
+                        color: brandBlue(context))),
               ],
             ),
           ),
@@ -865,8 +458,8 @@ class _SettingsSection extends StatelessWidget {
     for (var i = 0; i < items.length; i++) {
       out.add(items[i]);
       if (i != items.length - 1) {
-        out.add(Divider(
-            height: 1, color: FlutterFlowTheme.of(context).alternate));
+        out.add(
+            Divider(height: 1, color: FlutterFlowTheme.of(context).alternate));
       }
     }
     return out;
@@ -903,7 +496,7 @@ class _SettingsTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: iconColor ?? _kNavy),
+            Icon(icon, size: 20, color: iconColor ?? brandBlue(context)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -929,7 +522,7 @@ class _SettingsTile extends StatelessWidget {
                   style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: _kNavy))
+                      color: brandBlue(context)))
             else if (onTap != null)
               Icon(Icons.chevron_right, color: Colors.grey.shade400),
           ],

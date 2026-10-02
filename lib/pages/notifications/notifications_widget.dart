@@ -1,8 +1,9 @@
 import '/backend/backend.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
+import '/components/work_ui.dart';
+import '/components/brand_colors.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/menus_file/menn_pro/menn_pro_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -64,151 +65,99 @@ class _NotificationsWidgetState extends State<NotificationsWidget> {
               mainAxisSize: MainAxisSize.max,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                wrapWithModel(
-                  model: _model.mennProModel,
-                  updateCallback: () => safeSetState(() {}),
-                  child: MennProWidget(selectedPage: 7),
-                ),
+                const WorkSidebar(selected: WorkPage.notifications),
                 Expanded(
-                  child: StreamBuilder<List<ActivityLogsRecord>>(
-                    stream: queryActivityLogsRecord(
-                      queryBuilder: (q) =>
-                          q.orderBy('createdAt', descending: true),
-                      limit: 200,
-                    ),
-                    builder: (context, snapshot) {
-                      final logs = snapshot.data ?? [];
+                  child: WorkBody(
+                    title: 'Notifications',
+                    subtitle:
+                        'What has happened across leads and claims, newest first',
+                    icon: Icons.notifications_none,
+                    child: StreamBuilder<List<ActivityLogsRecord>>(
+                      stream: queryActivityLogsRecord(
+                        queryBuilder: (q) =>
+                            q.orderBy('createdAt', descending: true),
+                        limit: 200,
+                      ),
+                      builder: (context, snapshot) {
+                        final logs = snapshot.data ?? [];
 
-                      // Distinct entity types present, for the filter row.
-                      final types = <String>{
-                        for (final l in logs)
-                          if (l.entityType.trim().isNotEmpty)
-                            _titleCase(l.entityType.trim())
-                      }.toList()
-                        ..sort();
+                        // Distinct entity types present, for the filter row.
+                        final types = <String>{
+                          for (final l in logs)
+                            if (l.entityType.trim().isNotEmpty)
+                              _titleCase(l.entityType.trim())
+                        }.toList()
+                          ..sort();
 
-                      final filtered = _filter == 'All'
-                          ? logs
-                          : logs
-                              .where((l) =>
-                                  _titleCase(l.entityType.trim()) == _filter)
-                              .toList();
+                        final filtered = _filter == 'All'
+                            ? logs
+                            : logs
+                                .where((l) =>
+                                    _titleCase(l.entityType.trim()) == _filter)
+                                .toList();
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // -- Header ----------------------------------------
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: _kNavy.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(Icons.notifications_active_rounded,
-                                        color: _kNavy, size: 22),
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 16),
+                            // -- Filter chips ----------------------------------
+                            if (types.isNotEmpty)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
                                   children: [
-                                    Text(
-                                      'Notifications',
-                                      style: FlutterFlowTheme.of(context)
-                                          .headlineSmall
-                                          .override(
-                                            font: GoogleFonts.interTight(
-                                                fontWeight: FontWeight.bold),
-                                            color: _kNavy,
-                                            letterSpacing: 0,
-                                          ),
+                                    _FilterChip(
+                                      label: 'All',
+                                      count: logs.length,
+                                      selected: _filter == 'All',
+                                      onTap: () =>
+                                          safeSetState(() => _filter = 'All'),
                                     ),
-                                    Text(
-                                      'Recent activity and updates',
-                                      style: GoogleFonts.inter(
-                                          fontSize: 13, color: Colors.grey),
-                                    ),
+                                    for (final t in types)
+                                      _FilterChip(
+                                        label: t,
+                                        count: logs
+                                            .where((l) =>
+                                                _titleCase(
+                                                    l.entityType.trim()) ==
+                                                t)
+                                            .length,
+                                        selected: _filter == t,
+                                        onTap: () =>
+                                            safeSetState(() => _filter = t),
+                                      ),
                                   ],
                                 ),
-                                const Spacer(),
-                                FlutterFlowIconButton(
-                                  borderColor:
-                                      FlutterFlowTheme.of(context).alternate,
-                                  borderRadius: 8,
-                                  borderWidth: 1,
-                                  buttonSize: 40,
-                                  fillColor: FlutterFlowTheme.of(context)
-                                      .primaryBackground,
-                                  icon: const Icon(Icons.refresh_rounded,
-                                      color: _kNavy, size: 20),
-                                  onPressed: () => safeSetState(() {}),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // -- Filter chips ----------------------------------
-                          if (types.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                              child: Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  _FilterChip(
-                                    label: 'All',
-                                    count: logs.length,
-                                    selected: _filter == 'All',
-                                    onTap: () =>
-                                        safeSetState(() => _filter = 'All'),
-                                  ),
-                                  for (final t in types)
-                                    _FilterChip(
-                                      label: t,
-                                      count: logs
-                                          .where((l) =>
-                                              _titleCase(l.entityType.trim()) ==
-                                              t)
-                                          .length,
-                                      selected: _filter == t,
-                                      onTap: () =>
-                                          safeSetState(() => _filter = t),
-                                    ),
-                                ],
                               ),
+
+                            const SizedBox(height: 16),
+
+                            // -- Activity feed ---------------------------------
+                            Expanded(
+                              child: snapshot.connectionState ==
+                                      ConnectionState.waiting
+                                  ? Center(
+                                      child: CircularProgressIndicator(
+                                          color: brandBlue(context)))
+                                  : filtered.isEmpty
+                                      ? _EmptyState(filtered: _filter != 'All')
+                                      : ListView.separated(
+                                          padding: const EdgeInsets.fromLTRB(
+                                              24, 0, 24, 24),
+                                          itemCount: filtered.length,
+                                          separatorBuilder: (_, __) =>
+                                              const SizedBox(height: 10),
+                                          itemBuilder: (context, i) =>
+                                              _ActivityTile(log: filtered[i]),
+                                        ),
                             ),
-
-                          const SizedBox(height: 16),
-
-                          // -- Activity feed ---------------------------------
-                          Expanded(
-                            child: snapshot.connectionState ==
-                                    ConnectionState.waiting
-                                ? const Center(
-                                    child: CircularProgressIndicator(
-                                        color: _kNavy))
-                                : filtered.isEmpty
-                                    ? _EmptyState(filtered: _filter != 'All')
-                                    : ListView.separated(
-                                        padding: const EdgeInsets.fromLTRB(
-                                            24, 0, 24, 24),
-                                        itemCount: filtered.length,
-                                        separatorBuilder: (_, __) =>
-                                            const SizedBox(height: 10),
-                                        itemBuilder: (context, i) =>
-                                            _ActivityTile(log: filtered[i]),
-                                      ),
-                          ),
-                        ],
-                      );
-                    },
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -243,26 +192,30 @@ String _timeAgo(DateTime? dt) {
   final a = log.action.toLowerCase();
   final e = log.entityType.toLowerCase();
 
-  if (a.contains('delete') || a.contains('remove') || a.contains('reject') ||
+  if (a.contains('delete') ||
+      a.contains('remove') ||
+      a.contains('reject') ||
       a.contains('lost')) {
     return (icon: Icons.delete_outline, color: Colors.red.shade600);
   }
   if (a.contains('create') || a.contains('add') || a.contains('new')) {
     return (icon: Icons.add_circle_outline, color: Colors.green.shade700);
   }
-  if (a.contains('won') || a.contains('approve') || a.contains('paid') ||
+  if (a.contains('won') ||
+      a.contains('approve') ||
+      a.contains('paid') ||
       a.contains('success')) {
     return (icon: Icons.check_circle_outline, color: Colors.green.shade700);
   }
   if (a.contains('submit') || a.contains('sent') || a.contains('email')) {
-    return (icon: Icons.send_outlined, color: _kNavy);
+    return (icon: Icons.send_outlined, color: const Color(0xFF3B82C4));
   }
   if (a.contains('update') || a.contains('edit') || a.contains('change')) {
     return (icon: Icons.edit_outlined, color: Colors.blue.shade600);
   }
   // Fall back on entity type.
   if (e.contains('claim')) {
-    return (icon: Icons.gavel_outlined, color: _kNavy);
+    return (icon: Icons.gavel_outlined, color: const Color(0xFF3B82C4));
   }
   if (e.contains('lead')) {
     return (icon: Icons.person_add_alt_1_outlined, color: Colors.teal.shade600);
@@ -329,11 +282,13 @@ class _ActivityTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    if (log.action.isNotEmpty && log.description.isNotEmpty) ...[
+                    if (log.action.isNotEmpty &&
+                        log.description.isNotEmpty) ...[
                       Text(
                         log.action,
                         style: GoogleFonts.inter(
-                            fontSize: 12, color: FlutterFlowTheme.of(context).secondaryText),
+                            fontSize: 12,
+                            color: FlutterFlowTheme.of(context).secondaryText),
                       ),
                       const SizedBox(width: 8),
                     ],
@@ -343,8 +298,8 @@ class _ActivityTile extends StatelessWidget {
                       const SizedBox(width: 3),
                       Text(
                         log.performedByName,
-                        style: GoogleFonts.inter(
-                            fontSize: 12, color: Colors.grey),
+                        style:
+                            GoogleFonts.inter(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                     const Spacer(),
@@ -398,17 +353,22 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? _kNavy : FlutterFlowTheme.of(context).primaryBackground,
+          color: selected
+              ? _kNavy
+              : FlutterFlowTheme.of(context).primaryBackground,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: selected ? _kNavy : FlutterFlowTheme.of(context).alternate),
+              color:
+                  selected ? _kNavy : FlutterFlowTheme.of(context).alternate),
         ),
         child: Text(
           '$label ($count)',
           style: GoogleFonts.inter(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : FlutterFlowTheme.of(context).primaryText,
+            color: selected
+                ? Colors.white
+                : FlutterFlowTheme.of(context).primaryText,
           ),
         ),
       ),
@@ -429,7 +389,7 @@ class _EmptyState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           FaIcon(FontAwesomeIcons.bellSlash,
-              size: 48, color: Colors.grey.shade300),
+              size: 48, color: FlutterFlowTheme.of(context).alternate),
           const SizedBox(height: 16),
           Text(
             filtered ? 'Nothing in this category' : 'No activity yet',
