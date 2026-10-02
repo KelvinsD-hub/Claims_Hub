@@ -473,7 +473,10 @@ class _StaffsRolesWidgetState extends State<StaffsRolesWidget> {
                                               ),
                                         ),
                                         Text(
-                                          '${listViewUsersRecord.email} || ${listViewUsersRecord.phoneNumber}',
+                                          [
+                                            listViewUsersRecord.email,
+                                            listViewUsersRecord.phoneNumber,
+                                          ].where((s) => s.isNotEmpty).join(' || '),
                                           style: FlutterFlowTheme.of(context)
                                               .labelSmall
                                               .override(
