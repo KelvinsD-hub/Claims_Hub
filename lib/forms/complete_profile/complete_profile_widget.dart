@@ -1074,11 +1074,12 @@ class _CompleteProfileWidgetState extends State<CompleteProfileWidget> {
                     photoUrl: _model.uploadedFileUrl_uploadData1mctt,
                     createdTime: getCurrentTimestamp,
                     phoneNumber: _model.phoneTextFieldTextController.text,
-                    role: '',
                     address: _model.adressTextFieldTextController.text,
                     city: _model.cityTextFieldTextController.text,
                     bio: _model.bioTextFieldTextController.text,
-                    approved: false,
+                    // Role and approval are deliberately not written here:
+                    // only an admin may set them, and the database rules
+                    // reject a profile save that tries to.
                   ));
                   if (valueOrDefault<bool>(
                           currentUserDocument?.approved, false) ==

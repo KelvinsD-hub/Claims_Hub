@@ -47,11 +47,59 @@ class _PermissionWidgetState extends State<PermissionWidget> {
     super.dispose();
   }
 
+  /// Roles an admin can hand out, most senior first. The database rules
+  /// enforce the same list: only a Super Admin may grant Super Admin.
+  static const List<String> _roles = [
+    'Super Admin',
+    'Admin',
+    'Manager',
+    'Solicitor',
+    'Agent',
+  ];
+
+  Future<void> _setRole(String role) async {
+    try {
+      await widget!.userRef!.reference.update(createUsersRecordData(
+        role: role,
+      ));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Role set to $role.',
+            style: TextStyle(
+              color: FlutterFlowTheme.of(context).info,
+            ),
+          ),
+          duration: Duration(milliseconds: 4000),
+          backgroundColor: Color(0xFF41DA66),
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'You do not have permission to set that role.',
+          ),
+          duration: Duration(milliseconds: 4000),
+          backgroundColor: FlutterFlowTheme.of(context).error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final current = valueOrDefault<String>(widget!.userRef?.role, '');
+    final iAmSuperAdmin =
+        valueOrDefault(currentUserDocument?.role, '') == 'Super Admin';
+    final roles =
+        _roles.where((r) => r != 'Super Admin' || iAmSuperAdmin).toList();
+
     return Container(
       width: 250.0,
-      height: 280.0,
       decoration: BoxDecoration(
         color: FlutterFlowTheme.of(context).secondaryBackground,
         boxShadow: [
@@ -69,7 +117,7 @@ class _PermissionWidgetState extends State<PermissionWidget> {
       child: Padding(
         padding: EdgeInsets.all(20.0),
         child: Column(
-          mainAxisSize: MainAxisSize.max,
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
@@ -87,156 +135,42 @@ class _PermissionWidgetState extends State<PermissionWidget> {
                         FlutterFlowTheme.of(context).bodyMedium.fontStyle,
                   ),
             ),
-            Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
-              child: FFButtonWidget(
-                onPressed: () async {
-                  await widget!.userRef!.reference.update(createUsersRecordData(
-                    role: 'Admin',
-                  ));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Permission Set successfully!',
-                        style: TextStyle(
-                          color: FlutterFlowTheme.of(context).info,
+            for (final role in roles)
+              Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(0.0, 10.0, 0.0, 0.0),
+                child: FFButtonWidget(
+                  onPressed: () => _setRole(role),
+                  text: role == current ? '$role (current)' : 'Set as $role',
+                  options: FFButtonOptions(
+                    width: double.infinity,
+                    height: 48.0,
+                    padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                    iconPadding:
+                        EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                    color: FlutterFlowTheme.of(context).primaryBackground,
+                    textStyle: FlutterFlowTheme.of(context).bodyLarge.override(
+                          font: GoogleFonts.inter(
+                            fontWeight: role == current
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                          color: role == current
+                              ? FlutterFlowTheme.of(context).primary
+                              : FlutterFlowTheme.of(context).primaryText,
+                          letterSpacing: 0.0,
+                          fontWeight: role == current
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
-                      ),
-                      duration: Duration(milliseconds: 4000),
-                      backgroundColor: Color(0xFF41DA66),
+                    elevation: role == current ? 2.0 : 0.0,
+                    borderSide: BorderSide(
+                      color: Colors.transparent,
+                      width: 1.0,
                     ),
-                  );
-                  Navigator.pop(context);
-                },
-                text: 'Set as Admin',
-                options: FFButtonOptions(
-                  width: double.infinity,
-                  height: 60.0,
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                  iconPadding:
-                      EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                  color: FlutterFlowTheme.of(context).primaryBackground,
-                  textStyle: FlutterFlowTheme.of(context).bodyLarge.override(
-                        font: GoogleFonts.inter(
-                          fontWeight:
-                              FlutterFlowTheme.of(context).bodyLarge.fontWeight,
-                          fontStyle:
-                              FlutterFlowTheme.of(context).bodyLarge.fontStyle,
-                        ),
-                        letterSpacing: 0.0,
-                        fontWeight:
-                            FlutterFlowTheme.of(context).bodyLarge.fontWeight,
-                        fontStyle:
-                            FlutterFlowTheme.of(context).bodyLarge.fontStyle,
-                      ),
-                  elevation: 2.0,
-                  borderSide: BorderSide(
-                    color: Colors.transparent,
-                    width: 1.0,
+                    borderRadius: BorderRadius.circular(40.0),
                   ),
                 ),
               ),
-            ),
-            Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(0.0, 10.0, 0.0, 0.0),
-              child: FFButtonWidget(
-                onPressed: () async {
-                  await widget!.userRef!.reference.update(createUsersRecordData(
-                    role: 'Manager',
-                  ));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Permission Set successfully!',
-                        style: TextStyle(
-                          color: FlutterFlowTheme.of(context).info,
-                        ),
-                      ),
-                      duration: Duration(milliseconds: 4000),
-                      backgroundColor: Color(0xFF41DA66),
-                    ),
-                  );
-                  Navigator.pop(context);
-                },
-                text: 'Set as Manager',
-                options: FFButtonOptions(
-                  width: double.infinity,
-                  height: 60.0,
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                  iconPadding:
-                      EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                  color: FlutterFlowTheme.of(context).primaryBackground,
-                  textStyle: FlutterFlowTheme.of(context).bodyLarge.override(
-                        font: GoogleFonts.inter(
-                          fontWeight:
-                              FlutterFlowTheme.of(context).bodyLarge.fontWeight,
-                          fontStyle:
-                              FlutterFlowTheme.of(context).bodyLarge.fontStyle,
-                        ),
-                        letterSpacing: 0.0,
-                        fontWeight:
-                            FlutterFlowTheme.of(context).bodyLarge.fontWeight,
-                        fontStyle:
-                            FlutterFlowTheme.of(context).bodyLarge.fontStyle,
-                      ),
-                  elevation: 2.0,
-                  borderSide: BorderSide(
-                    color: Colors.transparent,
-                    width: 1.0,
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(0.0, 10.0, 0.0, 0.0),
-              child: FFButtonWidget(
-                onPressed: () async {
-                  await widget!.userRef!.reference.update(createUsersRecordData(
-                    role: 'Agent',
-                  ));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Permission Set successfully!',
-                        style: TextStyle(
-                          color: FlutterFlowTheme.of(context).info,
-                        ),
-                      ),
-                      duration: Duration(milliseconds: 4000),
-                      backgroundColor: Color(0xFF41DA66),
-                    ),
-                  );
-                  Navigator.pop(context);
-                },
-                text: 'Set as Agent',
-                options: FFButtonOptions(
-                  width: double.infinity,
-                  height: 60.0,
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                  iconPadding:
-                      EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                  color: FlutterFlowTheme.of(context).primaryBackground,
-                  textStyle: FlutterFlowTheme.of(context).titleSmall.override(
-                        font: GoogleFonts.lexendDeca(
-                          fontWeight: FontWeight.normal,
-                          fontStyle:
-                              FlutterFlowTheme.of(context).titleSmall.fontStyle,
-                        ),
-                        color: FlutterFlowTheme.of(context).secondaryText,
-                        fontSize: 16.0,
-                        letterSpacing: 0.0,
-                        fontWeight: FontWeight.normal,
-                        fontStyle:
-                            FlutterFlowTheme.of(context).titleSmall.fontStyle,
-                      ),
-                  elevation: 0.0,
-                  borderSide: BorderSide(
-                    color: Colors.transparent,
-                    width: 0.0,
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),

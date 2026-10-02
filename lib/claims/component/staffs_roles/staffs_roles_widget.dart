@@ -252,8 +252,10 @@ class _StaffsRolesWidgetState extends State<StaffsRolesWidget> {
                 children: [
                   FlutterFlowChoiceChips(
                     options: [
+                      ChipData('Super Admin'),
                       ChipData('Admin'),
                       ChipData('Manager'),
+                      ChipData('Solicitor'),
                       ChipData('Agent')
                     ],
                     onChanged: (val) => safeSetState(

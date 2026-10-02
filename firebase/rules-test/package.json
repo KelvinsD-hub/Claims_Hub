@@ -1,0 +1,9 @@
+{
+  "name": "claims-hub-rules-test",
+  "private": true,
+  "description": "Firestore security rules tests. Run from firebase/: firebase emulators:exec --only firestore --project demo-claims-hub \"node rules-test/rules.test.js\"",
+  "dependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase": "^10.14.1"
+  }
+}

@@ -1,0 +1,50 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Staff are accounts an admin has approved — the same test the Firestore
+    // rules apply. Signing in alone is not enough: anyone can create an account.
+    function isStaff() {
+      return request.auth != null
+        && (request.auth.token.get('admin', false) == true
+            || firestore.get(/databases/(default)/documents/users/$(request.auth.uid))
+                 .data.get('approved', false) == true);
+    }
+
+    // Default: deny everything not explicitly matched below.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // User profile assets (photos, etc.) — owner write, authenticated read.
+    match /users/{userId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Claim document uploads (boarding passes, ID scans, LOA PDFs).
+    // Unauthenticated claimants upload evidence via their secure_token form
+    // link, so create/update stays open to them — but constrained to image or
+    // PDF content under 15 MB to limit abuse and storage-cost attacks. Reads are
+    // restricted to staff. Phase 2 should move uploads behind Anonymous Auth.
+    match /claims/{claimId}/{allPaths=**} {
+      allow read:   if isStaff();
+      allow write:  if isStaff()
+                    || (
+                         request.resource != null
+                         && request.resource.size < 15 * 1024 * 1024
+                         && request.resource.contentType != null
+                         && (
+                              request.resource.contentType.matches('image/.*')
+                              || request.resource.contentType == 'application/pdf'
+                            )
+                       );
+    }
+
+    // Solicitor export files — internal staff only.
+    match /solicitor_exports/{allPaths=**} {
+      allow read:  if isStaff();
+      allow write: if isStaff();
+    }
+  }
+}

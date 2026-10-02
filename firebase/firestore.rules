@@ -18,12 +18,48 @@ service cloud.firestore {
       ];
     }
 
-    // Role model (foundation). An admin is a staff member whose Firebase Auth
-    // account carries the custom claim { admin: true } — set out-of-band with
-    // the firebase/scripts/set-admin.js bootstrap script. Extend this with
-    // isStaff()/other roles as the access model is rolled out per collection.
+    // ── Role model ─────────────────────────────────────────────────────────
+    // Signing in is not enough: anyone can create an account. Access to client
+    // data turns on the caller's own users/{uid} document, which only an admin
+    // can approve or assign a role on (see the users rules below).
+    //
+    //   approved == true          staff: may read and work leads and claims
+    //   role 'Agent'              default staff role
+    //   role 'Solicitor'          in-house lawyers; staff access plus the
+    //                             solicitor exports
+    //   role 'Manager'            staff access plus deleting records
+    //   role 'Admin'              manages staff accounts and roles
+    //   role 'Super Admin'        as Admin, and the only role that can create
+    //                             or change another Super Admin
+    //
+    // The { admin: true } custom claim (firebase/scripts/set-admin.js) is kept
+    // as a break-glass route in: it works even if every users document is wrong.
+    function signedIn() {
+      return request.auth != null;
+    }
+    function me() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function hasAdminClaim() {
+      return signedIn() && request.auth.token.get('admin', false) == true;
+    }
+    function isStaff() {
+      return signedIn() && (hasAdminClaim() || me().get('approved', false) == true);
+    }
+    function hasRole(roles) {
+      return isStaff() && me().get('role', '') in roles;
+    }
+    function isSuperAdmin() {
+      return hasAdminClaim() || hasRole(['Super Admin']);
+    }
     function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
+      return hasAdminClaim() || hasRole(['Admin', 'Super Admin']);
+    }
+    function isManager() {
+      return hasAdminClaim() || hasRole(['Manager', 'Admin', 'Super Admin']);
+    }
+    function isLegal() {
+      return hasAdminClaim() || hasRole(['Solicitor', 'Manager', 'Admin', 'Super Admin']);
     }
 
     // A claimant update may only touch the allowlisted fields, must keep the
@@ -42,43 +78,67 @@ service cloud.firestore {
            );
     }
 
-    // Users: public create supports Firebase Auth signup flow.
-    // All reads and subsequent writes require authentication.
-    match /users/{document} {
-      allow create: if true;
-      allow read:   if request.auth != null;
-      allow write:  if request.auth != null;
-      // Deleting a staff account is admin-only (rare, sensitive). Self-service
-      // account deletion still works: it goes through Firebase Auth and the
-      // onUserDeleted function cleans up the doc with the Admin SDK.
-      allow delete: if isAdmin();
+    // Users.
+    //
+    // CREATE — a person creates their own document at sign-up, and it can only
+    //          start unapproved and without a role.
+    // READ   — your own document (the app needs it to show "waiting for
+    //          approval"), or any staff member.
+    // UPDATE — your own profile, but never your own approval or role. Admins
+    //          set those; only a Super Admin may grant the Super Admin role or
+    //          change someone who holds it.
+    // DELETE — admin-only. Self-service account deletion still works: it goes
+    //          through Firebase Auth and the onUserDeleted function cleans up
+    //          the doc with the Admin SDK.
+    function accessUnchanged() {
+      return request.resource.data.get('approved', false) == resource.data.get('approved', false)
+          && request.resource.data.get('role', '') == resource.data.get('role', '');
+    }
+    function touchesSuperAdmin() {
+      return resource.data.get('role', '') == 'Super Admin'
+          || request.resource.data.get('role', '') == 'Super Admin';
+    }
+    match /users/{userId} {
+      allow create: if signedIn()
+                    && request.auth.uid == userId
+                    && request.resource.data.get('approved', false) == false
+                    && request.resource.data.get('role', '') == '';
+      allow read:   if signedIn() && (request.auth.uid == userId || isStaff());
+      allow update: if (signedIn() && request.auth.uid == userId && accessUnchanged())
+                    || (isAdmin() && !touchesSuperAdmin())
+                    || isSuperAdmin();
+      allow delete: if isAdmin() && (resource.data.get('role', '') != 'Super Admin' || isSuperAdmin());
     }
 
-    // Leads: public create supports the public-facing lead capture form.
-    // Only authenticated agents can read or modify lead records.
+    // Leads: public create supports the public-facing lead capture form and
+    // the website checker. Only staff can read or change them.
     match /leads/{document} {
       allow create: if true;
-      allow read:   if request.auth != null;
-      allow write:  if request.auth != null;
-      allow delete: if request.auth != null;
+      allow read:   if isStaff();
+      allow update: if isStaff();
+      allow delete: if isManager();
     }
 
     // Watchlist: public create supports the website's Flight Watchdog signup.
     // Read/processing is staff and backend only.
     match /watchlist/{document} {
       allow create: if true;
-      allow read:   if request.auth != null;
-      allow write:  if request.auth != null;
-      allow delete: if request.auth != null;
+      allow read:   if isStaff();
+      allow update: if isStaff();
+      allow delete: if isManager();
+    }
+
+    // Dashboard aggregates, written by Cloud Functions only.
+    match /stats/{document} {
+      allow read: if isStaff();
     }
 
     // Blog posts: managed from the website's /admin dashboard by approved
     // staff. Public pages are server-rendered by the `blog` Cloud Function
     // (Admin SDK, bypasses rules), so no public client read is needed.
     match /blog_posts/{document} {
-      allow read:  if request.auth != null;
-      allow write: if request.auth != null
-                   && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true;
+      allow read:  if isStaff();
+      allow write: if isStaff();
     }
 
     // Flight stats: anonymous per-flight claim counters maintained by the
@@ -86,63 +146,58 @@ service cloud.firestore {
     // Public GET by exact doc id; no public list or write.
     match /flight_stats/{document} {
       allow get:    if true;
-      allow list:   if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
+      allow list:   if isStaff();
+      allow create: if isStaff();
+      allow update: if isStaff();
+      allow delete: if isManager();
     }
 
     // Claims: agents create records; claimants interact via secure_token links.
     //
-    // CREATE — agents only (authenticated).
-    // GET    — authenticated staff, OR a capability-URL request: the caller
+    // CREATE — staff only.
+    // GET    — staff, OR a capability-URL request: the caller
     //          already knows the exact document ID (delivered in the emailed
     //          claim link) and the doc carries a secure_token. This intentionally
     //          does NOT allow LIST, so the collection cannot be enumerated by an
     //          unauthenticated client.
-    // LIST   — authenticated staff only (prevents mass PII enumeration).
-    // UPDATE — authenticated staff may change anything. A claimant using a
+    // LIST   — staff only (prevents mass PII enumeration).
+    // UPDATE — staff may change anything. A claimant using a
     //          secure_token link may only submit their own evidence: the token
     //          must match, only allowlisted fields may change, and claim_status
     //          may only move to a claimant-settable value (see isValidClaimantUpdate).
-    // DELETE — authenticated users only.
+    // DELETE — managers and above.
     //
     // NOTE: token-path writes still cannot be attributed to a specific person,
     // so bank/account fields remain claimant-writable by design. Moving the
     // claimant write path behind an authenticated Cloud Function (server-side
     // token validation) is the recommended Phase 2 hardening.
     match /claims/{document} {
-      allow create: if request.auth != null;
-      allow get:    if request.auth != null
+      allow create: if isStaff();
+      allow get:    if isStaff()
                     || resource.data.secure_token is string;
-      allow list:   if request.auth != null;
-      allow update: if request.auth != null
+      allow list:   if isStaff();
+      allow update: if isStaff()
                     || isValidClaimantUpdate();
-      allow delete: if request.auth != null;
+      allow delete: if isManager();
     }
 
-    // Solicitor exports: internal staff only.
+    // Solicitor exports: the legal team and managers.
     match /solicitor_exports/{document} {
-      allow create: if request.auth != null;
-      allow read:   if request.auth != null;
-      allow write:  if request.auth != null;
-      allow delete: if request.auth != null;
+      allow read, create, update: if isLegal();
+      allow delete: if isManager();
     }
 
-    // Activity logs: internal staff only.
+    // Activity logs: an audit trail. Staff add entries and read them; nobody
+    // edits or removes one.
     match /activity_logs/{document} {
-      allow create: if request.auth != null;
-      allow read:   if request.auth != null;
-      allow write:  if request.auth != null;
-      allow delete: if request.auth != null;
+      allow create: if isStaff();
+      allow read:   if isStaff();
     }
 
     // Airlines directory: internal staff only — no public exposure needed.
     match /airlines_directory/{document} {
-      allow create: if request.auth != null;
-      allow read:   if request.auth != null;
-      allow write:  if request.auth != null;
-      allow delete: if request.auth != null;
+      allow read, create, update: if isStaff();
+      allow delete: if isManager();
     }
   }
 }
