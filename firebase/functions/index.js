@@ -1263,7 +1263,7 @@ exports.changeStage = functions.https.onRequest((req, res) => {
 /** One entry in the event log. Never throws: logging must not undo the work. */
 async function logEvent(entry) {
   try {
-    const actorRef = entry.actorUid && entry.actorUid !== 'system' && entry.actorUid !== 'client'
+    const actorRef = entry.actorUid && !['system', 'client', 'migration'].includes(entry.actorUid)
       ? admin.firestore().doc(`users/${entry.actorUid}`)
       : null;
     await admin.firestore().collection('activity_logs').add({
