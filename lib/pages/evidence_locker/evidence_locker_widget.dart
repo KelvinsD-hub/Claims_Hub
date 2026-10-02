@@ -1,3 +1,4 @@
+import '/backend/services/documents.dart';
 import '/components/brand_colors.dart';
 import '/backend/backend.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -454,7 +455,7 @@ class _EvidenceCardState extends State<_EvidenceCard> {
                   _DocChip(
                     label: d.label,
                     icon: d.icon,
-                    onTap: () => launchURL(d.url),
+                    onTap: () => openClaimDocument(context, d.url),
                   ),
                 for (final d in missing) _MissingChip(label: d.label),
               ],

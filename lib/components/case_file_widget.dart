@@ -1,3 +1,4 @@
+import '/backend/services/documents.dart';
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/backend/services/casework.dart';
@@ -695,7 +696,7 @@ class _Documents extends StatelessWidget {
         for (final (label, url) in docs)
           InkWell(
             borderRadius: BorderRadius.circular(8.0),
-            onTap: () => launchURL(url),
+            onTap: () => openStoredDocument(context, url),
             child: Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
@@ -823,7 +824,7 @@ class _Timeline extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(top: 2.0),
                           child: Text(
-                            isNote ? note : '“$note”',
+                            note,
                             style: GoogleFonts.inter(
                                 fontSize: 13.0, color: theme.primaryText),
                           ),

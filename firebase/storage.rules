@@ -22,22 +22,25 @@ service firebase.storage {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Claim document uploads (boarding passes, ID scans, LOA PDFs).
-    // Unauthenticated claimants upload evidence via their secure_token form
-    // link, so create/update stays open to them — but constrained to image or
-    // PDF content under 15 MB to limit abuse and storage-cost attacks. Reads are
-    // restricted to staff. Phase 2 should move uploads behind Anonymous Auth.
+    // A claim's documents: the letters the system generates and the evidence
+    // the client sends. Staff only.
     match /claims/{claimId}/{allPaths=**} {
-      allow read:   if isStaff();
-      allow write:  if isStaff()
-                    || (
-                         request.resource != null
-                         && request.resource.size < 15 * 1024 * 1024
-                         && request.resource.contentType != null
-                         && (
-                              request.resource.contentType.matches('image/.*')
-                              || request.resource.contentType == 'application/pdf'
-                            )
+      allow read, write: if isStaff();
+    }
+
+    // Client evidence (boarding passes, ID scans). A client reaches the
+    // evidence form through an emailed link and is not signed in, so adding a
+    // file here is open — but only adding: an image or PDF under 8 MB, in this
+    // folder, under a name not already taken. A client cannot read a file
+    // back, replace one, or touch the generated letters beside this folder.
+    // 8 MB keeps every upload within what staffDocument can serve.
+    match /claims/{claimId}/evidence/{fileName} {
+      allow create: if resource == null
+                    && request.resource.size < 8 * 1024 * 1024
+                    && request.resource.contentType != null
+                    && (
+                         request.resource.contentType.matches('image/.*')
+                         || request.resource.contentType == 'application/pdf'
                        );
     }
 

@@ -1,3 +1,4 @@
+import '/backend/services/documents.dart';
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/backend/firebase_storage/storage.dart';
@@ -4065,10 +4066,11 @@ class _EditEvidenceFormWidgetState extends State<EditEvidenceFormWidget> {
                                                                           .circular(
                                                                               8.0),
                                                                   child: Image
-                                                                      .network(
-                                                                    getCORSProxyUrl(
-                                                                      uploadPhotosItem,
-                                                                    ),
+                                                                      .memory(
+                                                                    _model
+                                                                        .uploadedLocalFiles_uploadDataUg8[
+                                                                            uploadPhotosIndex]
+                                                                        .bytes!,
                                                                     width:
                                                                         200.0,
                                                                     height:
@@ -4100,8 +4102,9 @@ class _EditEvidenceFormWidgetState extends State<EditEvidenceFormWidget> {
                                                     onPressed: () async {
                                                       final selectedMedia =
                                                           await selectMedia(
-                                                        maxWidth: 300.00,
-                                                        maxHeight: 300.00,
+                                                        maxWidth: 2200.00,
+                                                        maxHeight: 2200.00,
+                                                        imageQuality: 85,
                                                         mediaSource: MediaSource
                                                             .photoGallery,
                                                         multiImage: true,
@@ -4154,9 +4157,19 @@ class _EditEvidenceFormWidgetState extends State<EditEvidenceFormWidget> {
                                                                       .wait(
                                                             selectedMedia.map(
                                                               (m) async =>
-                                                                  await uploadData(
-                                                                      m.storagePath,
-                                                                      m.bytes),
+                                                                  await uploadClaimEvidence(
+                                                                claimId:
+                                                                    editEvidenceFormClaimsRecord
+                                                                        .reference
+                                                                        .id,
+                                                                bytes: m.bytes,
+                                                                name: m
+                                                                    .storagePath,
+                                                                index:
+                                                                    selectedMedia
+                                                                        .indexOf(
+                                                                            m),
+                                                              ),
                                                             ),
                                                           ))
                                                                   .where((u) =>
@@ -4302,8 +4315,8 @@ class _EditEvidenceFormWidgetState extends State<EditEvidenceFormWidget> {
                                           _model.banknameTextController.text,
                                       accountNo: _model
                                           .accountnumberTextController.text,
-                                      accountName: _model
-                                          .accountnameTextController.text,
+                                      accountName:
+                                          _model.accountnameTextController.text,
                                       signedAt: getCurrentTimestamp,
                                       departure:
                                           _model.departureTextController.text,

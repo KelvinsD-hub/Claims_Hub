@@ -469,7 +469,7 @@ class _ClaimsMenuWidgetState extends State<ClaimsMenuWidget> {
                                     mainAxisSize: MainAxisSize.max,
                                     children: [
                                       FaIcon(
-                                        FontAwesomeIcons.paperPlane,
+                                        FontAwesomeIcons.gavel,
                                         color: FlutterFlowTheme.of(context)
                                             .secondaryText,
                                         size: 18.0,

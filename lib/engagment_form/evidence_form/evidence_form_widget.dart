@@ -1,3 +1,4 @@
+import '/backend/services/documents.dart';
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/backend/firebase_storage/storage.dart';
@@ -152,9 +153,8 @@ class _EvidenceFormWidgetState extends State<EvidenceFormWidget> {
       stream: widget.claimRef != null
           ? ClaimsRecord.getDocument(widget.claimRef!)
           : queryClaimsRecord(
-              queryBuilder: (q) => q
-                  .where('secure_token', isEqualTo: widget.token)
-                  .limit(1),
+              queryBuilder: (q) =>
+                  q.where('secure_token', isEqualTo: widget.token).limit(1),
             ).map((list) {
               if (list.isEmpty) throw StateError('Claim not found');
               return list.first;
@@ -4090,10 +4090,11 @@ class _EvidenceFormWidgetState extends State<EvidenceFormWidget> {
                                                                           .circular(
                                                                               8.0),
                                                                   child: Image
-                                                                      .network(
-                                                                    getCORSProxyUrl(
-                                                                      uploadPhotosItem,
-                                                                    ),
+                                                                      .memory(
+                                                                    _model
+                                                                        .uploadedLocalFiles_uploadDataUg8ca[
+                                                                            uploadPhotosIndex]
+                                                                        .bytes!,
                                                                     width:
                                                                         200.0,
                                                                     height:
@@ -4125,8 +4126,9 @@ class _EvidenceFormWidgetState extends State<EvidenceFormWidget> {
                                                     onPressed: () async {
                                                       final selectedMedia =
                                                           await selectMedia(
-                                                        maxWidth: 300.00,
-                                                        maxHeight: 300.00,
+                                                        maxWidth: 2200.00,
+                                                        maxHeight: 2200.00,
+                                                        imageQuality: 85,
                                                         mediaSource: MediaSource
                                                             .photoGallery,
                                                         multiImage: true,
@@ -4179,9 +4181,19 @@ class _EvidenceFormWidgetState extends State<EvidenceFormWidget> {
                                                                       .wait(
                                                             selectedMedia.map(
                                                               (m) async =>
-                                                                  await uploadData(
-                                                                      m.storagePath,
-                                                                      m.bytes),
+                                                                  await uploadClaimEvidence(
+                                                                claimId:
+                                                                    evidenceFormClaimsRecord
+                                                                        .reference
+                                                                        .id,
+                                                                bytes: m.bytes,
+                                                                name: m
+                                                                    .storagePath,
+                                                                index:
+                                                                    selectedMedia
+                                                                        .indexOf(
+                                                                            m),
+                                                              ),
                                                             ),
                                                           ))
                                                                   .where((u) =>
@@ -4326,35 +4338,49 @@ class _EvidenceFormWidgetState extends State<EvidenceFormWidget> {
                                       final _passport =
                                           _model.passportIDTextController.text;
                                       await evidenceFormClaimsRecord.reference
-                                          .update(mapToFirestore(<String, dynamic>{
-                                        'pnr_number': _model.pnrTextController.text,
+                                          .update(
+                                              mapToFirestore(<String, dynamic>{
+                                        'pnr_number':
+                                            _model.pnrTextController.text,
                                         // NIN and Passport are written to their own
                                         // (encrypted) fields — the old code stored NIN
                                         // into bvn_number, which broke the Evidence Locker.
                                         'NIN': _enc(_nin),
                                         'Passport': _enc(_passport),
-                                        'airline_response': _model.issueTextController.text,
+                                        'airline_response':
+                                            _model.issueTextController.text,
                                         'claim_status': 'Terms Pending',
                                         'flight_details_submitted': true,
                                         'terms_accepted': false,
                                         'signature_submitted': false,
-                                        'bank_name': _model.banknameTextController.text,
-                                        'account_no': _enc(
-                                            _model.accountnumberTextController.text),
-                                        'account_name': _model.accountnameTextController.text,
+                                        'bank_name':
+                                            _model.banknameTextController.text,
+                                        'account_no': _enc(_model
+                                            .accountnumberTextController.text),
+                                        'account_name': _model
+                                            .accountnameTextController.text,
                                         'signed_at': getCurrentTimestamp,
-                                        'departure': _model.departureTextController.text,
-                                        'destination': _model.destinationTextController.text,
-                                        'full_name': _model.fullNameTextController.text,
-                                        'duration_of_delay': _model.durationTextController.text,
+                                        'departure':
+                                            _model.departureTextController.text,
+                                        'destination': _model
+                                            .destinationTextController.text,
+                                        'full_name':
+                                            _model.fullNameTextController.text,
+                                        'duration_of_delay':
+                                            _model.durationTextController.text,
                                         'flight_date': _model.selectedDate,
-                                        'claims_amount': _model.claimAmountTextController.text,
-                                        'airline_name': _model.airlineNameTextController.text,
-                                        'flight_number': _model.flightNumberTextController.text,
-                                        'claims_reason': _model.issueTextController.text,
+                                        'claims_amount': _model
+                                            .claimAmountTextController.text,
+                                        'airline_name': _model
+                                            .airlineNameTextController.text,
+                                        'flight_number': _model
+                                            .flightNumberTextController.text,
+                                        'claims_reason':
+                                            _model.issueTextController.text,
                                       }.withoutNulls));
 
-                                      if (_model.uploadedFileUrls_uploadDataUg8ca
+                                      if (_model
+                                          .uploadedFileUrls_uploadDataUg8ca
                                           .isNotEmpty) {
                                         await evidenceFormClaimsRecord.reference
                                             .update(mapToFirestore({

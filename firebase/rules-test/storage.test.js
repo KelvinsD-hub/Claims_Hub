@@ -48,6 +48,8 @@ async function check(name, promise) {
     await setDoc(doc(db, 'users/agent'), { role: 'Agent', approved: true });
     await setDoc(doc(db, 'users/pending'), { role: 'Agent', approved: false });
     await uploadString(ref(bucket, 'claims/claim1/boarding-pass.pdf'), 'pdf', 'raw', { contentType: 'application/pdf' });
+    await uploadString(ref(bucket, 'claims/claim1/LOA_claim1.pdf'), 'letter', 'raw', { contentType: 'application/pdf' });
+    await uploadString(ref(bucket, 'claims/claim1/evidence/existing.jpg'), 'jpg', 'raw', { contentType: 'image/jpeg' });
     await uploadString(ref(bucket, 'solicitor_exports/export.csv'), 'csv', 'raw', { contentType: 'text/csv' });
   });
 
@@ -68,8 +70,16 @@ async function check(name, promise) {
   await check('an unapproved account cannot read a solicitor export', assertFails(getBytes(ref(pending, 'solicitor_exports/export.csv'))));
   await check('the public cannot read a client document', assertFails(getBytes(ref(anon, 'claims/claim1/boarding-pass.pdf'))));
 
-  await check('a client can still upload a PDF as evidence', assertSucceeds(uploadString(ref(anon, 'claims/claim1/ticket.pdf'), 'x', 'raw', pdf)));
-  await check('a client cannot upload another kind of file', assertFails(uploadString(ref(anon, 'claims/claim1/run.exe'), 'x', 'raw', { contentType: 'application/octet-stream' })));
+  await check('a client can add a PDF as evidence', assertSucceeds(uploadString(ref(anon, 'claims/claim1/evidence/ticket.pdf'), 'x', 'raw', pdf)));
+  await check('a client can add a photo as evidence', assertSucceeds(uploadString(ref(anon, 'claims/claim1/evidence/pass.jpg'), 'x', 'raw', { contentType: 'image/jpeg' })));
+  await check('a client cannot add another kind of file', assertFails(uploadString(ref(anon, 'claims/claim1/evidence/run.exe'), 'x', 'raw', { contentType: 'application/octet-stream' })));
+  await check('a client cannot replace evidence already on file', assertFails(uploadString(ref(anon, 'claims/claim1/evidence/existing.jpg'), 'y', 'raw', { contentType: 'image/jpeg' })));
+  await check('a client cannot read evidence back', assertFails(getBytes(ref(anon, 'claims/claim1/evidence/existing.jpg'))));
+  await check('a client cannot write outside the evidence folder', assertFails(uploadString(ref(anon, 'claims/claim1/ticket.pdf'), 'x', 'raw', pdf)));
+  await check('a client cannot overwrite a generated letter', assertFails(uploadString(ref(anon, 'claims/claim1/LOA_claim1.pdf'), 'forged', 'raw', pdf)));
+  await check('a client cannot write into a subfolder of evidence', assertFails(uploadString(ref(anon, 'claims/claim1/evidence/deep/x.pdf'), 'x', 'raw', pdf)));
+  await check('staff can read client evidence', assertSucceeds(getBytes(ref(agent, 'claims/claim1/evidence/existing.jpg'))));
+  await check('an unapproved account cannot read client evidence', assertFails(getBytes(ref(pending, 'claims/claim1/evidence/existing.jpg'))));
   await check('a person can upload their own profile photo', assertSucceeds(uploadString(ref(pending, 'users/pending/photo.png'), 'x', 'raw', { contentType: 'image/png' })));
 
   await env.cleanup();

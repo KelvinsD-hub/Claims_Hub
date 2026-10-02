@@ -9,6 +9,7 @@ const pipeline = require('./pipeline');
 const { CLAIM } = pipeline;
 const { applyStageChange, SYSTEM_ACTOR } = require('./stage-change');
 const casework = require('./casework');
+const documents = require('./documents');
 const { applyCaseAction, nextActionFields } = require('./case-action');
 
 /** The fields that record a stage change (see stage-change.js). */
@@ -73,23 +74,18 @@ function isSafeProxyUrl(raw) {
   return true;
 }
 
+/**
+ * Store a generated letter and return its address. No download token is
+ * set: these are client documents and must not be reachable by a link. Staff
+ * open them through staffDocument.
+ */
 async function storePdf(claimId, filename, pdfBytes) {
   const bucket = admin.storage().bucket();
   const filePath = `claims/${claimId}/${filename}`;
-  const file = bucket.file(filePath);
-  const downloadToken = crypto.randomUUID();
-
-  await file.save(Buffer.from(pdfBytes), {
-    metadata: {
-      contentType: 'application/pdf',
-      metadata: { firebaseStorageDownloadTokens: downloadToken },
-    },
+  await bucket.file(filePath).save(Buffer.from(pdfBytes), {
+    metadata: { contentType: 'application/pdf' },
   });
-
-  return (
-    `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/` +
-    `${encodeURIComponent(filePath)}?alt=media&token=${downloadToken}`
-  );
+  return documents.storedAddress(bucket.name, filePath);
 }
 
 function formatDate(date) {
@@ -1265,6 +1261,52 @@ exports.changeStage = functions.https.onRequest((req, res) => {
       }
       console.error('[changeStage]', e && e.message);
       return res.status(500).json({ error: 'The stage could not be changed. Please try again.' });
+    }
+  });
+});
+
+// Client documents are served here and nowhere else. They carry no download
+// token, so the address stored on a claim opens nothing by itself; this checks
+// the caller is approved staff and then sends the file.
+exports.staffDocument = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+    const staff = await staffFromRequest(req);
+    if (!staff) {
+      return res.status(401).json({ error: 'Sign in with an approved staff account.' });
+    }
+    const payload = (req.body && req.body.data) ? req.body.data : (req.body || {});
+    const filePath = documents.storagePathOf(payload.address);
+    if (!filePath || !documents.isClientDocument(filePath)) {
+      return res.status(400).json({ error: 'That is not a client document.' });
+    }
+    try {
+      const file = admin.storage().bucket().file(filePath);
+      const [exists] = await file.exists();
+      if (!exists) {
+        return res.status(404).json({ error: 'That document is no longer on file.' });
+      }
+      const [meta] = await file.getMetadata();
+      if (Number(meta.size) > documents.MAX_SERVED_BYTES) {
+        return res.status(413).json({ error: 'That document is too large to open here. Ask an admin to retrieve it.' });
+      }
+      console.log(`[staffDocument] ${staff.uid} opened ${filePath}`);
+      res.set('Content-Type', meta.contentType || 'application/octet-stream');
+      res.set('Cache-Control', 'private, no-store');
+      res.set('Access-Control-Expose-Headers', 'Content-Type');
+      file.createReadStream()
+        .on('error', (e) => {
+          console.error('[staffDocument]', e && e.message);
+          if (!res.headersSent) res.status(500).json({ error: 'The document could not be read.' });
+          else res.end();
+        })
+        .pipe(res);
+      return null;
+    } catch (e) {
+      console.error('[staffDocument]', e && e.message);
+      return res.status(500).json({ error: 'The document could not be opened. Please try again.' });
     }
   });
 });

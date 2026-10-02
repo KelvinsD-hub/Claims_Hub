@@ -1,3 +1,4 @@
+import '/backend/services/documents.dart';
 import '/backend/backend.dart';
 import '/claims/component/download_p_d_f/download_p_d_f_widget.dart';
 import '/claims/component/part19_calculator/part19_calculator_widget.dart';
@@ -2372,64 +2373,18 @@ class _ClaimsDetailsWidgetState extends State<ClaimsDetailsWidget>
                                                                     .of(context)
                                                                 .secondaryBackground,
                                                           ),
-                                                          child: InkWell(
-                                                            splashColor: Colors
-                                                                .transparent,
-                                                            focusColor: Colors
-                                                                .transparent,
-                                                            hoverColor: Colors
-                                                                .transparent,
-                                                            highlightColor:
-                                                                Colors
-                                                                    .transparent,
-                                                            onTap: () async {
-                                                              await Navigator
-                                                                  .push(
-                                                                context,
-                                                                PageTransition(
-                                                                  type:
-                                                                      PageTransitionType
-                                                                          .fade,
-                                                                  child:
-                                                                      FlutterFlowExpandedImageView(
-                                                                    image: Image
-                                                                        .network(
-                                                                      getCORSProxyUrl(
-                                                                        docsRefItem,
-                                                                      ),
-                                                                      fit: BoxFit
-                                                                          .contain,
-                                                                    ),
-                                                                    allowRotation:
-                                                                        false,
-                                                                    tag:
-                                                                        docsRefItem,
-                                                                    useHeroAnimation:
-                                                                        true,
-                                                                  ),
-                                                                ),
-                                                              );
-                                                            },
-                                                            child: Hero(
-                                                              tag: docsRefItem,
-                                                              transitionOnUserGestures:
-                                                                  true,
-                                                              child: ClipRRect(
-                                                                borderRadius:
-                                                                    BorderRadius
-                                                                        .circular(
-                                                                            8.0),
-                                                                child: Image
-                                                                    .network(
-                                                                  getCORSProxyUrl(
-                                                                    docsRefItem,
-                                                                  ),
-                                                                  width: 200.0,
-                                                                  height: 200.0,
-                                                                  fit: BoxFit
-                                                                      .cover,
-                                                                ),
-                                                              ),
+                                                          // Fetched as the signed-in member of staff;
+                                                          // tapping opens it full size.
+                                                          child: ClipRRect(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        8.0),
+                                                            child: StoredImage(
+                                                              address:
+                                                                  docsRefItem,
+                                                              width: 150.0,
+                                                              height: 150.0,
                                                             ),
                                                           ),
                                                         );

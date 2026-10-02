@@ -1,4 +1,5 @@
 import '/backend/services/pipeline.dart';
+import '/backend/services/casework.dart';
 import '/backend/services/compensation_calculator.dart';
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
@@ -56,6 +57,9 @@ class _ClaimsDashboardWidgetState extends State<ClaimsDashboardWidget>
 
   String _searchQuery = '';
   String? _statusFilter;
+
+  /// Only the claims the signed-in person is handling or is the lawyer on.
+  bool _mineOnly = false;
   final _searchController = TextEditingController();
 
   static const _statusOptions = ['All Statuses', ...ClaimStage.all];
@@ -262,6 +266,18 @@ class _ClaimsDashboardWidgetState extends State<ClaimsDashboardWidget>
                   ),
                 ),
                 const SizedBox(width: 12),
+                FilterChip(
+                  label: Text('My claims',
+                      style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: FlutterFlowTheme.of(context).primaryText)),
+                  selected: _mineOnly,
+                  onSelected: (v) => setState(() => _mineOnly = v),
+                  backgroundColor:
+                      FlutterFlowTheme.of(context).primaryBackground,
+                  showCheckmark: true,
+                ),
+                const SizedBox(width: 12),
                 // Status filter dropdown
                 Container(
                   height: 44,
@@ -439,6 +455,19 @@ class _ClaimsDashboardWidgetState extends State<ClaimsDashboardWidget>
 
         var claims = snap.data ?? [];
 
+        if (_mineOnly) {
+          // Most urgent first; anything with no date last.
+          claims = claims.where((c) {
+            final work = Casework.of(c.snapshotData);
+            return work.handlerUid == currentUserUid ||
+                work.lawyerUid == currentUserUid;
+          }).toList()
+            ..sort((a, b) =>
+                (Casework.of(a.snapshotData).nextActionDue ?? DateTime(2100))
+                    .compareTo(Casework.of(b.snapshotData).nextActionDue ??
+                        DateTime(2100)));
+        }
+
         // Apply status filter
         if (_statusFilter != null) {
           claims = claims
@@ -520,14 +549,16 @@ class _ClaimsDashboardWidgetState extends State<ClaimsDashboardWidget>
               color: FlutterFlowTheme.of(context).alternate),
           const SizedBox(height: 16),
           Text(
-            _statusFilter != null || _searchQuery.isNotEmpty
+            _statusFilter != null || _searchQuery.isNotEmpty || _mineOnly
                 ? 'No claims match the current filter'
                 : 'No claims yet',
             style: GoogleFonts.inter(
                 fontSize: 15,
                 color: FlutterFlowTheme.of(context).secondaryText),
           ),
-          if (_statusFilter != null || _searchQuery.isNotEmpty) ...[
+          if (_statusFilter != null ||
+              _searchQuery.isNotEmpty ||
+              _mineOnly) ...[
             const SizedBox(height: 12),
             TextButton(
               onPressed: () {
@@ -535,6 +566,7 @@ class _ClaimsDashboardWidgetState extends State<ClaimsDashboardWidget>
                 setState(() {
                   _searchQuery = '';
                   _statusFilter = null;
+                  _mineOnly = false;
                 });
               },
               child: const Text('Clear filters'),
