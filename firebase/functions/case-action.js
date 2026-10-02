@@ -73,6 +73,7 @@ const NOTE_TYPES = {
  *   { action: 'next_action', kind, id, text, due }    due: 'YYYY-MM-DD'; empty text clears it
  *   { action: 'legal_stage', id, to, note }
  *   { action: 'note', kind, id, type, text, amount }  type: note | airline_reply | offer
+ *   { action: 'ai_opt_out', kind, id, on, note }      on: true stops the AI assistant
  *
  * Throws pipeline.StageError when it is not allowed, with a message fit to
  * show the person who asked.
@@ -189,6 +190,38 @@ async function applyCaseAction(admin, input) {
       if (Object.keys(update).length) tx.update(ref, update);
       log({ action: NOTE_TYPES[type], description: `${who}: ${text.slice(0, 140)}`, note: text, extra });
       return { type };
+    }
+
+    if (action === 'ai_opt_out') {
+      // The privacy policy lets a client ask that AI is not used on their
+      // claim. Any member of staff can record that; only a manager can lift
+      // it. A lead and its claim are one client's matter, so both are marked.
+      const on = input.on === true;
+      const note = String(input.note || '').trim().slice(0, 500);
+      if (!on && !casework.MANAGERS.includes(staff.role)) {
+        throw new StageError(403, 'Only a manager can allow AI again once a client has objected.');
+      }
+      const linked = kind === 'lead' ? data.claim_ref : data.lead_ref;
+      const hasLinked = linked && typeof linked.path === 'string' && (await tx.get(linked)).exists;
+      const gone = admin.firestore.FieldValue.delete();
+      const fields = on
+        ? {
+          ai_opt_out: true,
+          ai_opt_out_at: admin.firestore.FieldValue.serverTimestamp(),
+          ai_opt_out_by: staff.uid,
+          ai_opt_out_by_name: staff.name,
+        }
+        : { ai_opt_out: gone, ai_opt_out_at: gone, ai_opt_out_by: gone, ai_opt_out_by_name: gone };
+      tx.update(ref, fields);
+      if (hasLinked) tx.update(linked, fields);
+      log({
+        action: on ? 'AI use stopped' : 'AI use allowed',
+        description: on
+          ? `${who}: the client asked that AI is not used on their claim`
+          : `${who}: AI may be used again`,
+        note,
+      });
+      return { ai_opt_out: on };
     }
 
     throw new StageError(400, 'Unknown action.');

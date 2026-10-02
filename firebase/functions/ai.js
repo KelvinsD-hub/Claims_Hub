@@ -140,6 +140,9 @@ async function runAiAssist(admin, { task, id, text, address, staff }, deps = {})
   const snap = await ref.get();
   if (!snap.exists) throw new StageError(404, `That ${spec.kind} no longer exists.`);
   const record = snap.data();
+  if (record.ai_opt_out === true) {
+    throw new StageError(403, 'This client has asked that AI is not used on their claim.');
+  }
 
   const pasted = String(text || '').trim();
   if (spec.needsText && pasted.length < 20) {

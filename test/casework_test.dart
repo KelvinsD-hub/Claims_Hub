@@ -36,8 +36,8 @@ void main() {
   });
 
   test('the due label counts whole days', () {
-    Casework due(int days) => Casework.of(
-        {'next_action': 'x', 'next_action_due': daysFromNow(days)});
+    Casework due(int days) =>
+        Casework.of({'next_action': 'x', 'next_action_due': daysFromNow(days)});
     expect(due(5).dueLabel, 'Due in 5 days');
     expect(due(1).dueLabel, 'Due tomorrow');
     expect(due(0).dueLabel, 'Due today');
@@ -57,7 +57,8 @@ void main() {
   });
 
   test('a passed date with no action left is not overdue', () {
-    expect(Casework.of({'next_action_due': daysFromNow(-3)}).isOverdue, isFalse);
+    expect(
+        Casework.of({'next_action_due': daysFromNow(-3)}).isOverdue, isFalse);
   });
 
   test('roles', () {
@@ -75,5 +76,13 @@ void main() {
       'NCAA complaint filed',
       'Court proceedings',
     ]);
+  });
+
+  test('a client\'s objection to AI is read from the record', () {
+    expect(Casework.of({}).aiOptOut, isFalse);
+    expect(Casework.of({'ai_opt_out': false}).aiOptOut, isFalse);
+    final work = Casework.of({'ai_opt_out': true, 'ai_opt_out_by_name': 'Ada'});
+    expect(work.aiOptOut, isTrue);
+    expect(work.aiOptOutByName, 'Ada');
   });
 }

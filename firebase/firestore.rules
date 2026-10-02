@@ -125,7 +125,8 @@ service cloud.firestore {
         'handler_uid', 'handler_name', 'handler_assigned_at',
         'handler_assigned_by', 'handler_assigned_by_name',
         'next_action', 'next_action_due', 'next_action_set_by',
-        'next_action_set_by_name'
+        'next_action_set_by_name',
+        'ai_opt_out', 'ai_opt_out_at', 'ai_opt_out_by', 'ai_opt_out_by_name'
       ];
     }
     function leavesLeadStageAlone() {

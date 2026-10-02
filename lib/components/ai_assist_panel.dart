@@ -1,3 +1,4 @@
+import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
 import '/backend/services/ai_assist.dart';
 import '/backend/services/casework.dart';
@@ -40,6 +41,128 @@ class _AiAssistPanelState extends State<AiAssistPanel> {
           .collection('ai_outputs')
           .where('record', isEqualTo: widget.recordRef)
           .snapshots();
+
+  /// The record itself, to know whether the client has objected to AI.
+  late final Stream<DocumentSnapshot<Object?>> _record =
+      widget.recordRef.snapshots();
+
+  /// Record that the client objects to AI, or (a manager) lift that.
+  Future<void> _setOptOut(bool on) async {
+    final controller = TextEditingController();
+    final note = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(on ? 'Stop AI on this client?' : 'Allow AI again?'),
+        content: SizedBox(
+          width: 440.0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(on
+                  ? 'Use this when the client has asked that AI is not used '
+                      'on their claim. The assistant will refuse this client\'s '
+                      'lead and claim until a manager allows it again.'
+                  : 'Only do this if the client has agreed.'),
+              const SizedBox(height: 14.0),
+              TextField(
+                controller: controller,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'How and when they told us (optional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
+            child: Text(on ? 'Stop AI' : 'Allow AI'),
+          ),
+        ],
+      ),
+    );
+    if (note == null || !mounted) return;
+    final result = await setAiOptOut(
+      kind: widget.kind,
+      id: widget.recordRef.id,
+      on: on,
+      note: note,
+    );
+    if (!mounted) return;
+    _say(
+      result.succeeded
+          ? (on ? 'AI is stopped for this client.' : 'AI is allowed again.')
+          : result.error!,
+      error: !result.succeeded,
+    );
+  }
+
+  Widget _optedOutNotice(Casework work) {
+    final theme = FlutterFlowTheme.of(context);
+    final manager =
+        isManagerRole(valueOrDefault(currentUserDocument?.role, ''));
+    final by = [
+      if (work.aiOptOutByName.isNotEmpty) work.aiOptOutByName,
+      if (work.aiOptOutAt != null) dateTimeFormat('d MMM y', work.aiOptOutAt),
+    ].join(' · ');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20.0, 16.0, 20.0, 8.0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14.0),
+        decoration: BoxDecoration(
+          color: theme.secondaryBackground,
+          borderRadius: BorderRadius.circular(12.0),
+          border: Border.all(color: theme.alternate),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.block, size: 16.0, color: theme.secondaryText),
+                const SizedBox(width: 8.0),
+                Expanded(
+                  child: Text(
+                    'AI is not used on this client',
+                    style: GoogleFonts.inter(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: theme.primaryText,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6.0),
+            Text(
+              'The client asked that AI is not used on their claim'
+              '${by.isEmpty ? '' : ' (recorded by $by)'}. '
+              '${manager ? '' : 'Only a manager can allow it again.'}',
+              style: GoogleFonts.inter(
+                  fontSize: 12.5, color: theme.secondaryText, height: 1.4),
+            ),
+            if (manager)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () => _setOptOut(false),
+                  child: const Text('Allow AI again'),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _say(String message, {bool error = false}) {
     final theme = FlutterFlowTheme.of(context);
@@ -148,102 +271,131 @@ class _AiAssistPanelState extends State<AiAssistPanel> {
         .where((t) => t != AiTask.readEvidence || widget.evidence.isNotEmpty)
         .toList();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20.0, 16.0, 20.0, 4.0),
-          child: Wrap(
-            spacing: 8.0,
-            runSpacing: 8.0,
-            children: [
-              for (final task in tasks)
-                OutlinedButton.icon(
-                  onPressed: _running == null ? () => _run(task) : null,
-                  icon: _running == task
-                      ? const SizedBox(
-                          width: 14.0,
-                          height: 14.0,
-                          child: CircularProgressIndicator(strokeWidth: 2.0),
-                        )
-                      : Icon(Icons.auto_awesome_outlined,
-                          size: 15.0, color: brandBlue(context)),
-                  label: Text(
-                    _running == task ? 'Working…' : task.label,
+    return StreamBuilder<DocumentSnapshot<Object?>>(
+      stream: _record,
+      builder: (context, recordSnapshot) {
+        final work = Casework.of(
+            (recordSnapshot.data?.data() as Map<String, dynamic>?) ?? const {});
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (work.aiOptOut)
+              _optedOutNotice(work)
+            else ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20.0, 16.0, 20.0, 4.0),
+                child: Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children: [
+                    for (final task in tasks)
+                      OutlinedButton.icon(
+                        onPressed: _running == null ? () => _run(task) : null,
+                        icon: _running == task
+                            ? const SizedBox(
+                                width: 14.0,
+                                height: 14.0,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2.0),
+                              )
+                            : Icon(Icons.auto_awesome_outlined,
+                                size: 15.0, color: brandBlue(context)),
+                        label: Text(
+                          _running == task ? 'Working…' : task.label,
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: brandBlue(context),
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                              color: brandBlue(context).withValues(alpha: 0.5)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12.0, vertical: 10.0),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10.0)),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20.0, 6.0, 20.0, 8.0),
+                child: Text(
+                  _running != null
+                      ? 'This usually takes under a minute.'
+                      : 'The assistant advises; you decide. Check what it says '
+                          'against the file before acting on it.',
+                  style: GoogleFonts.inter(
+                      fontSize: 11.5, color: theme.secondaryText),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14.0, 0.0, 20.0, 4.0),
+                child: TextButton(
+                  onPressed: _running == null ? () => _setOptOut(true) : null,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                    minimumSize: const Size(0.0, 28.0),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'The client does not want AI used',
                     style: GoogleFonts.inter(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: brandBlue(context),
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                        color: brandBlue(context).withValues(alpha: 0.5)),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12.0, vertical: 10.0),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10.0)),
+                        fontSize: 11.5, color: theme.secondaryText),
                   ),
                 ),
+              ),
             ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20.0, 6.0, 20.0, 8.0),
-          child: Text(
-            _running != null
-                ? 'This usually takes under a minute.'
-                : 'The assistant advises; you decide. Check what it says '
-                    'against the file before acting on it.',
-            style: GoogleFonts.inter(fontSize: 11.5, color: theme.secondaryText),
-          ),
-        ),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: _answers,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Text('The answers could not be loaded.',
-                      style: GoogleFonts.inter(
-                          fontSize: 13.0, color: theme.secondaryText)),
-                );
-              }
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              DateTime when(Map<String, dynamic> a) {
-                final t = a['created_at'];
-                return t is Timestamp ? t.toDate() : DateTime.now();
-              }
+            Expanded(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: _answers,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Text('The answers could not be loaded.',
+                          style: GoogleFonts.inter(
+                              fontSize: 13.0, color: theme.secondaryText)),
+                    );
+                  }
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  DateTime when(Map<String, dynamic> a) {
+                    final t = a['created_at'];
+                    return t is Timestamp ? t.toDate() : DateTime.now();
+                  }
 
-              final answers = snapshot.data!.docs.toList()
-                ..sort((a, b) => when(b.data()).compareTo(when(a.data())));
-              if (answers.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Text('Nothing asked yet.',
-                      style: GoogleFonts.inter(
-                          fontSize: 13.0, color: theme.secondaryText)),
-                );
-              }
-              return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(20.0, 4.0, 20.0, 20.0),
-                itemCount: answers.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12.0),
-                itemBuilder: (context, i) => _AnswerCard(
-                  id: answers[i].id,
-                  answer: answers[i].data(),
-                  at: when(answers[i].data()),
-                  recordRef: widget.recordRef,
-                  onMessage: _say,
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+                  final answers = snapshot.data!.docs.toList()
+                    ..sort((a, b) => when(b.data()).compareTo(when(a.data())));
+                  if (answers.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Text('Nothing asked yet.',
+                          style: GoogleFonts.inter(
+                              fontSize: 13.0, color: theme.secondaryText)),
+                    );
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20.0, 4.0, 20.0, 20.0),
+                    itemCount: answers.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12.0),
+                    itemBuilder: (context, i) => _AnswerCard(
+                      id: answers[i].id,
+                      answer: answers[i].data(),
+                      at: when(answers[i].data()),
+                      recordRef: widget.recordRef,
+                      onMessage: _say,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -309,7 +461,8 @@ class _AnswerCardState extends State<_AnswerCard> {
 
   String _format(dynamic value) {
     if (value is bool) return value ? 'Yes' : 'No';
-    if (value is num) return '₦${formatNumber(value, formatType: FormatType.decimal, decimalType: DecimalType.automatic)}';
+    if (value is num)
+      return '₦${formatNumber(value, formatType: FormatType.decimal, decimalType: DecimalType.automatic)}';
     if (value is String) return aiCodeLabel(value);
     return '$value';
   }
@@ -323,8 +476,8 @@ class _AnswerCardState extends State<_AnswerCard> {
         (answer['output'] as Map?)?.cast<String, dynamic>() ?? const {};
     final status = answer['review_status'] as String? ?? 'pending';
 
-    TextStyle body() =>
-        GoogleFonts.inter(fontSize: 13.0, color: theme.primaryText, height: 1.4);
+    TextStyle body() => GoogleFonts.inter(
+        fontSize: 13.0, color: theme.primaryText, height: 1.4);
 
     return Container(
       padding: const EdgeInsets.all(14.0),

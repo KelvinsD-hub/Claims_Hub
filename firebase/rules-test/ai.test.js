@@ -14,7 +14,9 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
 }
 const admin = require('../functions/node_modules/firebase-admin');
 const { runAiAssist, reviewAiOutput, callModel } = require('../functions/ai');
-const { StageError } = require('../functions/pipeline');
+const { StageError, LEAD } = require('../functions/pipeline');
+const { applyCaseAction } = require('../functions/case-action');
+const { applyStageChange } = require('../functions/stage-change');
 const { estimateCost } = require('../functions/ai-tasks');
 
 admin.initializeApp({ projectId: 'demo-claims-hub' });
@@ -32,6 +34,7 @@ async function refused(promise) {
 
 const ada = { uid: 'ada', name: 'Ada Agent', role: 'Agent' };
 const sola = { uid: 'sola', name: 'Sola Solicitor', role: 'Solicitor' };
+const boss = { uid: 'boss', name: 'Bola Boss', role: 'Manager' };
 
 /** A model that records what it was sent and answers from a script. */
 function standIn(answers) {
@@ -115,6 +118,34 @@ const answers = {
   check('staff can mark an answer not useful, with why', out.review_status === 'not_useful' && out.reviewed_by === 'sola' && /weather report/.test(out.review_note) && !!out.reviewed_at);
   check('a made-up verdict is refused', (await refused(reviewAiOutput(admin, { id: r.id, verdict: 'brilliant', staff: sola })))?.status === 400);
   check('reviewing a missing answer is refused', (await refused(reviewAiOutput(admin, { id: 'nope', verdict: 'useful', staff: sola })))?.status === 404);
+
+  // ── A client who objects to AI ─────────────────────────────────────────────
+  const optOut = (staff, kind, id, on, note) => applyCaseAction(admin, { action: 'ai_opt_out', kind, id, on, note, staff });
+  await db.doc('leads/L2').set({ full_name: 'Chi Client', email: 'chi@example.com', status: 'Contacted', claim_ref: db.doc('claims/C2') });
+  await db.doc('claims/C2').set({ full_name: 'Chi Client', claim_status: 'Under Review', lead_ref: db.doc('leads/L2') });
+  await optOut(ada, 'claim', 'C2', true, 'Asked by email on 2 October');
+  let c2 = (await db.doc('claims/C2').get()).data();
+  check('any member of staff can record the objection', c2.ai_opt_out === true && c2.ai_opt_out_by === 'ada' && !!c2.ai_opt_out_at);
+  check('the lead it came from is marked too', (await db.doc('leads/L2').get()).data().ai_opt_out === true);
+  logs = (await db.collection('activity_logs').where('action', '==', 'AI use stopped').get()).docs.map((d) => d.data());
+  check('the objection is in the event log with the note', logs.length === 1 && logs[0].claims.path === 'claims/C2' && /2 October/.test(logs[0].note));
+  model = standIn(answers);
+  check('the assistant then refuses the claim', (await refused(runAiAssist(admin, { task: 'case_brief', id: 'C2', staff: sola }, model)))?.status === 403);
+  check('and refuses its lead', (await refused(runAiAssist(admin, { task: 'lead_triage', id: 'L2', staff: ada }, model)))?.status === 403);
+  check('nothing is sent to the model', model.seen.length === 0);
+  check('an agent cannot lift the objection', (await refused(optOut(ada, 'claim', 'C2', false)))?.status === 403);
+  check('nor can a lawyer', (await refused(optOut(sola, 'lead', 'L2', false)))?.status === 403);
+  await optOut(boss, 'lead', 'L2', false, 'Client changed their mind');
+  c2 = (await db.doc('claims/C2').get()).data();
+  check('a manager can lift it, on both records', c2.ai_opt_out === undefined && (await db.doc('leads/L2').get()).data().ai_opt_out === undefined);
+  r = await runAiAssist(admin, { task: 'case_brief', id: 'C2', staff: sola }, model);
+  check('and the assistant works on it again', !!r.id);
+  await optOut(ada, 'claim', 'C1', true);
+  check('a claim whose lead is gone can still be marked', (await db.doc('claims/C1').get()).data().ai_opt_out === true);
+  await db.doc('leads/L3').set({ full_name: 'Dayo Lead', email: 'dayo@example.com', status: 'Contacted' });
+  await optOut(ada, 'lead', 'L3', true);
+  const opened = await applyStageChange(admin, { kind: 'lead', id: 'L3', to: LEAD.QUALIFIED, note: '', staff: ada });
+  check('a claim opened from an objecting lead carries the objection', (await db.doc(`claims/${opened.claimId}`).get()).data().ai_opt_out === true);
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

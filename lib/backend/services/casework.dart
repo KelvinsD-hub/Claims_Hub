@@ -47,7 +47,10 @@ class Casework {
         airlineReplyAt = _date(data['airline_reply_at']),
         airlineReplySummary = _text(data['airline_reply_summary']),
         settlementOffer = _number(data['settlement_offer_amount']),
-        amountRecovered = _number(data['amount_recovered']);
+        amountRecovered = _number(data['amount_recovered']),
+        aiOptOut = data['ai_opt_out'] == true,
+        aiOptOutByName = _text(data['ai_opt_out_by_name']),
+        aiOptOutAt = _date(data['ai_opt_out_at']);
 
   final String handlerUid;
   final String handlerName;
@@ -63,6 +66,11 @@ class Casework {
   final String airlineReplySummary;
   final double? settlementOffer;
   final double? amountRecovered;
+
+  /// The client has asked that AI is not used on their claim.
+  final bool aiOptOut;
+  final String aiOptOutByName;
+  final DateTime? aiOptOutAt;
 
   bool get hasHandler => handlerUid.isNotEmpty;
   bool get hasLawyer => lawyerUid.isNotEmpty;
@@ -123,7 +131,8 @@ Future<CaseActionResult> _post(Map<String, dynamic> data) async {
   try {
     final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (idToken == null) {
-      return const CaseActionResult.failed('You are signed out. Sign in again.');
+      return const CaseActionResult.failed(
+          'You are signed out. Sign in again.');
     }
     final response = await http
         .post(
@@ -140,7 +149,8 @@ Future<CaseActionResult> _post(Map<String, dynamic> data) async {
     String? message;
     try {
       final decoded = jsonDecode(response.body);
-      if (decoded is Map<String, dynamic>) message = decoded['error'] as String?;
+      if (decoded is Map<String, dynamic>)
+        message = decoded['error'] as String?;
     } catch (_) {}
     return CaseActionResult.failed(
         message ?? 'That could not be saved (error ${response.statusCode}).');
@@ -215,4 +225,20 @@ Future<CaseActionResult> addCaseNote({
       },
       'text': text,
       if (amount != null) 'amount': amount,
+    });
+
+/// Record that a client objects to AI being used on their claim ([on] true),
+/// or lift that (managers only). Marks the lead and its claim together.
+Future<CaseActionResult> setAiOptOut({
+  required RecordKind kind,
+  required String id,
+  required bool on,
+  String note = '',
+}) =>
+    _post({
+      'action': 'ai_opt_out',
+      'kind': _kind(kind),
+      'id': id,
+      'on': on,
+      'note': note,
     });

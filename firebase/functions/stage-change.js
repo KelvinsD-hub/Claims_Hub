@@ -81,6 +81,13 @@ async function applyStageChange(admin, { kind, id, to, note, staff, amount }) {
           ...assignmentFields(admin, 'handler',
             data.handler_uid ? { uid: data.handler_uid, name: data.handler_name || 'Staff' } : actor, actor),
           ...nextActionFields(admin, 'claim', CLAIM.DETAILS_PENDING, null, { forCreate: true }),
+          // A client's objection to AI follows them from the lead.
+          ...(data.ai_opt_out === true ? {
+            ai_opt_out: true,
+            ai_opt_out_at: data.ai_opt_out_at || admin.firestore.FieldValue.serverTimestamp(),
+            ai_opt_out_by: data.ai_opt_out_by || '',
+            ai_opt_out_by_name: data.ai_opt_out_by_name || '',
+          } : {}),
         });
         update.is_qualified = true;
         update.claim_ref = claimRef;

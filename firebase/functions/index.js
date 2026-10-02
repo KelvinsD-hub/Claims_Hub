@@ -1386,6 +1386,7 @@ exports.caseAction = functions.https.onRequest((req, res) => {
         note: payload.note,
         type: String(payload.type || ''),
         amount: payload.amount,
+        on: payload.on === true,
         staff,
       });
       return res.status(200).json({ success: true, ...result });
