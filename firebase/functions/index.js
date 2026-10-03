@@ -15,6 +15,7 @@ const { runAiAssist, reviewAiOutput } = require('./ai');
 const invites = require('./invites');
 const infoRequests = require('./info-requests');
 const partners = require('./partners');
+const notifications = require('./notifications');
 const { applyCaseAction, nextActionFields } = require('./case-action');
 
 /** The fields that record a stage change (see stage-change.js). */
@@ -519,48 +520,31 @@ exports.onClaimCreatedSendEmail = functions
   .onCreate(async (snapshot, context) => {
     const data = snapshot.data();
     if (data.claim_status !== 'Details Pending') return null;
+    if (!data.client_email) return null;
 
     const claimId = context.params.claimId;
-    const evidenceUrl =
-      `https://claimshub.online/evidenceForm` +
-      `?claimRef=claims%2F${claimId}&token=${data.secure_token}`;
-
-    const mailOptions = {
-      from: `"Claims Assist" <${MAIL}>`,
-      to: data.client_email,
-      subject: 'Action Required: Submit Your Flight Claim Evidence',
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333">
-          <div style="background:#002855;padding:24px 32px;border-radius:8px 8px 0 0">
-            <h1 style="color:#fff;margin:0;font-size:22px">Claims Assist</h1>
-          </div>
-          <div style="padding:32px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px">
-            <h2>Hello ${data.full_name || 'Customer'},</h2>
-            <p>Your flight compensation claim has been registered. To proceed, please submit
-               your evidence using the button below.</p>
-            <p style="text-align:center;margin:32px 0">
-              <a href="${evidenceUrl}"
-                 style="background:#002855;color:#fff;padding:14px 28px;
-                        border-radius:6px;text-decoration:none;font-weight:bold;font-size:15px">
-                Submit My Evidence
-              </a>
-            </p>
-            <p style="font-size:13px;color:#666">
-              Or copy this link:<br/>
-              <a href="${evidenceUrl}">${evidenceUrl}</a>
-            </p>
-            <hr style="border:none;border-top:1px solid #e0e0e0;margin:24px 0"/>
-            <p style="font-size:13px;color:#999">
-              Questions? Email us at
-              <a href="mailto:${MAIL}">${MAIL}</a>
-            </p>
-          </div>
-        </div>
-      `,
-    };
+    // Someone who signed the authority on the website has already given what
+    // the evidence form asks for; they are told the claim is open instead.
+    let signedOnWebsite = false;
+    try {
+      const lead = data.lead_ref ? await data.lead_ref.get() : null;
+      signedOnWebsite = !!(lead && lead.exists && lead.get('loa_signed') === true);
+    } catch (e) {
+      console.error('[onClaimCreatedSendEmail] lead', e.message);
+    }
+    const mail = notifications.claimOpenedEmail({
+      name: data.full_name,
+      airline: data.airline_name,
+      signedOnWebsite,
+      tracker: notifications.trackerUrl(claimId, data.secure_token),
+      evidenceUrl: `https://claimshub.online/evidenceForm?claimRef=claims%2F${claimId}&token=${data.secure_token}`,
+    }, escapeHtml);
 
     try {
-      await createTransporter().sendMail(mailOptions);
+      await createTransporter().sendMail({
+        from: `"Claims Assist" <${MAIL}>`, replyTo: MAIL, to: data.client_email,
+        subject: mail.subject, html: mail.html, text: mail.text,
+      });
     } catch (e) {
       console.error('[onClaimCreatedSendEmail]', e.message);
     }
@@ -1100,9 +1084,22 @@ exports.onClaimStatusChanged = functions
     if (!clientEmail) return null;
 
     const claimId = context.params.claimId;
-    const statusPortalUrl =
-      `https://claimshub.online/claimStatus` +
-      `?claimRef=claims%2F${claimId}&token=${newData.secure_token}`;
+    const statusPortalUrl = notifications.trackerUrl(claimId, newData.secure_token);
+
+    if (newData.claim_status === CLAIM.PAID) {
+      const mail = notifications.paidEmail({
+        name: newData.full_name, airline: newData.airline_name, tracker: statusPortalUrl,
+      }, escapeHtml);
+      try {
+        await createTransporter().sendMail({
+          from: `"Claims Assist" <${MAIL}>`, replyTo: MAIL, to: clientEmail,
+          subject: mail.subject, html: mail.html, text: mail.text,
+        });
+      } catch (e) {
+        console.error('[onClaimStatusChanged] paid', e.message);
+      }
+      return null;
+    }
 
     let subject = '';
     let bodyHtml = '';
@@ -1701,6 +1698,61 @@ exports.onLeadCreatedCreditPartner = functions.firestore
     } catch (e) {
       console.error('[onLeadCreatedCreditPartner]', e && e.message);
     }
+    return null;
+  });
+
+// Tell a referral partner about their referral (functions/notifications.js):
+// when someone arrives through their link, and whenever that person's
+// progress changes. Migration renames are not news.
+async function notifyPartner(partnerId, { clientName, airline, news }) {
+  if (!partnerId || !news) return;
+  try {
+    const snap = await admin.firestore().doc(`partners/${partnerId}`).get();
+    if (!snap.exists) return;
+    const partner = snap.data();
+    if (partner.status === 'suspended' || !partner.email || partner.notify === false) return;
+    const mail = notifications.partnerEmail({ partnerName: partner.name, clientName, airline, news }, escapeHtml);
+    await createTransporter().sendMail({
+      from: `"Claims Assist" <${MAIL}>`, replyTo: MAIL, to: partner.email,
+      subject: mail.subject, html: mail.html, text: mail.text,
+    });
+  } catch (e) {
+    console.error('[notifyPartner]', e && e.message);
+  }
+}
+
+exports.onLeadNotifyPartner = functions
+  .runWith({ secrets: [MAIL_SECRET] })
+  .firestore.document('leads/{leadId}')
+  .onUpdate(async (change) => {
+    const before = change.before.data();
+    const after = change.after.data();
+    if (!after.partner_id || after.stage_changed_by === 'migration') return null;
+    // A lead is credited to a partner just after it arrives, by
+    // onLeadCreatedCreditPartner: that is the moment it is new to them.
+    const isNew = !before.partner_id;
+    if (!isNew && before.status === after.status) return null;
+    const news = notifications.partnerNews(
+      isNew ? null : { lead: before.status, claim: '' },
+      { lead: after.status, claim: '' },
+    );
+    await notifyPartner(after.partner_id, { clientName: after.full_name, airline: after.airline_name, news });
+    return null;
+  });
+
+exports.onClaimNotifyPartner = functions
+  .runWith({ secrets: [MAIL_SECRET] })
+  .firestore.document('claims/{claimId}')
+  .onUpdate(async (change) => {
+    const before = change.before.data();
+    const after = change.after.data();
+    if (!after.partner_id || after.stage_changed_by === 'migration') return null;
+    if (before.claim_status === after.claim_status) return null;
+    const news = notifications.partnerNews(
+      { lead: 'Qualified', claim: before.claim_status || '' },
+      { lead: 'Qualified', claim: after.claim_status || '' },
+    );
+    await notifyPartner(after.partner_id, { clientName: after.full_name, airline: after.airline_name, news });
     return null;
   });
 
