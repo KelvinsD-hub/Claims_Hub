@@ -575,7 +575,7 @@ class _ClaimStatusWidgetState extends State<ClaimStatusWidget> {
           ),
           const SizedBox(height: 4),
           SelectableText(
-            'info@claimshub.online',
+            'info@claimsassistltd.com',
             style: GoogleFonts.inter(
               color: FlutterFlowTheme.of(context).primary,
               fontSize: 13,
@@ -627,7 +627,7 @@ class _ClaimStatusWidgetState extends State<ClaimStatusWidget> {
                       ),
                       const SizedBox(height: 20),
                       SelectableText(
-                        'info@claimshub.online',
+                        'info@claimsassistltd.com',
                         style: GoogleFonts.inter(
                           color: FlutterFlowTheme.of(context).primary,
                           fontSize: 14,

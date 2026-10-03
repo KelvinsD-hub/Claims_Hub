@@ -250,10 +250,10 @@ class _SendDemandDialogState extends State<_SendDemandDialog> {
               const SizedBox(height: 10.0),
               Text(
                 finalNotice
-                    ? 'The notice goes from info@claimshub.online and gives the '
+                    ? 'The notice goes from info@claimsassistltd.com and gives the '
                         'airline 7 days. Sending it moves the legal stage to '
                         'Final notice sent.'
-                    : 'The letter goes from info@claimshub.online with the '
+                    : 'The letter goes from info@claimsassistltd.com with the '
                         'letter of authority attached, and gives the airline 14 '
                         'days. Sending it moves the claim to Awaiting Reply.',
                 style: GoogleFonts.inter(

@@ -14,7 +14,7 @@ const Color _kNavy = Color(0xFF002855);
 // ---------------------------------------------------------------------------
 // Support contact details. Update these to the real support channels.
 // ---------------------------------------------------------------------------
-const String _supportEmail = 'info@claimshub.online';
+const String _supportEmail = 'info@claimsassistltd.com';
 const String _supportPhone = '+233000000000'; // TODO: real support line
 const String _supportWhatsApp = '233000000000'; // wa.me number, digits only
 

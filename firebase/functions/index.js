@@ -24,17 +24,24 @@ admin.initializeApp();
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
+// The Claims Assist mailbox. Every email is sent from it, replies come back to
+// it, and the airline letters print it on their letterhead. It is a Hostinger
+// mailbox; its password is the MAIL_SECRET secret. The website's functions
+// (claims-assist-site/functions/index.js) send from the same mailbox.
+const MAIL = 'info@claimsassistltd.com';
+const MAIL_SECRET = 'CLAIMSASSIST_EMAIL_PASS';
+
 function createTransporter() {
-  const pass = process.env.HOSTINGER_EMAIL_PASS;
+  const pass = process.env[MAIL_SECRET];
   if (!pass) {
-    throw new Error('HOSTINGER_EMAIL_PASS secret is not configured.');
+    throw new Error(`${MAIL_SECRET} secret is not configured.`);
   }
   return nodemailer.createTransport({
     host: 'smtp.hostinger.com',
     port: 587,
     secure: false,
     auth: {
-      user: 'info@claimshub.online',
+      user: MAIL,
       pass: pass.trim(),
     },
   });
@@ -182,7 +189,7 @@ async function buildLoaPdf(data, claimId) {
   // Header band
   page.drawRectangle({ x: 0, y: 792, width: 595, height: 50, color: navy });
   page.drawText('CLAIMS ASSIST LIMITED', { x: 40, y: 812, size: 14, font: bold, color: white });
-  page.drawText('Legal Department  |  info@claimshub.online', { x: 40, y: 797, size: 8, font: reg, color: ltGrey });
+  page.drawText(`Legal Department  |  ${MAIL}`, { x: 40, y: 797, size: 8, font: reg, color: ltGrey });
 
   let y = 752;
 
@@ -329,7 +336,7 @@ async function buildDemandLetterPdf(data, claimId) {
   // Header band
   page.drawRectangle({ x: 0, y: 792, width: 595, height: 50, color: navy });
   page.drawText('CLAIMS ASSIST LIMITED', { x: 40, y: 818, size: 14, font: bold, color: white });
-  page.drawText('Legal Department  |  info@claimshub.online', { x: 40, y: 797, size: 8, font: reg, color: ltGrey });
+  page.drawText(`Legal Department  |  ${MAIL}`, { x: 40, y: 797, size: 8, font: reg, color: ltGrey });
 
   let y = 762;
   page.drawText(`Ref: CA/${claimId}`, { x: 40, y, size: 9, font: reg, color: grey });
@@ -465,7 +472,7 @@ async function buildDemandLetterPdf(data, claimId) {
   y -= 24;
   page.drawText('CLAIMS ASSIST LEGAL TEAM', { x: 40, y, size: 11, font: bold, color: navy });
   y -= 14;
-  page.drawText('info@claimshub.online', { x: 40, y, size: 10, font: reg, color: navy });
+  page.drawText(MAIL, { x: 40, y, size: 10, font: reg, color: navy });
 
   return pdfDoc.save();
 }
@@ -505,7 +512,7 @@ exports.onUserDeleted = functions.auth.user().onDelete(async (user) => {
 // ─── 3. On Claim Created → Send evidence form link to client ─────────────────
 
 exports.onClaimCreatedSendEmail = functions
-  .runWith({ secrets: ['HOSTINGER_EMAIL_PASS'] })
+  .runWith({ secrets: [MAIL_SECRET] })
   .firestore.document('claims/{claimId}')
   .onCreate(async (snapshot, context) => {
     const data = snapshot.data();
@@ -517,7 +524,7 @@ exports.onClaimCreatedSendEmail = functions
       `?claimRef=claims%2F${claimId}&token=${data.secure_token}`;
 
     const mailOptions = {
-      from: '"Claims Assist" <info@claimshub.online>',
+      from: `"Claims Assist" <${MAIL}>`,
       to: data.client_email,
       subject: 'Action Required: Submit Your Flight Claim Evidence',
       html: `
@@ -543,7 +550,7 @@ exports.onClaimCreatedSendEmail = functions
             <hr style="border:none;border-top:1px solid #e0e0e0;margin:24px 0"/>
             <p style="font-size:13px;color:#999">
               Questions? Email us at
-              <a href="mailto:info@claimshub.online">info@claimshub.online</a>
+              <a href="mailto:${MAIL}">${MAIL}</a>
             </p>
           </div>
         </div>
@@ -561,7 +568,7 @@ exports.onClaimCreatedSendEmail = functions
 // ─── 4. On Trigger Airline Email → Generate LOA + Demand Letter, email airline ─
 
 exports.onTriggerAirlineEmail = functions
-  .runWith({ secrets: ['HOSTINGER_EMAIL_PASS'], timeoutSeconds: 120 })
+  .runWith({ secrets: [MAIL_SECRET], timeoutSeconds: 120 })
   .firestore.document('claims/{claimId}')
   .onUpdate(async (change, context) => {
     const newData = change.after.data();
@@ -601,7 +608,7 @@ exports.onTriggerAirlineEmail = functions
     const amountDisplay = newData.claims_amount || 'the applicable statutory amount';
 
     await createTransporter().sendMail({
-      from: '"Claims Assist Legal" <info@claimshub.online>',
+      from: `"Claims Assist Legal" <${MAIL}>`,
       to: airlineEmail,
       subject: `FORMAL DEMAND: ${clientName} | Flight ${newData.flight_number || 'N/A'} | Ref: CA/${claimId}`,
       html: `
@@ -610,7 +617,7 @@ exports.onTriggerAirlineEmail = functions
             <tr>
               <td style="background:#002855;padding:20px 28px">
                 <span style="color:#fff;font-size:18px;font-weight:bold;font-family:Arial">CLAIMS ASSIST LIMITED</span><br/>
-                <span style="color:#aac4e0;font-size:11px;font-family:Arial">Legal Department &nbsp;|&nbsp; info@claimshub.online</span>
+                <span style="color:#aac4e0;font-size:11px;font-family:Arial">Legal Department &nbsp;|&nbsp; ${MAIL}</span>
               </td>
             </tr>
           </table>
@@ -716,7 +723,7 @@ exports.onTriggerAirlineEmail = functions
             <p>
               Yours faithfully,<br/>
               <strong>Claims Assist Legal Team</strong><br/>
-              <a href="mailto:info@claimshub.online" style="color:#002855">info@claimshub.online</a>
+              <a href="mailto:${MAIL}" style="color:#002855">${MAIL}</a>
             </p>
           </div>
         </div>
@@ -762,7 +769,7 @@ exports.onTriggerAirlineEmail = functions
 // Solicitors Workspace CRM page. Sends a more serious Final Legal Notice.
 
 exports.onTriggerSolicitorEmail = functions
-  .runWith({ secrets: ['HOSTINGER_EMAIL_PASS'], timeoutSeconds: 120 })
+  .runWith({ secrets: [MAIL_SECRET], timeoutSeconds: 120 })
   .firestore.document('claims/{claimId}')
   .onUpdate(async (change, context) => {
     const newData = change.after.data();
@@ -806,7 +813,7 @@ exports.onTriggerSolicitorEmail = functions
     // Header band
     page.drawRectangle({ x: 0, y: 792, width: 595, height: 50, color: navy });
     page.drawText('CLAIMS ASSIST LIMITED', { x: 40, y: 818, size: 14, font: bold, color: white });
-    page.drawText('Legal Department  |  info@claimshub.online', { x: 40, y: 797, size: 8, font: reg, color: ltGrey });
+    page.drawText(`Legal Department  |  ${MAIL}`, { x: 40, y: 797, size: 8, font: reg, color: ltGrey });
 
     let y = 762;
     page.drawText(`Ref: CA/${claimId}/LEGAL-NOTICE`, { x: 40, y, size: 9, font: reg, color: grey });
@@ -916,7 +923,7 @@ exports.onTriggerSolicitorEmail = functions
     y -= 24;
     page.drawText('CLAIMS ASSIST LEGAL TEAM', { x: 40, y, size: 11, font: bold, color: navy });
     y -= 14;
-    page.drawText('info@claimshub.online', { x: 40, y, size: 10, font: reg, color: navy });
+    page.drawText(MAIL, { x: 40, y, size: 10, font: reg, color: navy });
 
     const solicitorPdfBytes = await pdfDoc.save();
     const solicitorUrl = await storePdf(claimId, `FinalLegalNotice_${claimId}.pdf`, solicitorPdfBytes);
@@ -924,7 +931,7 @@ exports.onTriggerSolicitorEmail = functions
     const airlineEmail = newData.airline_email_selection || newData.airline_email;
 
     await createTransporter().sendMail({
-      from: '"Claims Assist Legal" <info@claimshub.online>',
+      from: `"Claims Assist Legal" <${MAIL}>`,
       to: airlineEmail,
       subject: `FINAL LEGAL NOTICE: ${clientName} | Flight ${newData.flight_number || 'N/A'} | Ref: CA/${claimId}`,
       html: `
@@ -933,7 +940,7 @@ exports.onTriggerSolicitorEmail = functions
             <tr>
               <td style="background:#7b0c0c;padding:20px 28px">
                 <span style="color:#fff;font-size:18px;font-weight:bold;font-family:Arial">CLAIMS ASSIST LIMITED</span><br/>
-                <span style="color:#f8c0c0;font-size:11px;font-family:Arial">Legal Department &nbsp;|&nbsp; info@claimshub.online</span>
+                <span style="color:#f8c0c0;font-size:11px;font-family:Arial">Legal Department &nbsp;|&nbsp; ${MAIL}</span>
               </td>
             </tr>
           </table>
@@ -1030,7 +1037,7 @@ exports.onTriggerSolicitorEmail = functions
             <p>
               Yours faithfully,<br/>
               <strong>Claims Assist Legal Team</strong><br/>
-              <a href="mailto:info@claimshub.online" style="color:#7b0c0c">info@claimshub.online</a>
+              <a href="mailto:${MAIL}" style="color:#7b0c0c">${MAIL}</a>
             </p>
           </div>
         </div>
@@ -1076,7 +1083,7 @@ exports.onTriggerSolicitorEmail = functions
 // ─── 6. On Claim Status Changed → Notify client by email ─────────────────────
 
 exports.onClaimStatusChanged = functions
-  .runWith({ secrets: ['HOSTINGER_EMAIL_PASS'] })
+  .runWith({ secrets: [MAIL_SECRET] })
   .firestore.document('claims/{claimId}')
   .onUpdate(async (change, context) => {
     const newData = change.after.data();
@@ -1179,7 +1186,7 @@ exports.onClaimStatusChanged = functions
           <hr style="border:none;border-top:1px solid #e0e0e0;margin:24px 0"/>
           <p style="font-size:12px;color:#999;text-align:center">
             Questions? Email us at
-            <a href="mailto:info@claimshub.online" style="color:#002855">info@claimshub.online</a>
+            <a href="mailto:${MAIL}" style="color:#002855">${MAIL}</a>
           </p>
         </div>
       </div>
@@ -1187,7 +1194,7 @@ exports.onClaimStatusChanged = functions
 
     try {
       await createTransporter().sendMail({
-        from: '"Claims Assist" <info@claimshub.online>',
+        from: `"Claims Assist" <${MAIL}>`,
         to: clientEmail,
         subject,
         html,
@@ -1354,7 +1361,7 @@ exports.sendDemand = functions.https.onRequest((req, res) => {
 // anyone holding a link may ask what it is for; the person invited, once
 // signed in with the invited address, accepts it, which approves the account.
 exports.staffInvite = functions
-  .runWith({ secrets: ['HOSTINGER_EMAIL_PASS'] })
+  .runWith({ secrets: [MAIL_SECRET] })
   .https.onRequest((req, res) => {
     cors(req, res, async () => {
       if (req.method !== 'POST') {
@@ -1405,7 +1412,7 @@ exports.staffInvite = functions
             const mail = invites.inviteEmail({ ...invite, invitedBy: staff.name }, escapeHtml);
             try {
               await createTransporter().sendMail({
-                from: '"Claims Hub" <info@claimshub.online>',
+                from: `"Claims Hub" <${MAIL}>`,
                 to: invite.email,
                 subject: mail.subject,
                 html: mail.html,
@@ -1731,7 +1738,7 @@ exports.onLeadWrite = functions.firestore
 // ─── 8. Send Manual Airline Email (called from Flutter app) ──────────────────
 
 exports.sendManualAirlineEmail = functions
-  .runWith({ secrets: ['HOSTINGER_EMAIL_PASS'] })
+  .runWith({ secrets: [MAIL_SECRET] })
   .https.onRequest((req, res) => {
     cors(req, res, async () => {
       if (req.method !== 'POST') {
@@ -1801,7 +1808,7 @@ exports.sendManualAirlineEmail = functions
       }
 
       const mailOptions = {
-        from: '"Claims Assist Legal" <info@claimshub.online>',
+        from: `"Claims Assist Legal" <${MAIL}>`,
         to: airlineEmail,
         subject: `FORMAL DEMAND: ${clientName} | PNR: ${pnr || 'N/A'} | Ref: CA/${claimId}`,
         html: `
@@ -1810,7 +1817,7 @@ exports.sendManualAirlineEmail = functions
               <tr>
                 <td style="background:#002855;padding:20px 28px">
                   <span style="color:#fff;font-size:18px;font-weight:bold;font-family:Arial">CLAIMS ASSIST LIMITED</span><br/>
-                  <span style="color:#aac4e0;font-size:11px;font-family:Arial">Legal Department &nbsp;|&nbsp; info@claimshub.online</span>
+                  <span style="color:#aac4e0;font-size:11px;font-family:Arial">Legal Department &nbsp;|&nbsp; ${MAIL}</span>
                 </td>
               </tr>
             </table>
@@ -1890,7 +1897,7 @@ exports.sendManualAirlineEmail = functions
               <p>
                 Yours faithfully,<br/>
                 <strong>Claims Assist Legal Team</strong><br/>
-                <a href="mailto:info@claimshub.online" style="color:#002855">info@claimshub.online</a>
+                <a href="mailto:${MAIL}" style="color:#002855">${MAIL}</a>
               </p>
             </div>
           </div>
