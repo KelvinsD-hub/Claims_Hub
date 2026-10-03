@@ -91,6 +91,18 @@ class _SupportsWidgetState extends State<SupportsWidget> {
       section: 'legal',
     ),
     _Faq(
+      question: 'How do new staff get an account?',
+      answer:
+          'By invitation only. An admin clicks Invite staff on the Staff page and sends the link by email or WhatsApp. The link works once, for 7 days. The new person opens it and continues with Google or chooses a password.',
+      section: 'start',
+    ),
+    _Faq(
+      question: 'I forgot my password.',
+      answer:
+          'On the sign-in page, click Forgot password? and enter your email. We send you a link to choose a new one. If you joined with Google, use Continue with Google instead.',
+      section: 'start',
+    ),
+    _Faq(
       question: 'Why can\'t I see a page, or a button?',
       answer:
           'Each role only sees the pages and actions its job needs. For example, only managers send demand letters. Ask an admin if you need access.',

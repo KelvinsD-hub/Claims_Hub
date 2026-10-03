@@ -12,6 +12,7 @@ const { requestDemandLetter, requestFinalNotice } = require('./demand');
 const casework = require('./casework');
 const documents = require('./documents');
 const { runAiAssist, reviewAiOutput } = require('./ai');
+const invites = require('./invites');
 const { applyCaseAction, nextActionFields } = require('./case-action');
 
 /** The fields that record a stage change (see stage-change.js). */
@@ -1348,6 +1349,93 @@ exports.sendDemand = functions.https.onRequest((req, res) => {
     }
   });
 });
+
+// Staff invitations (invites.js). Admins create, list and cancel invites;
+// anyone holding a link may ask what it is for; the person invited, once
+// signed in with the invited address, accepts it, which approves the account.
+exports.staffInvite = functions
+  .runWith({ secrets: ['HOSTINGER_EMAIL_PASS'] })
+  .https.onRequest((req, res) => {
+    cors(req, res, async () => {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      const payload = (req.body && req.body.data) ? req.body.data : (req.body || {});
+      const action = String(payload.action || '');
+      const token = String(payload.token || '').slice(0, 100);
+      try {
+        if (action === 'info') {
+          return res.status(200).json({ success: true, ...(await invites.inviteInfo(admin, { token })) });
+        }
+        if (action === 'accept') {
+          // The invitee is signed in but not approved yet, so this checks the
+          // token itself rather than asking staffFromRequest.
+          const header = req.headers.authorization || '';
+          const idToken = header.startsWith('Bearer ') ? header.substring(7) : null;
+          let decoded = null;
+          try { decoded = idToken ? await admin.auth().verifyIdToken(idToken) : null; } catch (_) { decoded = null; }
+          if (!decoded || !decoded.email) {
+            return res.status(401).json({ error: 'Sign in first, with the address the invite was sent to.' });
+          }
+          const result = await invites.acceptInvite(admin, { token, user: { uid: decoded.uid, email: decoded.email } });
+          return res.status(200).json({ success: true, ...result });
+        }
+
+        const staff = await staffFromRequest(req);
+        if (!staff) {
+          return res.status(401).json({ error: 'Sign in with an approved staff account.' });
+        }
+        if (action === 'list') {
+          return res.status(200).json({ success: true, invites: await invites.listInvites(admin, { staff }) });
+        }
+        if (action === 'revoke') {
+          const result = await invites.revokeInvite(admin, { staff, id: String(payload.id || '') });
+          return res.status(200).json({ success: true, ...result });
+        }
+        if (action === 'create') {
+          const invite = await invites.createInvite(admin, {
+            staff,
+            email: payload.email,
+            name: payload.name,
+            role: String(payload.role || ''),
+            phone: payload.phone,
+          });
+          let emailed = false;
+          if (payload.send_email === true) {
+            const mail = invites.inviteEmail({ ...invite, invitedBy: staff.name }, escapeHtml);
+            try {
+              await createTransporter().sendMail({
+                from: '"Claims Hub" <info@claimshub.online>',
+                to: invite.email,
+                subject: mail.subject,
+                html: mail.html,
+                text: mail.text,
+              });
+              emailed = true;
+            } catch (e) {
+              console.error('[staffInvite] email', e && e.message);
+            }
+          }
+          return res.status(200).json({
+            success: true,
+            link: invite.link,
+            email: invite.email,
+            name: invite.name,
+            role: invite.role,
+            expiresAt: invite.expiresAt,
+            emailed,
+          });
+        }
+        return res.status(400).json({ error: 'Unknown action.' });
+      } catch (e) {
+        if (e instanceof pipeline.StageError) {
+          return res.status(e.status).json({ error: e.message });
+        }
+        console.error('[staffInvite]', e && e.message);
+        return res.status(500).json({ error: 'Something went wrong with the invite. Please try again.' });
+      }
+    });
+  });
 
 // The AI assistant. Staff ask for one of four tasks on a lead or a claim
 // (ai-tasks.js); the answer is stored in ai_outputs and returned. It advises

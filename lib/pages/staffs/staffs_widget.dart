@@ -1,4 +1,5 @@
 import '/claims/component/staffs_roles/staffs_roles_widget.dart';
+import '/components/staff_invites.dart';
 import '/components/work_ui.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -24,6 +25,7 @@ class _StaffsWidgetState extends State<StaffsWidget> {
   late StaffsModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  final _invites = GlobalKey<PendingInvitesPanelState>();
 
   @override
   void initState() {
@@ -66,6 +68,18 @@ class _StaffsWidgetState extends State<StaffsWidget> {
                       title: 'Staff',
                       subtitle: 'Who can sign in, and what each person may do',
                       icon: Icons.groups_outlined,
+                      actions: [
+                        WorkButton(
+                          label: 'Invite staff',
+                          icon: Icons.person_add_alt_1_outlined,
+                          filled: true,
+                          onTap: () async {
+                            if (await showInviteStaff(context)) {
+                              _invites.currentState?.reload();
+                            }
+                          },
+                        ),
+                      ],
                       child: Container(
                         decoration: BoxDecoration(),
                         child: Padding(
@@ -78,6 +92,7 @@ class _StaffsWidgetState extends State<StaffsWidget> {
                               mainAxisAlignment: MainAxisAlignment.start,
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
+                                PendingInvitesPanel(key: _invites),
                                 wrapWithModel(
                                   model: _model.staffsRolesModel,
                                   updateCallback: () => safeSetState(() {}),

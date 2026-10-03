@@ -103,6 +103,12 @@ async function check(name, promise) {
   await check('an unapproved person can read their own document', assertSucceeds(getDoc(doc(pending, 'users/pending'))));
   await check('an unapproved person can fill in their own profile', assertSucceeds(updateDoc(doc(blank, 'users/blank'), { display_name: 'Named', city: 'Lagos' })));
 
+  console.log('\n— Invites go only through the server —');
+  for (const [who, db] of [['an unapproved person', pending], ['an admin', admin], ['a super admin', superAdmin]]) {
+    await check(`${who} cannot read invites`, assertFails(getDocs(collection(db, 'invites'))));
+    await check(`${who} cannot write an invite`, assertFails(setDoc(doc(db, 'invites/x'), { email: 'a@b.com', role: 'Admin' })));
+  }
+
   console.log('\n— Staff keep working —');
   for (const [who, db] of [['agent', agent], ['solicitor', lawyer], ['manager', manager], ['admin', admin], ['super admin', superAdmin]]) {
     await check(`${who} can list leads`, assertSucceeds(getDocs(collection(db, 'leads'))));

@@ -110,6 +110,12 @@ service cloud.firestore {
       allow delete: if isAdmin() && (resource.data.get('role', '') != 'Super Admin' || isSuperAdmin());
     }
 
+    // Staff invitations. Created, read, used and cancelled only through the
+    // staffInvite function (functions/invites.js); no client touches them.
+    match /invites/{inviteId} {
+      allow read, write: if false;
+    }
+
     // ── Stages and casework ────────────────────────────────────────────────
     // A lead's or claim's stage is changed by the changeStage Cloud Function,
     // which checks the move is allowed, records who made it and opens the
