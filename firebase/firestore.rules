@@ -120,6 +120,39 @@ service cloud.firestore {
     // answered only through the infoRequest and clientInfoRequest functions
     // (functions/info-requests.js); staff read them to see what was asked
     // and what came back.
+    // Short links for ads and posts (claimsassistltd.com/go/<code>). Managers
+    // make and switch them off on the Links page; the website's `go`
+    // function counts clicks, which nobody else may write. A link is never
+    // deleted, so the leads credited to it keep their name. Partner links
+    // are made by the server only.
+    match /campaign_links/{code} {
+      allow read: if isStaff();
+      allow create: if isManager()
+        && code.matches('^[a-z0-9][a-z0-9-]{1,31}$')
+        && request.resource.data.keys().hasOnly([
+             'label', 'channel', 'destination', 'active', 'clicks',
+             'created_at', 'created_by', 'created_by_name'])
+        && request.resource.data.label is string
+        && request.resource.data.label.size() > 0
+        && request.resource.data.label.size() <= 80
+        && request.resource.data.channel in [
+             'facebook', 'instagram', 'x', 'tiktok', 'whatsapp', 'linkedin',
+             'youtube', 'google', 'email', 'sms', 'other']
+        && request.resource.data.destination in ['/', '/check']
+        && request.resource.data.active == true
+        && request.resource.data.clicks == 0
+        && request.resource.data.created_by == request.auth.uid
+        && request.resource.data.created_at == request.time;
+      allow update: if isManager()
+        && resource.data.channel != 'partner'
+        && changedKeys().hasOnly(['label', 'active'])
+        && request.resource.data.label is string
+        && request.resource.data.label.size() > 0
+        && request.resource.data.label.size() <= 80
+        && request.resource.data.active is bool;
+      allow delete: if false;
+    }
+
     match /info_requests/{requestId} {
       allow read:  if isStaff();
       allow write: if false;
@@ -148,13 +181,16 @@ service cloud.firestore {
     function leavesLeadStageAlone() {
       return !changedKeys().hasAny([
         'status', 'is_qualified', 'claim_ref',
-        'stage_changed_at', 'stage_changed_by', 'stage_changed_by_name'
+        'stage_changed_at', 'stage_changed_by', 'stage_changed_by_name',
+        // Which link a lead is credited to is set by the website, once.
+        'source_link'
       ]) && !changedKeys().hasAny(caseworkFields());
     }
     function leavesClaimStageAlone() {
       return !changedKeys().hasAny([
         'claim_status', 'is_escalated', 'lead_ref', 'secure_token',
-        'stage_changed_at', 'stage_changed_by', 'stage_changed_by_name'
+        'stage_changed_at', 'stage_changed_by', 'stage_changed_by_name',
+        'source_link'
       ]) && !changedKeys().hasAny(caseworkFields()) && !changedKeys().hasAny([
         'lawyer_uid', 'lawyer_name', 'lawyer_assigned_at',
         'lawyer_assigned_by', 'lawyer_assigned_by_name',

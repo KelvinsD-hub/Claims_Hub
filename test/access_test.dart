@@ -23,9 +23,14 @@ void main() {
     expect(pages('Solicitor'), {...everyone, WorkPage.legal});
   });
 
-  test('a manager also sends demand letters', () {
-    expect(pages('Manager'),
-        {...everyone, WorkPage.leads, WorkPage.demands, WorkPage.legal});
+  test('a manager also sends demand letters and makes ad links', () {
+    expect(pages('Manager'), {
+      ...everyone,
+      WorkPage.leads,
+      WorkPage.links,
+      WorkPage.demands,
+      WorkPage.legal,
+    });
   });
 
   test('admins see everything', () {

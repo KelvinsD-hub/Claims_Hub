@@ -11,6 +11,7 @@ import 'casework.dart';
 enum WorkPage {
   dashboard,
   leads,
+  links,
   claims,
   demands,
   legal,
@@ -30,6 +31,8 @@ bool canSeePage(WorkPage page, String role) => switch (page) {
       WorkPage.leads => role == 'Agent' || isManagerRole(role),
       // Sending a letter to an airline is a manager's decision.
       WorkPage.demands => isManagerRole(role),
+      // Making ad links and reading what they bring in.
+      WorkPage.links => isManagerRole(role),
       WorkPage.legal => isLegalRole(role),
       WorkPage.monitor || WorkPage.staff => _admins.contains(role),
       WorkPage.dashboard ||

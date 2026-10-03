@@ -15,7 +15,7 @@ const {
   assertFails,
 } = require('@firebase/rules-unit-testing');
 const {
-  doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, collection,
+  doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, collection, serverTimestamp,
 } = require('firebase/firestore');
 
 const TOKEN = 'a-long-secure-token-value';
@@ -61,6 +61,8 @@ async function check(name, promise) {
     await setDoc(doc(db, 'stats/dashboard'), { weekly_lead_counts: [0, 0, 0, 0, 0, 0, 0] });
     await setDoc(doc(db, 'ai_outputs/out1'), { task: 'case_brief', review_status: 'pending' });
     await setDoc(doc(db, 'info_requests/req1'), { kind: 'lead', status: 'open', items: ['flight_number'] });
+    await setDoc(doc(db, 'campaign_links/fb'), { label: 'Facebook', channel: 'facebook', destination: '/', active: true, clicks: 3 });
+    await setDoc(doc(db, 'campaign_links/p-ada'), { label: 'Ada', channel: 'partner', destination: '/', active: true, clicks: 0 });
     await setDoc(doc(db, 'watchlist/w1'), { email: 'x@example.com' });
     await setDoc(doc(db, 'flight_stats/P47101_2026-09-20'), { claim_count: 3 });
     await setDoc(doc(db, 'blog_posts/post1'), { title: 'Hello' });
@@ -157,6 +159,27 @@ async function check(name, promise) {
   await check('staff cannot write an information request', assertFails(setDoc(doc(agent, 'info_requests/forged'), { kind: 'lead', status: 'open' })));
   await check('staff cannot mark a request answered', assertFails(updateDoc(doc(superAdmin, 'info_requests/req1'), { status: 'answered' })));
   await check('the public cannot read an information request', assertFails(getDoc(doc(anon, 'info_requests/req1'))));
+
+  // Short links
+  const link = (uid, extra = {}) => ({
+    label: 'Instagram October', channel: 'instagram', destination: '/check', active: true, clicks: 0,
+    created_at: serverTimestamp(), created_by: uid, created_by_name: 'Someone', ...extra,
+  });
+  await check('staff can read a link', assertSucceeds(getDoc(doc(agent, 'campaign_links/fb'))));
+  await check('the public cannot read a link', assertFails(getDoc(doc(anon, 'campaign_links/fb'))));
+  await check('a manager can make a link', assertSucceeds(setDoc(doc(manager, 'campaign_links/ig-oct'), link('manager'))));
+  await check('an agent cannot make a link', assertFails(setDoc(doc(agent, 'campaign_links/ig-agent'), link('agent'))));
+  await check('a link cannot start with clicks', assertFails(setDoc(doc(manager, 'campaign_links/ig-fake'), link('manager', { clicks: 500 }))));
+  await check('a manager cannot make a partner link', assertFails(setDoc(doc(manager, 'campaign_links/p-bad'), link('manager', { channel: 'partner' }))));
+  await check('a link cannot send people off the site', assertFails(setDoc(doc(manager, 'campaign_links/ig-off'), link('manager', { destination: 'https://evil.example' }))));
+  await check('a bad code is refused', assertFails(setDoc(doc(manager, 'campaign_links/Bad Code'), link('manager'))));
+  await check('a link cannot be made for another account', assertFails(setDoc(doc(manager, 'campaign_links/ig-other'), link('super'))));
+  await check('a manager can rename or switch off a link', assertSucceeds(updateDoc(doc(manager, 'campaign_links/fb'), { label: 'Facebook ads', active: false })));
+  await check('nobody can change a click count', assertFails(updateDoc(doc(superAdmin, 'campaign_links/fb'), { clicks: 999 })));
+  await check('a partner link cannot be edited here', assertFails(updateDoc(doc(superAdmin, 'campaign_links/p-ada'), { active: false })));
+  await check('a link cannot be deleted', assertFails(deleteDoc(doc(superAdmin, 'campaign_links/fb'))));
+  await check('staff cannot change which link a lead came from', assertFails(updateDoc(doc(superAdmin, 'leads/lead1'), { source_link: 'fb' })));
+  await check('staff cannot change which link a claim came from', assertFails(updateDoc(doc(superAdmin, 'claims/claim1'), { source_link: 'fb' })));
 
   await check('agent can edit their own profile', assertSucceeds(updateDoc(doc(agent, 'users/agent'), { city: 'Abuja' })));
   await check('agent can write an activity log entry', assertSucceeds(addDoc(collection(agent, 'activity_logs'), { action: 'Lead qualified' })));

@@ -28,6 +28,8 @@ function claimFieldsFromLead(lead) {
   put('destination', text(lead.route_to));
   put('pnr_number', text(lead.booking_reference).toUpperCase());
   put('claims_reason', text(lead.complaint_type));
+  // The ad or partner link that brought the client, for the Links page.
+  put('source_link', text(lead.source_link));
   if (typeof lead.delay_hours === 'number' && lead.delay_hours > 0) {
     out.duration_of_delay = `${lead.delay_hours} hours`;
   }
