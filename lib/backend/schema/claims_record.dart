@@ -215,6 +215,12 @@ class ClaimsRecord extends FirestoreRecord {
   DateTime? _workMayStartAt;
   DateTime? get workMayStartAt => _workMayStartAt;
 
+  // "date_of_birth" / "address" fields, as signed on the website.
+  String? _dateOfBirth;
+  String get dateOfBirth => _dateOfBirth ?? '';
+  String? _address;
+  String get address => _address ?? '';
+
   /// True while the claimant can still cancel at no cost and has not asked us
   /// to begin — nothing may be sent to the airline until this is false.
   bool get inCancellationPeriod =>
@@ -279,6 +285,8 @@ class ClaimsRecord extends FirestoreRecord {
     _passengerCount = read<num>('passenger_count')?.toInt();
     _startImmediately = read<bool>('start_immediately');
     _workMayStartAt = read<DateTime>('work_may_start_at');
+    _dateOfBirth = read<String>('date_of_birth');
+    _address = read<String>('address');
   }
 
   static CollectionReference get collection =>

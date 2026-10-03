@@ -33,7 +33,7 @@ const boss = { uid: 'boss1', name: 'Bola Boss', role: 'Super Admin' };
 
 (async () => {
   // ── A lead, start to finish ────────────────────────────────────────────────
-  await db.doc('leads/L1').set({ full_name: 'Tunde Client', email: 't@example.com', airline_name: 'Air Peace', status: 'New lead', is_qualified: false });
+  await db.doc('leads/L1').set({ full_name: 'Tunde Client', email: 't@example.com', airline_name: 'Air Peace', status: 'New lead', is_qualified: false, flight_number: 'P4 7120', flight_date: '2026-09-30', route_from: 'LOS', route_to: 'ABV', booking_reference: 'ABC123' });
 
   let r = await applyStageChange(admin, { kind: 'lead', id: 'L1', to: LEAD.CONTACTED, note: 'Called, will send booking ref', staff: agent });
   let lead = (await db.doc('leads/L1').get()).data();
@@ -52,6 +52,7 @@ const boss = { uid: 'boss1', name: 'Bola Boss', role: 'Super Admin' };
   check('the claim points back at the lead', claim.lead_ref.path === 'leads/L1');
   check('the claim has a client link token', typeof claim.secure_token === 'string' && claim.secure_token.length === 64);
   check('the claim carries the client email and name', claim.client_email === 't@example.com' && claim.full_name === 'Tunde Client');
+  check('the claim carries flight, date, route and booking ref', claim.flight_number === 'P47120' && claim.flight_date === '2026-09-30' && claim.departure === 'LOS' && claim.destination === 'ABV' && claim.pnr_number === 'ABC123');
   check('the claim records who opened it', claim.stage_changed_by === 'agent1');
 
   const again = await refused(applyStageChange(admin, { kind: 'lead', id: 'L1', to: LEAD.QUALIFIED, note: '', staff: agent }));

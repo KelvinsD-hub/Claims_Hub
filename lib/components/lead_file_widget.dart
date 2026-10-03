@@ -6,6 +6,7 @@ import '/components/case_file_widget.dart';
 import '/components/casework_panel_widget.dart';
 import '/components/record_timeline.dart';
 import '/components/work_ui.dart';
+import '/custom_code/widgets/index.dart' as custom_widgets;
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/leads/leads_options/leads_options_widget.dart';
@@ -265,6 +266,9 @@ class _LeadFileWidgetState extends State<LeadFileWidget> {
                               children: [
                                 FileFact('Problem', what),
                                 FileFact('Airline', lead.airlineName),
+                                FileFact('Flight', lead.flightNumber),
+                                FileFact(
+                                    'Flight date', _dateText(lead.flightDate)),
                                 FileFact(
                                     'Delay',
                                     lead.delayHours == null
@@ -299,6 +303,7 @@ class _LeadFileWidgetState extends State<LeadFileWidget> {
                                       'Bank details', 'Still to be collected'),
                               ],
                             ),
+                            if (lead.loaSigned) _SignedAuthority(lead: lead),
                             if (lead.initialSummary.trim().isNotEmpty ||
                                 lead.disruptionDetails.trim().isNotEmpty) ...[
                               const FileSection('In their words'),
@@ -401,6 +406,82 @@ class _LeadFileWidgetState extends State<LeadFileWidget> {
           ),
         );
       },
+    );
+  }
+}
+
+/// "2026-09-30" as "30 Sep 2026"; anything else as it came.
+String _dateText(String ymd) {
+  final d = DateTime.tryParse(ymd);
+  return d == null ? ymd : dateTimeFormat('d MMM y', d);
+}
+
+/// What the claimant gave when they signed the letter of authority on the
+/// website: who signed, their details, everyone on the booking, and the
+/// signature itself.
+class _SignedAuthority extends StatelessWidget {
+  const _SignedAuthority({required this.lead});
+
+  final LeadsRecord lead;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const FileSection('Signed authority'),
+        Wrap(
+          spacing: 28.0,
+          runSpacing: 12.0,
+          children: [
+            FileFact('Signed as', lead.signedName),
+            FileFact(
+                'Signed on',
+                lead.signedAt == null
+                    ? ''
+                    : dateTimeFormat('d MMM y, HH:mm', lead.signedAt)),
+            FileFact('Date of birth', _dateText(lead.dateOfBirth)),
+            FileFact('Address', lead.address),
+          ],
+        ),
+        if (lead.passengers.isNotEmpty) ...[
+          const SizedBox(height: 12.0),
+          Text(
+            'Also on the booking',
+            style: GoogleFonts.inter(
+                fontSize: 12.0, color: theme.secondaryText),
+          ),
+          const SizedBox(height: 4.0),
+          for (final p in lead.passengers)
+            Text(
+              [
+                '${p['first_name'] ?? ''} ${p['last_name'] ?? ''}'.trim(),
+                if ((p['date_of_birth'] ?? '').toString().isNotEmpty)
+                  'born ${_dateText(p['date_of_birth'].toString())}',
+                if (p['is_minor'] == true) 'under 18',
+              ].join('  ·  '),
+              style:
+                  GoogleFonts.inter(fontSize: 13.0, color: theme.primaryText),
+            ),
+        ],
+        if (lead.signature.isNotEmpty) ...[
+          const SizedBox(height: 12.0),
+          Container(
+            padding: const EdgeInsets.all(8.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8.0),
+              border: Border.all(color: theme.alternate),
+            ),
+            child: custom_widgets.SignatureDisplayWidget(
+              width: 200.0,
+              height: 90.0,
+              base64String: lead.signature,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

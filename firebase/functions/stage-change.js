@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const pipeline = require('./pipeline');
 const casework = require('./casework');
 const { nextActionFields, assignmentFields } = require('./case-action');
+const { claimFieldsFromLead } = require('./lead-to-claim');
 const { LEAD, CLAIM } = pipeline;
 
 const SYSTEM_ACTOR = { uid: 'system', name: 'System' };
@@ -73,9 +74,9 @@ async function applyStageChange(admin, { kind, id, to, note, staff, amount }) {
           lead_ref: ref,
           secure_token: newSecureToken(),
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          client_email: data.email || '',
-          ...(data.full_name ? { full_name: data.full_name } : {}),
-          ...(data.airline_name ? { airline_name: data.airline_name } : {}),
+          // Who, which flight, which route: everything the demand letter
+          // needs that the client already gave on the website.
+          ...claimFieldsFromLead(data),
           ...stageStamp(admin, CLAIM.DETAILS_PENDING, staff, 'Opened from a qualified lead'),
           // The claim stays with whoever was handling the lead.
           ...assignmentFields(admin, 'handler',

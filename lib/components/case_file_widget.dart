@@ -874,6 +874,8 @@ class _ClientFacts extends StatelessWidget {
                     ? claim.clientEmail
                     : (lead?.email ?? '')),
             _Fact('Phone', lead?.phone ?? ''),
+            _Fact('Date of birth', claim.dateOfBirth),
+            _Fact('Address', claim.address),
             _Fact('Country', lead?.country ?? ''),
             _Fact('Came in through', lead?.utmSource ?? ''),
             _Fact('NIN', claim.nin),

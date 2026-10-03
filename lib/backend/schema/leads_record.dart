@@ -153,6 +153,34 @@ class LeadsRecord extends FirestoreRecord {
   DateTime? _workMayStartAt;
   DateTime? get workMayStartAt => _workMayStartAt;
 
+  // "flight_number" / "flight_date" fields (date as YYYY-MM-DD). Website
+  // leads from before October 2026 have them only in initial_summary.
+  String? _flightNumber;
+  String get flightNumber => _flightNumber ?? '';
+  String? _flightDate;
+  String get flightDate => _flightDate ?? '';
+
+  // What the claimant gave when signing the letter of authority.
+  String? _signedName;
+  String get signedName => _signedName ?? '';
+  String? _dateOfBirth;
+  String get dateOfBirth => _dateOfBirth ?? '';
+  // "address" field: one line, built by the website from address_line1,
+  // address_line2, city and postcode.
+  String? _address;
+  String get address => _address ?? '';
+  // "signature" field: base64 PNG, no data-URL prefix.
+  String? _signature;
+  String get signature => _signature ?? '';
+  DateTime? _signedAt;
+  DateTime? get signedAt => _signedAt;
+
+  // "passengers" field: others on the booking, claimed under this
+  // claimant's authority. Each has first_name, last_name, date_of_birth and
+  // is_minor.
+  List<Map<String, dynamic>> _passengers = const [];
+  List<Map<String, dynamic>> get passengers => _passengers;
+
   /// True where the website routed this lead to us to act on. Leads created
   /// inside the CRM carry no handler and are in house by definition.
   bool get isInHouse => handler.isEmpty || handler == 'claims_assist';
@@ -194,6 +222,17 @@ class LeadsRecord extends FirestoreRecord {
     _disruptionDetails = read<String>('disruption_details');
     _bankDetailsPending = read<bool>('bank_details_pending');
     _workMayStartAt = read<DateTime>('work_may_start_at');
+    _flightNumber = read<String>('flight_number');
+    _flightDate = read<String>('flight_date');
+    _signedName = read<String>('signed_name');
+    _dateOfBirth = read<String>('date_of_birth');
+    _address = read<String>('address');
+    _signature = read<String>('signature');
+    _signedAt = read<DateTime>('signed_at');
+    _passengers = (read<List>('passengers') ?? const [])
+        .whereType<Map>()
+        .map((p) => Map<String, dynamic>.from(p))
+        .toList();
   }
 
   static CollectionReference get collection =>
