@@ -40,41 +40,67 @@ class _SupportsWidgetState extends State<SupportsWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  // Each answer points to the part of the staff manual that covers it.
   static const List<_Faq> _faqs = [
     _Faq(
-      question: 'How do I create a new lead?',
+      question: 'Where do new leads come from?',
       answer:
-          'Open In-Box / Leads from the sidebar and tap "Add Lead". Fill in the client\'s name, contact details and a short summary, then tap Create Lead. New leads land in the "New lead" stage.',
+          'From the website. When a client submits their flight, a lead appears at the top of Leads as "New lead", with no owner. Click Take to make it yours, then contact the client within a day.',
+      section: 'intake',
     ),
     _Faq(
       question: 'How does a lead become a claim?',
       answer:
-          'Qualify the lead, then send the engagement form (Terms of Engagement + Letter of Authority). Once the client signs and submits their flight details, a claim record is created automatically.',
+          'Contact the client, move the lead to Contacted, then to Qualified. Qualifying opens the claim for you, and the client is emailed a link to send their evidence. To turn a lead down, move it to Rejected and give a reason.',
+      section: 'lead',
+    ),
+    _Faq(
+      question: 'The client has not sent their evidence. What do I do?',
+      answer:
+          'Chase them by phone or email and record it with Add note. The claim moves on by itself once they send their evidence and sign the terms. If they no longer want to go ahead, move the claim to Withdrawn with a reason.',
+      section: 'client',
     ),
     _Faq(
       question: 'Where do I find a client\'s documents?',
       answer:
-          'Open the Evidence Locker from the sidebar. Every claim\'s signature, Letter of Authority, Terms & Conditions and uploaded attachments are listed there. Sensitive identity details (NIN/Passport) are masked and can be revealed when needed.',
+          'In the Documents part of the claim file, or in the Evidence Locker in the sidebar.',
+      section: 'review',
     ),
     _Faq(
-      question: 'How do I send a legal letter to an airline?',
+      question: 'How is the demand letter sent to the airline?',
       answer:
-          'In the Solicitors Workspace, open an escalated claim and tap "Send Legal Letter". Make sure the airline email is set first (via the Email Airlines page). A 7-day deadline is applied before court proceedings.',
+          'A manager sends it from the Demand letters page, or with Send demand letter in the claim file. The claim must have the client\'s name, airline, flight number, date, route and signature. The claim then moves to Awaiting Reply by itself.',
+      section: 'demand',
     ),
     _Faq(
-      question: 'How do I mark a claim as Won or Lost?',
+      question: 'Why does a claim say "Held until"?',
       answer:
-          'From the Solicitors Workspace, use the Won / Lost actions on a claim card. The client is notified and the outcome is recorded in the activity log shown under Notifications.',
+          'The client did not ask us to start straight away, so nothing may go to the airline until their 14-day cancellation period ends. The letter can be sent after that date.',
+      section: 'demand',
     ),
     _Faq(
-      question: 'What shows up in Notifications?',
+      question: 'The airline has replied. What now?',
       answer:
-          'Notifications is a live activity feed: leads created, claims submitted, legal letters sent and claim outcomes. Use the filter chips to narrow by Lead or Claim.',
+          'Use Record airline reply, and Record offer if they offered money. If they pay, move the claim to Won. If they refuse or do not reply in 14 days, move it to With Solicitor.',
+      section: 'reply',
     ),
     _Faq(
-      question: 'How do I add or manage staff?',
+      question: 'What does the legal team do?',
       answer:
-          'Open Staffs from the sidebar to view team members and their roles. New sign-ups may need approval before they can access the dashboard.',
+          'Claims at With Solicitor are in the Legal Workspace. A lawyer reviews the file, sends the final notice (7 days to pay), and if needed files an NCAA complaint. Court is decided claim by claim.',
+      section: 'legal',
+    ),
+    _Faq(
+      question: 'Why can\'t I see a page, or a button?',
+      answer:
+          'Each role only sees the pages and actions its job needs. For example, only managers send demand letters. Ask an admin if you need access.',
+      section: 'roles',
+    ),
+    _Faq(
+      question: 'A client does not want AI used on their claim.',
+      answer:
+          'Open the AI assistant tab in their lead or claim and click "The client does not want AI used". Only a manager can turn it back on.',
+      section: 'ai',
     ),
   ];
 
@@ -94,6 +120,11 @@ class _SupportsWidgetState extends State<SupportsWidget> {
   }
 
   Future<void> _open(String url) => launchURL(url);
+
+  /// The staff manual, served beside the app; [section] jumps to one part.
+  Future<void> _openManual([String section = '']) => launchURL(Uri.base
+      .resolve('/manual/${section.isEmpty ? '' : '#$section'}')
+      .toString());
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +168,10 @@ class _SupportsWidgetState extends State<SupportsWidget> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // -- Staff manual -----------------------------
+                            _ManualCard(onOpen: () => _openManual()),
+                            const SizedBox(height: 16),
+
                             // -- Contact card -----------------------------
                             Container(
                               width: double.infinity,
@@ -285,6 +320,8 @@ class _SupportsWidgetState extends State<SupportsWidget> {
                                         _FaqTile(
                                           faq: faqs[i],
                                           isLast: i == faqs.length - 1,
+                                          onRead: () =>
+                                              _openManual(faqs[i].section),
                                         ),
                                     ],
                                   ),
@@ -317,15 +354,21 @@ class _SupportsWidgetState extends State<SupportsWidget> {
 // -- FAQ model ----------------------------------------------------------------
 
 class _Faq {
-  const _Faq({required this.question, required this.answer});
+  const _Faq(
+      {required this.question, required this.answer, required this.section});
   final String question;
   final String answer;
+
+  /// The part of the staff manual that covers this.
+  final String section;
 }
 
 class _FaqTile extends StatelessWidget {
-  const _FaqTile({required this.faq, required this.isLast});
+  const _FaqTile(
+      {required this.faq, required this.isLast, required this.onRead});
   final _Faq faq;
   final bool isLast;
+  final VoidCallback onRead;
 
   @override
   Widget build(BuildContext context) {
@@ -354,8 +397,95 @@ class _FaqTile extends StatelessWidget {
             child: Text(
               faq.answer,
               style: GoogleFonts.inter(
-                  fontSize: 13, height: 1.5, color: Colors.grey.shade700),
+                  fontSize: 13,
+                  height: 1.5,
+                  color: FlutterFlowTheme.of(context).secondaryText),
             ),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: onRead,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 0),
+                foregroundColor: brandBlue(context),
+              ),
+              icon: const Icon(Icons.menu_book_outlined, size: 16),
+              label: Text('Read this in the manual',
+                  style: GoogleFonts.inter(
+                      fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -- Staff manual card --------------------------------------------------------
+
+class _ManualCard extends StatelessWidget {
+  const _ManualCard({required this.onOpen});
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: theme.secondaryBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.alternate),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: brandBlue(context).withAlpha(28),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.menu_book_outlined,
+                color: brandBlue(context), size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Staff manual',
+                    style: GoogleFonts.interTight(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: theme.primaryText)),
+                const SizedBox(height: 4),
+                Text(
+                  'How a claim moves through Claims Hub, from the website '
+                  'enquiry to paying the client: what to do at each stage, '
+                  'the deadlines, and who may do it. New to the team? Start here.',
+                  style: GoogleFonts.inter(
+                      fontSize: 13, height: 1.45, color: theme.secondaryText),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 18),
+          FilledButton.icon(
+            onPressed: onOpen,
+            style: FilledButton.styleFrom(
+              backgroundColor: brandBlue(context),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: Text('Open the manual',
+                style: GoogleFonts.inter(
+                    fontSize: 13, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

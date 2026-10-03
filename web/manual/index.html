@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Claims Hub Staff Manual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a sticky contents rail beside one reading column; the pipeline strip opens the page and every stage section repeats the same "who / when / do / next" grid. */
+:root {
+  --bg: #f6f8fb;
+  --paper: #ffffff;
+  --ink: #131c33;
+  --ink-2: #4a5570;
+  --rule: #dfe4ee;
+  --accent: #9a7322;
+  --accent-soft: #f6eedc;
+  --navy: #10182f;
+
+  --ph-lead: #2f6fb8;   --ph-lead-bg: #e5eef9;
+  --ph-client: #a36a00; --ph-client-bg: #fbefd7;
+  --ph-review: #1f7f74; --ph-review-bg: #dcf1ee;
+  --ph-airline: #4b4fb0; --ph-airline-bg: #e6e7f8;
+  --ph-legal: #8a3d8f;  --ph-legal-bg: #f4e4f4;
+  --ph-closed: #4f5a6e; --ph-closed-bg: #e8ebf0;
+  --warn: #b3261e;      --warn-bg: #fbe9e7;
+
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1424; --paper: #151d31; --ink: #e8ecf5; --ink-2: #a7b0c4; --rule: #29334b;
+    --accent: #d9b15e; --accent-soft: #2c2716; --navy: #0a0f1d;
+    --ph-lead: #8ab8ee; --ph-lead-bg: #1b2c46;
+    --ph-client: #e9b55a; --ph-client-bg: #352a14;
+    --ph-review: #6fd0c3; --ph-review-bg: #13332f;
+    --ph-airline: #a9acf2; --ph-airline-bg: #23254a;
+    --ph-legal: #df9fe3; --ph-legal-bg: #3a2140;
+    --ph-closed: #b3bccd; --ph-closed-bg: #262e40;
+    --warn: #f2a39c; --warn-bg: #3d1d1b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1424; --paper: #151d31; --ink: #e8ecf5; --ink-2: #a7b0c4; --rule: #29334b;
+  --accent: #d9b15e; --accent-soft: #2c2716; --navy: #0a0f1d;
+  --ph-lead: #8ab8ee; --ph-lead-bg: #1b2c46;
+  --ph-client: #e9b55a; --ph-client-bg: #352a14;
+  --ph-review: #6fd0c3; --ph-review-bg: #13332f;
+  --ph-airline: #a9acf2; --ph-airline-bg: #23254a;
+  --ph-legal: #df9fe3; --ph-legal-bg: #3a2140;
+  --ph-closed: #b3bccd; --ph-closed-bg: #262e40;
+  --warn: #f2a39c; --warn-bg: #3d1d1b;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 17px/1.6 var(--f-body);
+  padding-inline: 16px; padding-block: 0 64px;
+}
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; }
+@media (max-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; } nav.toc { display: none; } }
+
+/* Contents rail */
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; padding-top: 40px; max-height: 100vh; overflow-y: auto; }
+nav.toc p { font: 600 12px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 12px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: toc; }
+nav.toc li a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--ink-2); text-decoration: none; font-size: 14.5px; line-height: 1.35; }
+nav.toc li a:hover { background: var(--paper); color: var(--ink); }
+nav.toc .grp { margin-top: 10px; font-size: 12px; color: var(--ink-2); padding-left: 10px; letter-spacing: .05em; text-transform: uppercase; }
+
+main { min-width: 0; padding-top: 40px; }
+header.top { padding-bottom: 28px; border-bottom: 1px solid var(--rule); margin-bottom: 8px; }
+.eyebrow { font: 600 12.5px/1 var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+h1 { font: 700 clamp(34px, 5vw, 50px)/1.05 var(--f-display); margin: 0 0 16px; text-wrap: balance; letter-spacing: -.01em; }
+.lede { font-size: 19px; color: var(--ink-2); max-width: 62ch; margin: 0; }
+
+h2 { font: 700 28px/1.15 var(--f-display); margin: 0 0 12px; text-wrap: balance; }
+h3 { font: 600 19px/1.3 var(--f-body); margin: 26px 0 8px; }
+section { padding-block: 40px 8px; scroll-margin-top: 16px; }
+section > p, section > ul, section > ol { max-width: 66ch; }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 14px; padding-left: 22px; }
+li { margin-bottom: 6px; }
+.part { font: 600 12.5px/1 var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin: 52px 0 0; padding-top: 18px; border-top: 1px solid var(--rule); }
+
+/* Stage names and buttons as they appear on screen */
+.st { font: 500 13px/1 var(--f-mono); padding: 4px 8px; border-radius: 99px; white-space: nowrap; display: inline-block; }
+.st.lead { color: var(--ph-lead); background: var(--ph-lead-bg); }
+.st.client { color: var(--ph-client); background: var(--ph-client-bg); }
+.st.review { color: var(--ph-review); background: var(--ph-review-bg); }
+.st.airline { color: var(--ph-airline); background: var(--ph-airline-bg); }
+.st.legal { color: var(--ph-legal); background: var(--ph-legal-bg); }
+.st.closed { color: var(--ph-closed); background: var(--ph-closed-bg); }
+.btn { font-weight: 600; border: 1px solid var(--rule); background: var(--paper); border-radius: 6px; padding: 1px 7px; white-space: nowrap; font-size: .94em; }
+
+/* The pipeline strip */
+.pipeline { margin-top: 28px; background: var(--paper); border: 1px solid var(--rule); border-radius: 12px; padding: 20px; overflow-x: auto; }
+.pipeline h2 { font-size: 15px; font-family: var(--f-body); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 16px; }
+.phases { display: grid; grid-template-columns: repeat(6, minmax(130px, 1fr)); gap: 10px; min-width: 820px; }
+.phase { display: grid; gap: 6px; align-content: start; }
+.phase b { font: 600 12px/1.2 var(--f-body); letter-spacing: .06em; text-transform: uppercase; padding-bottom: 6px; border-bottom: 3px solid currentColor; margin-bottom: 4px; }
+.phase.lead b { color: var(--ph-lead); } .phase.client b { color: var(--ph-client); } .phase.review b { color: var(--ph-review); }
+.phase.airline b { color: var(--ph-airline); } .phase.legal b { color: var(--ph-legal); } .phase.closed b { color: var(--ph-closed); }
+.phase small { color: var(--ink-2); font-size: 13px; line-height: 1.4; }
+
+/* Each stage's fact grid */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; margin: 18px 0 18px; max-width: 760px; }
+.facts div { background: var(--paper); padding: 12px 14px; min-width: 0; }
+.facts dt { font: 600 11.5px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 6px; }
+.facts dd { margin: 0; font-size: 15.5px; line-height: 1.45; }
+
+.steps { counter-reset: s; list-style: none; padding: 0; max-width: 66ch; }
+.steps li { counter-increment: s; position: relative; padding-left: 38px; margin-bottom: 12px; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font: 700 13px/26px var(--f-body); text-align: center; }
+
+.note { max-width: 66ch; border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; font-size: 16px; }
+.note.warn { border-color: var(--warn); background: var(--warn-bg); }
+.note strong:first-child { display: block; margin-bottom: 2px; }
+
+.tablebox { overflow-x: auto; margin: 16px 0 20px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); max-width: 860px; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 600; font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td.y { color: var(--ph-review); font-weight: 700; text-align: center; }
+td.n { color: var(--ink-2); text-align: center; }
+th.c { text-align: center; }
+
+footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule); color: var(--ink-2); font-size: 14px; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+  <p>Contents</p>
+  <ol>
+    <li><a href="#start">Getting started</a></li>
+    <li><a href="#roles">Who sees what</a></li>
+    <li><a href="#daily">Your day in Claims Hub</a></li>
+    <li class="grp">The pipeline</li>
+    <li><a href="#intake">1. A lead arrives</a></li>
+    <li><a href="#lead">2. Work the lead</a></li>
+    <li><a href="#client">3. The client's part</a></li>
+    <li><a href="#review">4. Review the claim</a></li>
+    <li><a href="#demand">5. Send the demand letter</a></li>
+    <li><a href="#reply">6. The airline replies</a></li>
+    <li><a href="#legal">7. The legal team</a></li>
+    <li><a href="#close">8. Close and pay</a></li>
+    <li class="grp">Reference</li>
+    <li><a href="#emails">Emails clients get</a></li>
+    <li><a href="#ai">The AI assistant</a></li>
+    <li><a href="#rules">Rules to remember</a></li>
+    <li><a href="#admin">For admins</a></li>
+    <li><a href="#cheat">Stage cheat sheet</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="top">
+  <p class="eyebrow">Claims Assist · Staff manual</p>
+  <h1>Claims Hub, from first enquiry to payout</h1>
+  <p class="lede">How a flight-compensation claim moves through Claims Hub: what the client does, what you do at each stage, how long you have, and who is allowed to do it.</p>
+
+  <div class="pipeline" role="region" aria-label="The pipeline at a glance">
+    <h2>The pipeline at a glance</h2>
+    <div class="phases">
+      <div class="phase lead"><b>Lead</b><span class="st lead">New lead</span><span class="st lead">Contacted</span><span class="st lead">Qualified</span><small>Rejected leads stop here.</small></div>
+      <div class="phase client"><b>Client</b><span class="st client">Details Pending</span><span class="st client">Terms Pending</span><small>The client sends evidence and signs.</small></div>
+      <div class="phase review"><b>Review</b><span class="st review">Ready For Review</span><span class="st review">Under Review</span><small>We check the claim.</small></div>
+      <div class="phase airline"><b>Airline</b><span class="st airline">Demand Pending</span><span class="st airline">Awaiting Reply</span><small>Demand letter goes; 14 days to reply.</small></div>
+      <div class="phase legal"><b>Legal</b><span class="st legal">With Solicitor</span><small>Final notice, NCAA, court only case by case.</small></div>
+      <div class="phase closed"><b>Closed</b><span class="st closed">Won</span><span class="st closed">Paid</span><span class="st closed">Lost</span><span class="st closed">Withdrawn</span></div>
+    </div>
+  </div>
+</header>
+
+<section id="start">
+  <h2>Getting started</h2>
+  <ol class="steps">
+    <li>Open Claims Hub and create your account with your work email.</li>
+    <li>Wait for approval. Until an admin approves you and gives you a role, you can sign in but you cannot see any records.</li>
+    <li>Once approved, sign in. Your role decides which pages appear in the sidebar on the left.</li>
+  </ol>
+  <p>To change your name, password or the light/dark theme, go to <strong>Settings</strong>. If you are stuck, use <strong>Support</strong>.</p>
+</section>
+
+<section id="roles">
+  <h2>Who sees what</h2>
+  <p>Each person only sees the pages their job needs. This keeps anyone from sending an airline letter or working a legal file by mistake. If you open a page you are not allowed to use, it says <em>"This page is not available for your role."</em> Ask an admin if you need access.</p>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>Page</th><th class="c">Agent</th><th class="c">Solicitor</th><th class="c">Manager</th><th class="c">Admin</th></tr></thead>
+      <tbody>
+        <tr><td>Dashboard, Claims, Evidence Locker, Notifications, Support, Settings</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Leads</td><td class="y">✓</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Demand letters (sending to airlines)</td><td class="n">—</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Legal Workspace</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Monitor, Staff</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="y">✓</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>"Admin" here covers both Admin and Super Admin. Some actions are also limited by role, wherever they are on screen:</p>
+  <ul>
+    <li><strong>Managers and above</strong> send demand letters, give work to someone else, mark a claim Paid, and reopen anything that was closed.</li>
+    <li><strong>The legal team</strong> (Solicitors, and Managers and above) send the final notice and move a claim between legal stages.</li>
+    <li><strong>Everyone</strong> can take unassigned work, add notes, and make the normal stage moves.</li>
+  </ul>
+</section>
+
+<section id="daily">
+  <h2>Your day in Claims Hub</h2>
+  <p>Every lead and claim has three things that tell you what to do:</p>
+  <div class="facts">
+    <div><dt>Owner</dt><dd>The person handling it. Claims with the legal team also have a lawyer.</dd></div>
+    <div><dt>Next action</dt><dd>What the record is waiting for, such as "Chase the client for evidence".</dd></div>
+    <div><dt>Due date</dt><dd>When that action is due. Past the date, it shows as <strong>overdue</strong> in red.</dd></div>
+  </div>
+  <p>The next action and due date are set for you each time the stage changes. You do not have to work them out.</p>
+  <h3>A good routine</h3>
+  <ol class="steps">
+    <li>Open the <strong>Dashboard</strong> for today's numbers: new leads, open claims, overdue work and claims won.</li>
+    <li>Go to <strong>Leads</strong> or <strong>Claims</strong> and click the <span class="btn">Overdue</span> chip. Clear those first.</li>
+    <li>Click <span class="btn">Mine</span> to see only your own work, and go through it by due date.</li>
+    <li>Pick up anything new and unassigned with <span class="btn">Take</span>.</li>
+  </ol>
+  <p>Click any row to open its file. The file shows the client, the flight, documents, the money, the action buttons, and on the right the <strong>History</strong>: every stage change, note and letter, with who did it and when.</p>
+</section>
+
+<p class="part">The pipeline, step by step</p>
+
+<section id="intake">
+  <h2>1. A lead arrives from the website</h2>
+  <div class="facts">
+    <div><dt>Who</dt><dd>The client, on claimsassistltd.com</dd></div>
+    <div><dt>Shows in Claims Hub as</dt><dd><span class="st lead">New lead</span> on the Leads page</dd></div>
+    <div><dt>You have</dt><dd>1 day to contact them</dd></div>
+  </div>
+  <p>The client checks their flight on the website, answers a few questions about what happened, and gives their contact details. Many clients also sign the Letter of Authority there and then, and give their address and bank details.</p>
+  <p>As soon as they submit:</p>
+  <ul>
+    <li>A new lead appears at the top of <strong>Leads</strong>, with no owner. It sits in the shared queue until someone takes it.</li>
+    <li>The client gets an email confirming we have their claim, with a reference number.</li>
+  </ul>
+  <div class="note"><strong>The 14-day cancellation period</strong>The client can choose on the website to let us start straight away. If they did not, nothing may be sent to the airline until 14 days after they signed. Claims Hub enforces this itself and shows the date the hold ends.</div>
+</section>
+
+<section id="lead">
+  <h2>2. Work the lead</h2>
+  <div class="facts">
+    <div><dt>Who</dt><dd>Agents and Managers</dd></div>
+    <div><dt>Stages</dt><dd><span class="st lead">New lead</span> → <span class="st lead">Contacted</span> → <span class="st lead">Qualified</span> or <span class="st lead">Rejected</span></dd></div>
+    <div><dt>You have</dt><dd>1 day to contact, then 3 days to decide</dd></div>
+  </div>
+  <ol class="steps">
+    <li>Open the lead and click <span class="btn">Take</span> so everyone knows it is yours.</li>
+    <li>Contact the client by phone or email. Check the flight, the delay or cancellation, and what they told us.</li>
+    <li>Click <span class="btn">Change stage</span> and move it to <span class="st lead">Contacted</span>. Add a note of what you learned with <span class="btn">Add note</span>.</li>
+    <li>Decide:
+      <ul>
+        <li><strong>It is a claim we can take:</strong> move it to <span class="st lead">Qualified</span>. This opens the claim automatically, owned by you.</li>
+        <li><strong>It is not:</strong> move it to <span class="st lead">Rejected</span>. You must give a reason.</li>
+      </ul>
+    </li>
+  </ol>
+  <p>Once a lead is qualified, the work continues on the claim. Use <span class="btn">Open the claim</span> in the lead file to go straight to it.</p>
+  <p>Not sure? Open the <strong>AI assistant</strong> tab in the lead and run a lead triage. It gives a second opinion; the decision is still yours.</p>
+</section>
+
+<section id="client">
+  <h2>3. The client sends evidence and signs</h2>
+  <div class="facts">
+    <div><dt>Who</dt><dd>The client; the owner chases</dd></div>
+    <div><dt>Stages</dt><dd><span class="st client">Details Pending</span> → <span class="st client">Terms Pending</span> → <span class="st review">Ready For Review</span></dd></div>
+    <div><dt>You have</dt><dd>3 days to chase evidence, then 2 days to chase the signature</dd></div>
+  </div>
+  <p>When the claim opens, the client is emailed a private link to their evidence form. You do not send it yourself.</p>
+  <ol class="steps">
+    <li>The client fills in the evidence form: booking reference, flight details, what happened, ID, bank details, and photos of their documents. The claim moves to <span class="st client">Terms Pending</span> by itself.</li>
+    <li>The client reads and signs the terms of engagement. The claim moves to <span class="st review">Ready For Review</span> by itself.</li>
+  </ol>
+  <p>Your job here is to chase. If the due date passes, call or email the client and record what you did with <span class="btn">Add note</span>. If they no longer want to go ahead, move the claim to <span class="st closed">Withdrawn</span> with a reason.</p>
+</section>
+
+<section id="review">
+  <h2>4. Review the claim</h2>
+  <div class="facts">
+    <div><dt>Who</dt><dd>The owner, or any agent</dd></div>
+    <div><dt>Stages</dt><dd><span class="st review">Ready For Review</span> → <span class="st review">Under Review</span> → <span class="st airline">Demand Pending</span></dd></div>
+    <div><dt>You have</dt><dd>1 day to start, 2 days to finish</dd></div>
+  </div>
+  <ol class="steps">
+    <li>Move the claim to <span class="st review">Under Review</span>. The client is emailed that we are reviewing their claim.</li>
+    <li>Check the documents in the claim file, or in the <strong>Evidence Locker</strong>. Make sure names, flight number, date and route match the booking.</li>
+    <li>Use the <span class="btn">Part 19 calculator</span> to work out what the client is owed under the Nigerian rules.</li>
+    <li>Fix any mistakes with <span class="btn">Edit details</span>.</li>
+    <li>When everything is right, move the claim to <span class="st airline">Demand Pending</span>. If something is missing, move it back to <span class="st client">Details Pending</span> and tell the client what you need.</li>
+  </ol>
+  <p>The AI assistant can write a <em>case brief</em> or <em>check a document</em> for you. Read what it says, then check it yourself.</p>
+</section>
+
+<section id="demand">
+  <h2>5. Send the demand letter</h2>
+  <div class="facts">
+    <div><dt>Who</dt><dd>Managers and above</dd></div>
+    <div><dt>Stages</dt><dd><span class="st airline">Demand Pending</span> → <span class="st airline">Awaiting Reply</span></dd></div>
+    <div><dt>You have</dt><dd>1 day to send</dd></div>
+  </div>
+  <p>The <strong>Demand letters</strong> page lists every claim waiting for its letter, with what is ready and what is missing.</p>
+  <ol class="steps">
+    <li>Pick a claim. A claim cannot be sent until it has the client's name, airline, flight number, flight date, route and signature. Anything missing is listed in red.</li>
+    <li>Check the warnings too: the amount, the booking reference, and the delay or reason. These do not block the letter, but a letter without them is weaker.</li>
+    <li>Check the airline's email address. Claims Hub suggests one; change it if you know a better one.</li>
+    <li>Click <span class="btn">Send demand letter</span>. The letter goes with the client's Letter of Authority attached.</li>
+  </ol>
+  <p>The claim moves to <span class="st airline">Awaiting Reply</span> by itself, and the client is emailed that we have contacted the airline. The airline has 14 days to reply.</p>
+  <div class="note"><strong>If it will not send</strong>"Held until" means the client's cancellation period has not ended; it sends after that date. "Send failed" means the email did not go; check the address and try again.</div>
+</section>
+
+<section id="reply">
+  <h2>6. The airline replies</h2>
+  <div class="facts">
+    <div><dt>Who</dt><dd>The owner</dd></div>
+    <div><dt>Stage</dt><dd><span class="st airline">Awaiting Reply</span></dd></div>
+    <div><dt>Reply due</dt><dd>14 days after the letter</dd></div>
+  </div>
+  <p>When the airline answers, record it on the claim:</p>
+  <ul>
+    <li><span class="btn">Record airline reply</span>: a short summary of what they said.</li>
+    <li><span class="btn">Record offer</span>: if they offer money, the amount in naira.</li>
+  </ul>
+  <p>The AI assistant can <em>read an airline reply</em> and pull out what they offered or refused. Then decide where the claim goes:</p>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>The airline…</th><th>Move the claim to</th></tr></thead>
+      <tbody>
+        <tr><td>pays or agrees to pay</td><td><span class="st closed">Won</span>, and enter the amount recovered</td></tr>
+        <tr><td>refuses, ignores us, or the 14 days pass</td><td><span class="st legal">With Solicitor</span></td></tr>
+        <tr><td>refuses and we will not take it further</td><td><span class="st closed">Lost</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>A manager can resend the demand letter from the claim file if it needs to go again.</p>
+</section>
+
+<section id="legal">
+  <h2>7. The legal team takes over</h2>
+  <div class="facts">
+    <div><dt>Who</dt><dd>Solicitors, and Managers and above</dd></div>
+    <div><dt>Stage</dt><dd><span class="st legal">With Solicitor</span></dd></div>
+    <div><dt>Where</dt><dd>The Legal Workspace</dd></div>
+  </div>
+  <p>Every claim with the legal team is listed in the <strong>Legal Workspace</strong>. The client is emailed that their claim has gone to our legal team. A lawyer takes the claim, or a manager assigns one.</p>
+  <p>Inside the legal team, the claim moves through legal stages. This is the usual route; a lawyer can move between them as the case needs:</p>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>Legal stage</th><th>What it means</th><th>Next action due</th></tr></thead>
+      <tbody>
+        <tr><td>Legal review</td><td>A lawyer is reading the file.</td><td>2 days to review and send the final notice</td></tr>
+        <tr><td>Final notice sent</td><td>The final legal notice has gone to the airline.</td><td>7 days for the airline to pay</td></tr>
+        <tr><td>NCAA complaint filed</td><td>A complaint is with the NCAA consumer protection directorate.</td><td>Check on it every 14 days</td></tr>
+        <tr><td>Court proceedings</td><td>Decided claim by claim, never automatic. You must record why.</td><td>An update every 30 days</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Send the final notice with <span class="btn">Send final notice</span> in the claim file. When the case ends, move the claim to <span class="st closed">Won</span> or <span class="st closed">Lost</span>. If the airline starts talking again, it can go back to <span class="st airline">Awaiting Reply</span>.</p>
+</section>
+
+<section id="close">
+  <h2>8. Close the claim and pay the client</h2>
+  <div class="facts">
+    <div><dt>Who</dt><dd>The owner; a manager marks it Paid</dd></div>
+    <div><dt>Stages</dt><dd><span class="st closed">Won</span> → <span class="st closed">Paid</span></dd></div>
+    <div><dt>You have</dt><dd>7 days to pay the client</dd></div>
+  </div>
+  <ul>
+    <li><span class="st closed">Won</span>: the client is emailed the good news. Pay them their share after our fee, then a manager moves the claim to <span class="st closed">Paid</span>.</li>
+    <li><span class="st closed">Lost</span>: the client is emailed. A lost claim can still go to the legal team later.</li>
+    <li><span class="st closed">Withdrawn</span>: the client cancelled, or we stopped. A reason is required.</li>
+  </ul>
+  <p>Only a manager can reopen a closed claim.</p>
+</section>
+
+<p class="part">Reference</p>
+
+<section id="emails">
+  <h2>Emails the client gets automatically</h2>
+  <p>You never need to send these. Each one has a button to the client's private status page, where they can follow their claim.</p>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>When</th><th>What the email says</th></tr></thead>
+      <tbody>
+        <tr><td>They submit on the website</td><td>We have your claim; here is your reference.</td></tr>
+        <tr><td>A lead is qualified</td><td>Please send your evidence (with the link to the form).</td></tr>
+        <tr><td><span class="st review">Under Review</span></td><td>We are reviewing your claim.</td></tr>
+        <tr><td><span class="st airline">Awaiting Reply</span></td><td>We have sent a demand letter to the airline.</td></tr>
+        <tr><td><span class="st legal">With Solicitor</span></td><td>Your claim has gone to our legal team.</td></tr>
+        <tr><td><span class="st closed">Won</span></td><td>Your claim succeeded; we will arrange payment.</td></tr>
+        <tr><td><span class="st closed">Lost</span></td><td>The airline has not agreed; we will discuss your options.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="ai">
+  <h2>The AI assistant</h2>
+  <p>The <strong>AI assistant</strong> tab in a lead or claim file can do four things: triage a lead, write a case brief, read an airline reply, and check a client's document.</p>
+  <ul>
+    <li>It only advises. It never changes a record, sends anything, or works out the amount owed.</li>
+    <li>Always check what it says before you act on it.</li>
+    <li>It is never sent bank details, ID numbers, emails, phone numbers or signatures.</li>
+  </ul>
+  <div class="note"><strong>If a client does not want AI used</strong>Click <span class="btn">The client does not want AI used</span> in the AI assistant tab. The assistant then stops working on that lead and its claim. Only a manager can turn it back on.</div>
+</section>
+
+<section id="rules">
+  <h2>Rules to remember</h2>
+  <ul>
+    <li><strong>Stages only move forward in the order shown.</strong> If a move is not allowed, Claims Hub tells you which moves are.</li>
+    <li><strong>Everything is recorded.</strong> Stage changes, notes, letters and assignments all go into the History with your name and the time.</li>
+    <li><strong>Rejecting a lead, withdrawing a claim and going to court all need a reason.</strong></li>
+    <li><strong>Nothing goes to the airline inside the client's cancellation period.</strong></li>
+    <li><strong>Never promise a client that we will pay court fees.</strong></li>
+    <li><strong>Take before you work.</strong> If a record already belongs to someone else, ask them or a manager.</li>
+  </ul>
+</section>
+
+<section id="admin">
+  <h2>For admins</h2>
+  <ul>
+    <li><strong>Staff</strong>: approve new accounts and set each person's role: Agent, Solicitor, Manager, Admin or Super Admin. Give each person the lowest role their job needs.</li>
+    <li><strong>Monitor</strong>: the health of the whole pipeline, overdue work, each person's workload, recent activity and AI use.</li>
+  </ul>
+</section>
+
+<section id="cheat">
+  <h2>Stage cheat sheet</h2>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>Stage</th><th>Waiting for</th><th>Due in</th><th>Who acts</th></tr></thead>
+      <tbody>
+        <tr><td><span class="st lead">New lead</span></td><td>Contact the lead</td><td>1 day</td><td>Agent</td></tr>
+        <tr><td><span class="st lead">Contacted</span></td><td>Qualify or reject</td><td>3 days</td><td>Agent</td></tr>
+        <tr><td><span class="st client">Details Pending</span></td><td>Chase the client for evidence</td><td>3 days</td><td>Owner</td></tr>
+        <tr><td><span class="st client">Terms Pending</span></td><td>Chase the client to sign</td><td>2 days</td><td>Owner</td></tr>
+        <tr><td><span class="st review">Ready For Review</span></td><td>Start the review</td><td>1 day</td><td>Agent</td></tr>
+        <tr><td><span class="st review">Under Review</span></td><td>Finish the review</td><td>2 days</td><td>Agent</td></tr>
+        <tr><td><span class="st airline">Demand Pending</span></td><td>Send the demand letter</td><td>1 day</td><td>Manager</td></tr>
+        <tr><td><span class="st airline">Awaiting Reply</span></td><td>Record the reply or escalate</td><td>14 days</td><td>Owner</td></tr>
+        <tr><td><span class="st legal">With Solicitor</span></td><td>Depends on the legal stage</td><td>2 to 30 days</td><td>Lawyer</td></tr>
+        <tr><td><span class="st closed">Won</span></td><td>Pay the client their share</td><td>7 days</td><td>Manager</td></tr>
+        <tr><td><span class="st closed">Paid</span> <span class="st closed">Lost</span> <span class="st closed">Withdrawn</span></td><td>Nothing; closed</td><td>—</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>Claims Assist Limited · Claims Hub staff manual · October 2026. For help using Claims Hub, open Support in the sidebar.</footer>
+</main>
+</div>
+
+</body>
+</html>
