@@ -77,6 +77,9 @@ async function applyStageChange(admin, { kind, id, to, note, staff, amount }) {
           // Who, which flight, which route: everything the demand letter
           // needs that the client already gave on the website.
           ...claimFieldsFromLead(data),
+          // Files the client sent in answer to a request while it was a lead.
+          ...(Array.isArray(data.attached_document) && data.attached_document.length
+            ? { attached_document: data.attached_document } : {}),
           ...stageStamp(admin, CLAIM.DETAILS_PENDING, staff, 'Opened from a qualified lead'),
           // The claim stays with whoever was handling the lead.
           ...assignmentFields(admin, 'handler',

@@ -50,6 +50,8 @@ function storagePathOf(address) {
  */
 function isClientDocument(path) {
   return /^claims\/[^/]+\/.+/.test(path) ||
+    // Files a client sent in answer to a request, before the lead was a claim.
+    /^leads\/[^/]+\/.+/.test(path) ||
     /^signed-documents\/[^/]+\/.+/.test(path) ||
     // Evidence uploaded by the first version of the evidence form.
     /^users\/[^/]+\/uploads\/.+/.test(path);

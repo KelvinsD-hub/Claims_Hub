@@ -4,6 +4,7 @@ import '/backend/services/pipeline.dart';
 import '/components/ai_assist_panel.dart';
 import '/components/case_file_widget.dart';
 import '/components/casework_panel_widget.dart';
+import '/components/info_request_widget.dart';
 import '/components/record_timeline.dart';
 import '/components/work_ui.dart';
 import '/custom_code/widgets/index.dart' as custom_widgets;
@@ -304,6 +305,7 @@ class _LeadFileWidgetState extends State<LeadFileWidget> {
                               ],
                             ),
                             if (lead.loaSigned) _SignedAuthority(lead: lead),
+                            InfoRequestsPanel(record: lead.reference),
                             if (lead.initialSummary.trim().isNotEmpty ||
                                 lead.disruptionDetails.trim().isNotEmpty) ...[
                               const FileSection('In their words'),
@@ -337,6 +339,10 @@ class _LeadFileWidgetState extends State<LeadFileWidget> {
                                   icon: Icons.note_add_outlined,
                                   label: 'Add note',
                                   onTap: _busy ? null : () => _addNote(lead),
+                                ),
+                                InfoRequestButton(
+                                  kind: RecordKind.lead,
+                                  recordId: lead.reference.id,
                                 ),
                                 if (lead.claimRef != null)
                                   WorkButton(

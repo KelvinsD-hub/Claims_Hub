@@ -13,6 +13,7 @@ const casework = require('./casework');
 const documents = require('./documents');
 const { runAiAssist, reviewAiOutput } = require('./ai');
 const invites = require('./invites');
+const infoRequests = require('./info-requests');
 const { applyCaseAction, nextActionFields } = require('./case-action');
 
 /** The fields that record a stage change (see stage-change.js). */
@@ -1440,6 +1441,134 @@ exports.staffInvite = functions
         }
         console.error('[staffInvite]', e && e.message);
         return res.status(500).json({ error: 'Something went wrong with the invite. Please try again.' });
+      }
+    });
+  });
+
+// Asking a client for more information (functions/info-requests.js). Staff
+// send or withdraw a request here; the client answers through
+// clientInfoRequest from the form on the website.
+exports.infoRequest = functions
+  .runWith({ secrets: [MAIL_SECRET] })
+  .https.onRequest((req, res) => {
+    cors(req, res, async () => {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      const staff = await staffFromRequest(req);
+      if (!staff) {
+        return res.status(401).json({ error: 'Sign in with an approved staff account.' });
+      }
+      const payload = (req.body && req.body.data) ? req.body.data : (req.body || {});
+      const action = String(payload.action || '');
+      try {
+        if (action === 'cancel') {
+          const result = await infoRequests.cancelRequest(admin, { staff, id: String(payload.id || '') });
+          return res.status(200).json({ success: true, ...result });
+        }
+        if (action !== 'create') return res.status(400).json({ error: 'Unknown action.' });
+        const request = await infoRequests.createRequest(admin, {
+          staff,
+          kind: String(payload.kind || ''),
+          id: String(payload.id || ''),
+          items: payload.items,
+          questions: payload.questions,
+          message: payload.message,
+        });
+        let emailed = false;
+        if (payload.send_email !== false) {
+          const mail = infoRequests.requestEmail(request, escapeHtml);
+          try {
+            await createTransporter().sendMail({
+              from: `"Claims Assist" <${MAIL}>`,
+              replyTo: MAIL,
+              to: request.email,
+              subject: mail.subject,
+              html: mail.html,
+              text: mail.text,
+            });
+            emailed = true;
+          } catch (e) {
+            console.error('[infoRequest] email', e && e.message);
+          }
+        }
+        return res.status(200).json({
+          success: true, link: request.link, email: request.email, expiresAt: request.expiresAt, emailed,
+        });
+      } catch (e) {
+        if (e instanceof pipeline.StageError) {
+          return res.status(e.status).json({ error: e.message });
+        }
+        console.error('[infoRequest]', e && e.message);
+        return res.status(500).json({ error: 'The request could not be sent. Please try again.' });
+      }
+    });
+  });
+
+// The client's side of a request for information. Not signed in: the link's
+// token is the only thing that opens it.
+exports.clientInfoRequest = functions
+  .runWith({ secrets: [MAIL_SECRET], memory: '512MB' })
+  .https.onRequest((req, res) => {
+    cors(req, res, async () => {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      const payload = (req.body && req.body.data) ? req.body.data : (req.body || {});
+      const action = String(payload.action || '');
+      const token = String(payload.token || '').slice(0, 100);
+      try {
+        if (action === 'info') {
+          return res.status(200).json({ success: true, ...(await infoRequests.requestInfo(admin, { token })) });
+        }
+        if (action === 'upload') {
+          const result = await infoRequests.uploadFile(admin, {
+            token,
+            item: String(payload.item || ''),
+            name: String(payload.name || ''),
+            type: String(payload.type || ''),
+            data: payload.data,
+          });
+          return res.status(200).json({ success: true, ...result });
+        }
+        if (action !== 'submit') return res.status(400).json({ error: 'Unknown action.' });
+        const done = await infoRequests.submitAnswers(admin, {
+          token,
+          answers: payload.answers,
+          replies: payload.replies,
+          bucketName: admin.storage().bucket().name,
+          storedAddress: documents.storedAddress,
+        });
+        // Tell whoever handles the record, or whoever asked.
+        try {
+          const uid = done.handlerUid || done.askedByUid;
+          const user = uid ? (await admin.firestore().doc(`users/${uid}`).get()).data() : null;
+          if (user && user.email) {
+            const what = done.kind === 'lead' ? 'lead' : 'claim';
+            await createTransporter().sendMail({
+              from: `"Claims Hub" <${MAIL}>`,
+              to: user.email,
+              subject: `${done.clientName} sent the information you asked for`,
+              text: [
+                `${done.clientName} has answered the request for information on their ${what}.`,
+                '',
+                `Sent: ${done.sent.join(', ') || 'nothing'}`,
+                ...(done.missing.length ? [`Does not have: ${done.missing.join(', ')}`] : []),
+                '',
+                `Open the ${what} in Claims Hub to review it: https://claimshub.online`,
+              ].join('\n'),
+            });
+          }
+        } catch (e) {
+          console.error('[clientInfoRequest] staff email', e && e.message);
+        }
+        return res.status(200).json({ success: true });
+      } catch (e) {
+        if (e instanceof pipeline.StageError) {
+          return res.status(e.status).json({ error: e.message });
+        }
+        console.error('[clientInfoRequest]', e && e.message);
+        return res.status(500).json({ error: 'Something went wrong. Please try again in a minute.' });
       }
     });
   });

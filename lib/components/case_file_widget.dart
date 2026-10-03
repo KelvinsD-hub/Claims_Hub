@@ -10,6 +10,7 @@ import '/claims/component/part19_calculator/part19_calculator_widget.dart';
 import '/components/ai_assist_panel.dart';
 import '/components/casework_panel_widget.dart';
 import '/components/demand_send.dart';
+import '/components/info_request_widget.dart';
 import '/components/record_timeline.dart';
 import '/components/stage_menu_widget.dart';
 import '/components/work_ui.dart';
@@ -430,6 +431,7 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                                     fontSize: 13.0, color: theme.primaryText),
                               ),
                             ],
+                            InfoRequestsPanel(record: claim.reference),
                             const _SectionTitle('Documents'),
                             _Documents(claim: claim),
                             const _SectionTitle('Authority and payment'),
@@ -458,6 +460,10 @@ class _CaseFileWidgetState extends State<CaseFileWidget> {
                                     onTap: () => showSendDemand(context, claim,
                                         finalNotice: true),
                                   ),
+                                InfoRequestButton(
+                                  kind: RecordKind.claim,
+                                  recordId: claim.reference.id,
+                                ),
                                 _ActionButton(
                                   icon: Icons.reply_outlined,
                                   label: 'Record airline reply',

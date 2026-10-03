@@ -116,6 +116,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Requests to a client for more information. Created, withdrawn and
+    // answered only through the infoRequest and clientInfoRequest functions
+    // (functions/info-requests.js); staff read them to see what was asked
+    // and what came back.
+    match /info_requests/{requestId} {
+      allow read:  if isStaff();
+      allow write: if false;
+    }
+
     // ── Stages and casework ────────────────────────────────────────────────
     // A lead's or claim's stage is changed by the changeStage Cloud Function,
     // which checks the move is allowed, records who made it and opens the
@@ -132,7 +141,8 @@ service cloud.firestore {
         'handler_assigned_by', 'handler_assigned_by_name',
         'next_action', 'next_action_due', 'next_action_set_by',
         'next_action_set_by_name',
-        'ai_opt_out', 'ai_opt_out_at', 'ai_opt_out_by', 'ai_opt_out_by_name'
+        'ai_opt_out', 'ai_opt_out_at', 'ai_opt_out_by', 'ai_opt_out_by_name',
+        'info_request_open', 'info_request_sent_at', 'info_request_answered_at'
       ];
     }
     function leavesLeadStageAlone() {

@@ -28,6 +28,12 @@ service firebase.storage {
       allow read, write: if isStaff();
     }
 
+    // Files a client sent in answer to a request while their claim was still
+    // a lead. Written by the clientInfoRequest function; staff only.
+    match /leads/{leadId}/{allPaths=**} {
+      allow read, write: if isStaff();
+    }
+
     // Client evidence (boarding passes, ID scans). A client reaches the
     // evidence form through an emailed link and is not signed in, so adding a
     // file here is open — but only adding: an image or PDF under 8 MB, in this

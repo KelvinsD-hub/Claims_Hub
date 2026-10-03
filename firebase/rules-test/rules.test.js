@@ -60,6 +60,7 @@ async function check(name, promise) {
     await setDoc(doc(db, 'airlines_directory/air1'), { airline_name: 'Air Peace' });
     await setDoc(doc(db, 'stats/dashboard'), { weekly_lead_counts: [0, 0, 0, 0, 0, 0, 0] });
     await setDoc(doc(db, 'ai_outputs/out1'), { task: 'case_brief', review_status: 'pending' });
+    await setDoc(doc(db, 'info_requests/req1'), { kind: 'lead', status: 'open', items: ['flight_number'] });
     await setDoc(doc(db, 'watchlist/w1'), { email: 'x@example.com' });
     await setDoc(doc(db, 'flight_stats/P47101_2026-09-20'), { claim_count: 3 });
     await setDoc(doc(db, 'blog_posts/post1'), { title: 'Hello' });
@@ -152,6 +153,10 @@ async function check(name, promise) {
   await check('staff cannot edit an AI answer', assertFails(updateDoc(doc(superAdmin, 'ai_outputs/out1'), { review_status: 'useful' })));
   await check('an unapproved account cannot read an AI answer', assertFails(getDoc(doc(pending, 'ai_outputs/out1'))));
   await check('the public cannot read an AI answer', assertFails(getDoc(doc(anon, 'ai_outputs/out1'))));
+  await check('staff can read an information request', assertSucceeds(getDoc(doc(agent, 'info_requests/req1'))));
+  await check('staff cannot write an information request', assertFails(setDoc(doc(agent, 'info_requests/forged'), { kind: 'lead', status: 'open' })));
+  await check('staff cannot mark a request answered', assertFails(updateDoc(doc(superAdmin, 'info_requests/req1'), { status: 'answered' })));
+  await check('the public cannot read an information request', assertFails(getDoc(doc(anon, 'info_requests/req1'))));
 
   await check('agent can edit their own profile', assertSucceeds(updateDoc(doc(agent, 'users/agent'), { city: 'Abuja' })));
   await check('agent can write an activity log entry', assertSucceeds(addDoc(collection(agent, 'activity_logs'), { action: 'Lead qualified' })));
