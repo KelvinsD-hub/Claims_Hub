@@ -258,6 +258,11 @@ class _LeadFileWidgetState extends State<LeadFileWidget> {
                                 FileFact('Prefers', lead.mediumOfContact),
                                 FileFact('Country', lead.country),
                                 FileFact('Came in through', lead.utmSource),
+                                if ((lead.snapshotData['partner_name'] ?? '')
+                                    .toString()
+                                    .isNotEmpty)
+                                  FileFact('Referred by',
+                                      '${lead.snapshotData['partner_name']} (referral partner)'),
                               ],
                             ),
                             const FileSection('What happened'),

@@ -61,6 +61,7 @@ async function check(name, promise) {
     await setDoc(doc(db, 'stats/dashboard'), { weekly_lead_counts: [0, 0, 0, 0, 0, 0, 0] });
     await setDoc(doc(db, 'ai_outputs/out1'), { task: 'case_brief', review_status: 'pending' });
     await setDoc(doc(db, 'info_requests/req1'), { kind: 'lead', status: 'open', items: ['flight_number'] });
+    await setDoc(doc(db, 'partners/P1'), { name: 'Tunde', email: 't@example.com', code: 'p-tunde', status: 'active', uid: 'partneruid' });
     await setDoc(doc(db, 'campaign_links/fb'), { label: 'Facebook', channel: 'facebook', destination: '/', active: true, clicks: 3 });
     await setDoc(doc(db, 'campaign_links/p-ada'), { label: 'Ada', channel: 'partner', destination: '/', active: true, clicks: 0 });
     await setDoc(doc(db, 'watchlist/w1'), { email: 'x@example.com' });
@@ -180,6 +181,13 @@ async function check(name, promise) {
   await check('a link cannot be deleted', assertFails(deleteDoc(doc(superAdmin, 'campaign_links/fb'))));
   await check('staff cannot change which link a lead came from', assertFails(updateDoc(doc(superAdmin, 'leads/lead1'), { source_link: 'fb' })));
   await check('staff cannot change which link a claim came from', assertFails(updateDoc(doc(superAdmin, 'claims/claim1'), { source_link: 'fb' })));
+  await check('an admin can read the partner list', assertSucceeds(getDoc(doc(admin, 'partners/P1'))));
+  await check('a manager cannot read the partner list', assertFails(getDoc(doc(manager, 'partners/P1'))));
+  await check('nobody can write a partner directly', assertFails(updateDoc(doc(superAdmin, 'partners/P1'), { status: 'active' })));
+  await check('a partner account reads nothing about itself', assertFails(getDoc(doc(as('partneruid', { partner: true }), 'partners/P1'))));
+  await check('a partner account cannot read leads', assertFails(getDoc(doc(as('partneruid', { partner: true }), 'leads/lead1'))));
+  await check('staff cannot credit a lead to a partner', assertFails(updateDoc(doc(superAdmin, 'leads/lead1'), { partner_id: 'P1' })));
+  await check('staff cannot credit a claim to a partner', assertFails(updateDoc(doc(superAdmin, 'claims/claim1'), { partner_name: 'Tunde' })));
 
   await check('agent can edit their own profile', assertSucceeds(updateDoc(doc(agent, 'users/agent'), { city: 'Abuja' })));
   await check('agent can write an activity log entry', assertSucceeds(addDoc(collection(agent, 'activity_logs'), { action: 'Lead qualified' })));

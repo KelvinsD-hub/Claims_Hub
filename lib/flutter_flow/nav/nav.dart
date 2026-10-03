@@ -134,6 +134,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => LinksWidget(),
         ),
         FFRoute(
+          name: PartnersWidget.routeName,
+          path: PartnersWidget.routePath,
+          builder: (context, params) => PartnersWidget(),
+        ),
+        FFRoute(
           name: SupportsWidget.routeName,
           path: SupportsWidget.routePath,
           builder: (context, params) => SupportsWidget(),

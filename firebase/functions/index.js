@@ -14,6 +14,7 @@ const documents = require('./documents');
 const { runAiAssist, reviewAiOutput } = require('./ai');
 const invites = require('./invites');
 const infoRequests = require('./info-requests');
+const partners = require('./partners');
 const { applyCaseAction, nextActionFields } = require('./case-action');
 
 /** The fields that record a stage change (see stage-change.js). */
@@ -1571,6 +1572,136 @@ exports.clientInfoRequest = functions
         return res.status(500).json({ error: 'Something went wrong. Please try again in a minute.' });
       }
     });
+  });
+
+// Referral partners (functions/partners.js). Admins invite, suspend and
+// restore partners here and can send a fresh sign-in link.
+exports.partnerAdmin = functions
+  .runWith({ secrets: [MAIL_SECRET] })
+  .https.onRequest((req, res) => {
+    cors(req, res, async () => {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      const staff = await staffFromRequest(req);
+      if (!staff) {
+        return res.status(401).json({ error: 'Sign in with an approved staff account.' });
+      }
+      const payload = (req.body && req.body.data) ? req.body.data : (req.body || {});
+      const action = String(payload.action || '');
+      try {
+        if (action === 'set_active') {
+          const result = await partners.setPartnerActive(admin, { staff, id: String(payload.id || ''), active: payload.active === true });
+          return res.status(200).json({ success: true, ...result });
+        }
+        let partner;
+        if (action === 'invite') {
+          partner = await partners.createPartner(admin, {
+            staff, name: payload.name, email: payload.email, phone: payload.phone,
+          });
+        } else if (action === 'resend') {
+          if (!['Admin', 'Super Admin'].includes(staff.role)) {
+            return res.status(403).json({ error: 'Only an admin can send a partner a sign-in link.' });
+          }
+          const snap = await admin.firestore().doc(`partners/${String(payload.id || '').replace(/[^A-Za-z0-9]/g, '')}`).get();
+          if (!snap.exists) return res.status(404).json({ error: 'That partner no longer exists.' });
+          if (snap.get('status') === 'suspended') return res.status(409).json({ error: 'Restore the partner first.' });
+          partner = { ...snap.data(), link: `${partners.LINK_BASE}${snap.get('code')}` };
+        } else {
+          return res.status(400).json({ error: 'Unknown action.' });
+        }
+        const signIn = await partners.signInLink(admin, partner.email);
+        let emailed = false;
+        if (payload.send_email !== false) {
+          const mail = partners.inviteEmail({ ...partner, signIn, invitedBy: staff.name }, escapeHtml);
+          try {
+            await createTransporter().sendMail({
+              from: `"Claims Assist" <${MAIL}>`, replyTo: MAIL, to: partner.email,
+              subject: mail.subject, html: mail.html, text: mail.text,
+            });
+            emailed = true;
+          } catch (e) {
+            console.error('[partnerAdmin] email', e && e.message);
+          }
+        }
+        return res.status(200).json({ success: true, link: partner.link, signIn, email: partner.email, emailed });
+      } catch (e) {
+        if (e instanceof pipeline.StageError) {
+          return res.status(e.status).json({ error: e.message });
+        }
+        console.error('[partnerAdmin]', e && e.message);
+        return res.status(500).json({ error: 'That could not be done. Please try again.' });
+      }
+    });
+  });
+
+// A referral partner's own page on the website. Not staff: a partner signs
+// in with a link emailed to them, and this decides everything they see.
+exports.partnerPortal = functions
+  .runWith({ secrets: [MAIL_SECRET] })
+  .https.onRequest((req, res) => {
+    cors(req, res, async () => {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      const payload = (req.body && req.body.data) ? req.body.data : (req.body || {});
+      const action = String(payload.action || '');
+      try {
+        if (action === 'send_link') {
+          // The same answer whether or not the address is a partner's, so
+          // the form cannot be used to find out who is.
+          const partner = await partners.partnerForEmail(admin.firestore(), String(payload.email || '').slice(0, 200));
+          if (partner) {
+            const signIn = await partners.signInLink(admin, partner.email);
+            const mail = partners.signInEmail({ name: partner.name, signIn }, escapeHtml);
+            await createTransporter().sendMail({
+              from: `"Claims Assist" <${MAIL}>`, to: partner.email,
+              subject: mail.subject, html: mail.html, text: mail.text,
+            });
+          }
+          return res.status(200).json({ success: true });
+        }
+        if (action !== 'me') return res.status(400).json({ error: 'Unknown action.' });
+        const header = req.headers.authorization || '';
+        const idToken = header.startsWith('Bearer ') ? header.substring(7) : null;
+        let decoded = null;
+        try { decoded = idToken ? await admin.auth().verifyIdToken(idToken) : null; } catch (_) { decoded = null; }
+        // The emailed link proves the address; an unverified one proves nothing.
+        if (!decoded || !decoded.email || decoded.email_verified !== true) {
+          return res.status(401).json({ error: 'Sign in with the link we emailed you.' });
+        }
+        const result = await partners.portal(admin, { user: { uid: decoded.uid, email: decoded.email } });
+        res.set('Cache-Control', 'private, no-store');
+        return res.status(200).json({ success: true, ...result });
+      } catch (e) {
+        if (e instanceof pipeline.StageError) {
+          return res.status(e.status).json({ error: e.message });
+        }
+        console.error('[partnerPortal]', e && e.message);
+        return res.status(500).json({ error: 'Something went wrong. Please try again in a minute.' });
+      }
+    });
+  });
+
+// A lead that came through a partner's link is credited to the partner, by
+// the server, so the credit can be trusted when partners are rewarded.
+exports.onLeadCreatedCreditPartner = functions.firestore
+  .document('leads/{leadId}')
+  .onCreate(async (snapshot) => {
+    const code = String(snapshot.get('source_link') || '');
+    if (!code.startsWith('p-')) return null;
+    try {
+      const db = admin.firestore();
+      const link = await db.doc(`campaign_links/${code}`).get();
+      if (!link.exists || link.get('active') === false) return null;
+      const partnerId = link.get('partner_id');
+      const partner = partnerId ? await db.doc(`partners/${partnerId}`).get() : null;
+      const credit = partners.creditFields(link.data(), partner && partner.exists ? partner.data() : null);
+      if (credit) await snapshot.ref.update(credit);
+    } catch (e) {
+      console.error('[onLeadCreatedCreditPartner]', e && e.message);
+    }
+    return null;
   });
 
 // The AI assistant. Staff ask for one of four tasks on a lead or a claim

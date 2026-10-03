@@ -10,7 +10,6 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
 import '/leads/leads_options/leads_options_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Every lead, in one list. The chips along the top are the stages a lead
@@ -78,19 +77,6 @@ class _LeadsWidgetState extends State<LeadsWidget> {
           controller: _searchController,
           hint: 'Search name, email, phone, airline…',
           onChanged: (v) => setState(() => _search = v.trim().toLowerCase()),
-        ),
-        WorkButton(
-          icon: Icons.link,
-          label: 'Copy form link',
-          onTap: () async {
-            await Clipboard.setData(
-                const ClipboardData(text: 'https://claimshub.online/leadForm'));
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('The lead form link is copied.'),
-              duration: Duration(seconds: 3),
-            ));
-          },
         ),
         WorkButton(
           icon: Icons.person_add_alt_1_outlined,

@@ -17,6 +17,7 @@ enum WorkPage {
   legal,
   evidence,
   monitor,
+  partners,
   staff,
   notifications,
   support,
@@ -34,7 +35,8 @@ bool canSeePage(WorkPage page, String role) => switch (page) {
       // Making ad links and reading what they bring in.
       WorkPage.links => isManagerRole(role),
       WorkPage.legal => isLegalRole(role),
-      WorkPage.monitor || WorkPage.staff => _admins.contains(role),
+      WorkPage.monitor || WorkPage.partners || WorkPage.staff =>
+        _admins.contains(role),
       WorkPage.dashboard ||
       WorkPage.claims ||
       WorkPage.evidence ||

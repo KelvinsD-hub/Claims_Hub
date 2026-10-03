@@ -9,6 +9,7 @@ export '/pages/email_airlines/email_airlines_widget.dart'
 export '/pages/staffs/staffs_widget.dart' show StaffsWidget;
 export '/pages/monitor/monitor_widget.dart' show MonitorWidget;
 export '/pages/links/links_widget.dart' show LinksWidget;
+export '/pages/partners/partners_widget.dart' show PartnersWidget;
 export '/pages/supports/supports_widget.dart' show SupportsWidget;
 export '/designer/designer_widget.dart' show DesignerWidget;
 export '/engagment_form/lead_form/lead_form_widget.dart' show LeadFormWidget;

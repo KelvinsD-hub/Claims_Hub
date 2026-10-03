@@ -30,6 +30,8 @@ function claimFieldsFromLead(lead) {
   put('claims_reason', text(lead.complaint_type));
   // The ad or partner link that brought the client, for the Links page.
   put('source_link', text(lead.source_link));
+  put('partner_id', text(lead.partner_id));
+  put('partner_name', text(lead.partner_name));
   if (typeof lead.delay_hours === 'number' && lead.delay_hours > 0) {
     out.duration_of_delay = `${lead.delay_hours} hours`;
   }

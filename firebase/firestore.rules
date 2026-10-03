@@ -153,6 +153,16 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Referral partners: people outside the firm who bring in clients. Made,
+    // suspended and signed in only through the partnerAdmin and
+    // partnerPortal functions (functions/partners.js). Admins read the list;
+    // partners themselves read nothing here, and see only what partnerPortal
+    // hands them.
+    match /partners/{partnerId} {
+      allow read:  if isAdmin();
+      allow write: if false;
+    }
+
     match /info_requests/{requestId} {
       allow read:  if isStaff();
       allow write: if false;
@@ -182,15 +192,16 @@ service cloud.firestore {
       return !changedKeys().hasAny([
         'status', 'is_qualified', 'claim_ref',
         'stage_changed_at', 'stage_changed_by', 'stage_changed_by_name',
-        // Which link a lead is credited to is set by the website, once.
-        'source_link'
+        // Which link and partner a lead is credited to are set once, by the
+        // website and the server.
+        'source_link', 'partner_id', 'partner_name'
       ]) && !changedKeys().hasAny(caseworkFields());
     }
     function leavesClaimStageAlone() {
       return !changedKeys().hasAny([
         'claim_status', 'is_escalated', 'lead_ref', 'secure_token',
         'stage_changed_at', 'stage_changed_by', 'stage_changed_by_name',
-        'source_link'
+        'source_link', 'partner_id', 'partner_name'
       ]) && !changedKeys().hasAny(caseworkFields()) && !changedKeys().hasAny([
         'lawyer_uid', 'lawyer_name', 'lawyer_assigned_at',
         'lawyer_assigned_by', 'lawyer_assigned_by_name',
