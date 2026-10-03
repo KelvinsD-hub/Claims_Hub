@@ -160,7 +160,9 @@ class OtherSource {
       if (lead.signed) stats.signed++;
       if (lead.qualified) stats.claims++;
     } else {
-      final key = lead.sourceLink.isNotEmpty ? lead.sourceLink : lead.utmSource;
+      final raw = lead.sourceLink.isNotEmpty ? lead.sourceLink : lead.utmSource;
+      // Older leads left the source blank; newer ones say the site's name.
+      final key = raw == 'claims-assist-site' ? '' : raw;
       final other = others.putIfAbsent(key, () => OtherSource(key));
       other.leads++;
       if (lead.signed) other.signed++;

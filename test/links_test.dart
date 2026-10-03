@@ -57,11 +57,19 @@ void main() {
   test('leads without a known link are grouped by what the website recorded', () {
     final r = linkStats(
       [link('fb')],
-      [lead(''), lead(''), lead('', utm: 'newsletter'), lead('old-code')],
+      [
+        lead(''),
+        lead(''),
+        LeadFact(sourceLink: '', utmSource: '', signed: false, qualified: false),
+        lead('', utm: 'newsletter'),
+        lead('old-code'),
+      ],
       const [],
     );
     final names = {for (final o in r.others) o.name: o.leads};
-    expect(names['Website, no link'], 2);
+    expect(names['Website, no link'], 3,
+        reason: 'a blank source and the site name are the same thing');
+    expect(r.others.where((o) => o.name == 'Website, no link').length, 1);
     expect(names['newsletter'], 1);
     expect(names['old-code'], 1);
   });
