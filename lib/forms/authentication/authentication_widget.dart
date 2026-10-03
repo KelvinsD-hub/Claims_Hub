@@ -91,8 +91,8 @@ class _AuthenticationWidgetState extends State<AuthenticationWidget> {
   }
 
   /// After any sign-in: stay only with approved access.
-  Future<void> _admit() async {
-    final refused = await admitSignedInUser();
+  Future<void> _admit({bool justJoined = false}) async {
+    final refused = await admitSignedInUser(justJoined: justJoined);
     if (refused != null) return _show(refused);
     _goHome();
   }
@@ -194,7 +194,7 @@ class _AuthenticationWidgetState extends State<AuthenticationWidget> {
       await dropSignIn();
       return _show(error);
     }
-    await _admit();
+    await _admit(justJoined: true);
   }
 
   // ── Layout ──────────────────────────────────────────────────────────────

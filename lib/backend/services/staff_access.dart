@@ -80,11 +80,34 @@ Future<User?> googleSignInPopup() async {
 
 /// Decide whether the person now signed in may stay. Returns null when they
 /// may, or the reason they may not (and they are signed out).
-Future<String?> admitSignedInUser() async {
+///
+/// [justJoined] is for someone whose invite the server has just accepted:
+/// their approval may take a moment to read back, so this asks again a few
+/// times, and never removes their account.
+Future<String?> admitSignedInUser({bool justJoined = false}) async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return 'Sign-in failed. Please try again.';
   final ref = UsersRecord.collection.doc(user.uid);
-  final snap = await ref.get();
+  // Read from the server: the app already listens to this document, and a
+  // plain read can be answered from that listener's copy, which may still be
+  // from before the invite was accepted.
+  Future<DocumentSnapshot> read() async {
+    try {
+      return await ref.get(const GetOptions(source: Source.server));
+    } catch (_) {
+      return ref.get();
+    }
+  }
+
+  var snap = await read();
+  for (var i = 0;
+      justJoined &&
+          i < 5 &&
+          (snap.data() as Map<String, dynamic>?)?['approved'] != true;
+      i++) {
+    await Future.delayed(const Duration(milliseconds: 800));
+    snap = await read();
+  }
   final data = snap.data() as Map<String, dynamic>?;
   final outcome = signInOutcome(
     hasDoc: snap.exists,
@@ -97,6 +120,11 @@ Future<String?> admitSignedInUser() async {
     return null;
   }
   final email = user.email ?? 'this account';
+  if (justJoined) {
+    await FirebaseAuth.instance.signOut();
+    return 'Your invite was accepted, but your access has not shown up yet. '
+        'Wait a minute, then sign in with $email.';
+  }
   if (outcome == SignInOutcome.removeNewAccount) {
     try {
       await user.delete();
