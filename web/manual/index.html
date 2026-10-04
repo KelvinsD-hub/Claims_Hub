@@ -160,8 +160,12 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
     <li><a href="#reply">6. The airline replies</a></li>
     <li><a href="#legal">7. The legal team</a></li>
     <li><a href="#close">8. Close and pay</a></li>
+    <li class="grp">Tools</li>
+    <li><a href="#ask">Ask the client for more</a></li>
+    <li><a href="#links">Links for ads</a></li>
+    <li><a href="#partners">Referral partners</a></li>
     <li class="grp">Reference</li>
-    <li><a href="#emails">Emails clients get</a></li>
+    <li><a href="#emails">Emails clients and partners get</a></li>
     <li><a href="#ai">The AI assistant</a></li>
     <li><a href="#rules">Rules to remember</a></li>
     <li><a href="#admin">For admins</a></li>
@@ -211,7 +215,8 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
         <tr><td>Leads</td><td class="y">✓</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td></tr>
         <tr><td>Demand letters (sending to airlines)</td><td class="n">—</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td></tr>
         <tr><td>Legal Workspace</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
-        <tr><td>Monitor, Staff</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="y">✓</td></tr>
+        <tr><td>Links (ad links and what they bring in)</td><td class="n">—</td><td class="n">—</td><td class="y">✓</td><td class="y">✓</td></tr>
+        <tr><td>Monitor, Referral partners, Staff</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="y">✓</td></tr>
       </tbody>
     </table>
   </div>
@@ -251,12 +256,19 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
     <div><dt>Shows in Claims Hub as</dt><dd><span class="st lead">New lead</span> on the Leads page</dd></div>
     <div><dt>You have</dt><dd>1 day to contact them</dd></div>
   </div>
-  <p>The client checks their flight on the website, answers a few questions about what happened, and gives their contact details. Many clients also sign the Letter of Authority there and then, and give their address and bank details.</p>
+  <p>The client checks their flight on the website, answers a few questions about what happened, and gives their contact details. Many clients also sign the Letter of Authority there and then, and give their date of birth, address, booking reference and bank details.</p>
+  <p>Open the lead to see everything they gave:</p>
+  <ul>
+    <li><strong>Contact</strong>: email, phone, how they prefer to be contacted, and <strong>Came in through</strong>: the ad link or partner that brought them (see <a href="#links">Links</a>). A lead sent by a referral partner also shows <strong>Referred by</strong>.</li>
+    <li><strong>What happened</strong>: airline, flight number and date, delay, ticket price, passengers and booking reference.</li>
+    <li><strong>Signed authority</strong>, if they signed online: the name they signed with, when, date of birth, address, anyone else on the booking, and the signature itself.</li>
+  </ul>
   <p>As soon as they submit:</p>
   <ul>
     <li>A new lead appears at the top of <strong>Leads</strong>, with no owner. It sits in the shared queue until someone takes it.</li>
     <li>The client gets an email confirming we have their claim, with a reference number.</li>
   </ul>
+  <p>Staff can add a lead by hand with <span class="btn">Add a lead</span>, for someone who phoned or walked in. Do not send clients any other form link: ads and posts use the links on the <a href="#links">Links</a> page.</p>
   <div class="note"><strong>The 14-day cancellation period</strong>The client can choose on the website to let us start straight away. If they did not, nothing may be sent to the airline until 14 days after they signed. Claims Hub enforces this itself and shows the date the hold ends.</div>
 </section>
 
@@ -273,12 +285,13 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
     <li>Click <span class="btn">Change stage</span> and move it to <span class="st lead">Contacted</span>. Add a note of what you learned with <span class="btn">Add note</span>.</li>
     <li>Decide:
       <ul>
-        <li><strong>It is a claim we can take:</strong> move it to <span class="st lead">Qualified</span>. This opens the claim automatically, owned by you.</li>
+        <li><strong>It is a claim we can take:</strong> move it to <span class="st lead">Qualified</span>. This opens the claim automatically, owned by you, with everything the client already gave: flight number and date, route, booking reference, delay, signature, address and any files they sent.</li>
         <li><strong>It is not:</strong> move it to <span class="st lead">Rejected</span>. You must give a reason.</li>
       </ul>
     </li>
   </ol>
   <p>Once a lead is qualified, the work continues on the claim. Use <span class="btn">Open the claim</span> in the lead file to go straight to it.</p>
+  <p>Something missing before you can decide, such as the flight number or a boarding pass? Use <a href="#ask"><span class="btn">Request information</span></a> rather than retyping it from a phone call.</p>
   <p>Not sure? Open the <strong>AI assistant</strong> tab in the lead and run a lead triage. It gives a second opinion; the decision is still yours.</p>
 </section>
 
@@ -289,11 +302,12 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
     <div><dt>Stages</dt><dd><span class="st client">Details Pending</span> → <span class="st client">Terms Pending</span> → <span class="st review">Ready For Review</span></dd></div>
     <div><dt>You have</dt><dd>3 days to chase evidence, then 2 days to chase the signature</dd></div>
   </div>
-  <p>When the claim opens, the client is emailed a private link to their evidence form. You do not send it yourself.</p>
-  <ol class="steps">
-    <li>The client fills in the evidence form: booking reference, flight details, what happened, ID, bank details, and photos of their documents. The claim moves to <span class="st client">Terms Pending</span> by itself.</li>
-    <li>The client reads and signs the terms of engagement. The claim moves to <span class="st review">Ready For Review</span> by itself.</li>
-  </ol>
+  <p>When the claim opens, the client is emailed automatically. What they get depends on whether they signed on the website:</p>
+  <ul>
+    <li><strong>They signed online</strong>: an email saying their claim is open and there is nothing they need to do. We already have their details and signature.</li>
+    <li><strong>They did not</strong>: an email with a private link to the evidence form. They fill in their flight details, what happened, ID, bank details and photos of their documents, then sign the terms. The claim moves to <span class="st client">Terms Pending</span> and then <span class="st review">Ready For Review</span> by itself.</li>
+  </ul>
+  <p>If one or two things are still missing, do not send the whole form again: use <a href="#ask"><span class="btn">Request information</span></a> and tick just those.</p>
   <p>Your job here is to chase. If the due date passes, call or email the client and record what you did with <span class="btn">Add note</span>. If they no longer want to go ahead, move the claim to <span class="st closed">Withdrawn</span> with a reason.</p>
 </section>
 
@@ -396,25 +410,102 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
   <p>Only a manager can reopen a closed claim.</p>
 </section>
 
+<p class="part">Tools</p>
+
+<section id="ask">
+  <h2>Ask the client for more information</h2>
+  <div class="facts">
+    <div><dt>Who</dt><dd>Anyone working the lead or claim</dd></div>
+    <div><dt>Where</dt><dd><span class="btn">Request information</span> in the lead or claim file</dd></div>
+    <div><dt>The link lasts</dt><dd>14 days, and works once</dd></div>
+  </div>
+  <ol class="steps">
+    <li>Open the lead or claim and click <span class="btn">Request information</span>.</li>
+    <li>Tick what is missing: flight number, flight date, booking reference, ticket price, date of birth, address, phone, boarding pass, ticket or receipt, photo ID, a message from the airline, or expense receipts. The ones with a paperclip are files.</li>
+    <li>Add up to three questions of your own if you need to, and a short note to the client.</li>
+    <li>Click <span class="btn">Send request</span>. The client is emailed a link to a short form on claimsassistltd.com that asks only for what you ticked. You also see the link, with <span class="btn">Copy link</span>, to send by WhatsApp.</li>
+  </ol>
+  <p>The next action becomes <em>Chase the client for the information asked for</em>, due in 5 days.</p>
+  <p>When the client answers, everything goes straight onto the record: typed answers into the right fields, and files into the record's documents. The next action becomes <em>Review the information the client sent</em>, due today, and whoever owns the record gets an email. The client can also say they do not have something; you see that too.</p>
+  <p>Each request is listed in the file under <strong>Requests to the client</strong>: what was asked, what came back, and the files to open. Use <span class="btn">Withdraw</span> on an open request to stop its link working. Sending a new request on the same record replaces the old one.</p>
+  <div class="note"><strong>Bank details</strong>Bank details cannot be requested this way. Collect them through the evidence form or by phone.</div>
+</section>
+
+<section id="links">
+  <h2>Links for ads and posts</h2>
+  <div class="facts">
+    <div><dt>Who</dt><dd>Managers and admins</dd></div>
+    <div><dt>Where</dt><dd>The <strong>Links</strong> page</dd></div>
+    <div><dt>A link looks like</dt><dd>claimsassistltd.com/go/fb</dd></div>
+  </div>
+  <p>Every ad, post or message that sends people to the website should use one of these links, so we know which ones bring in claims.</p>
+  <ol class="steps">
+    <li>The first time, click <span class="btn">Make a link for each social network</span> to get one each for Facebook, Instagram, X, TikTok and WhatsApp.</li>
+    <li>For a particular campaign, click <span class="btn">New link</span>: choose where it will be used, give it a name you will recognise (for example "Facebook October delays ad"), check the link, and choose whether it opens the home page or goes straight to the claim check. The link cannot be changed later.</li>
+    <li>Click the copy icon next to a link and paste it into the ad or post.</li>
+  </ol>
+  <p>For each link the page shows <strong>clicks</strong> (and when it was last clicked), <strong>leads</strong> (and what share of clicks became leads), <strong>signed</strong> authorities, <strong>claims</strong> opened, claims <strong>won</strong> and money <strong>recovered</strong>, with totals underneath. Leads that came another way, such as people who found the site themselves, are listed at the bottom.</p>
+  <ul>
+    <li>A click is counted only when a person opens the link, not when Facebook, WhatsApp or X fetches it to draw a preview.</li>
+    <li>Someone who clicks a link and claims within 30 days, from any page of the site, is credited to that link.</li>
+    <li>Turning a link off with its switch sends visitors to the home page and credits nobody. Links are never deleted, so past figures stay.</li>
+  </ul>
+</section>
+
+<section id="partners">
+  <h2>Referral partners</h2>
+  <div class="facts">
+    <div><dt>Who manages them</dt><dd>Admins</dd></div>
+    <div><dt>Where</dt><dd>The <strong>Referral partners</strong> page</dd></div>
+    <div><dt>Their own page</dt><dd>claimsassistltd.com/partner</dd></div>
+  </div>
+  <p>A referral partner is someone outside Claims Assist who sends us passengers, such as a travel agent. They are not staff and never sign in to Claims Hub.</p>
+  <ol class="steps">
+    <li>Click <span class="btn">Invite a partner</span> and enter their name, email and phone. They get their own link (for example claimsassistltd.com/go/p-tunde-bakare) and an email with a button that signs them in to their partner page. No password.</li>
+    <li>After inviting, you see both links with copy buttons: their <strong>referral link</strong> for passengers, and their <strong>sign-in link</strong> for them only. Send them by WhatsApp if the email does not arrive.</li>
+    <li>The partner shares their referral link. Every passenger who claims through it is credited to them. A partner's link wins over an earlier ad, so the person who personally sent the client gets the credit.</li>
+  </ol>
+  <p>On their partner page, a partner sees their link with copy and WhatsApp buttons, their totals, and each person they referred: first name and initial only, the airline and route, and how far the claim has got. They never see contact details, documents, bank details, notes or amounts, and they cannot change anything. They are emailed when someone new comes through their link and each time that person's claim moves on.</p>
+  <p>On the Referral partners page you see each partner's clicks, referrals, signed, claims and won, and whether they have signed in yet. From the ⋮ menu: <span class="btn">Send a sign-in link</span> if theirs expired, or <span class="btn">Suspend</span>, which closes their page and stops new clients being credited to them. Past referrals stay credited, and <span class="btn">Restore</span> undoes it.</p>
+  <div class="note warn"><strong>What partners must not do</strong>Fill in or sign a claim for someone else, collect passengers' documents, ID or bank details, promise an amount or a result, or contact an airline about a claim. Each passenger fills in and signs their own claim through the partner's link. Tell an admin if a partner breaks these rules.</div>
+</section>
+
 <p class="part">Reference</p>
 
 <section id="emails">
-  <h2>Emails the client gets automatically</h2>
-  <p>You never need to send these. Each one has a button to the client's private status page, where they can follow their claim.</p>
+  <h2>Emails clients and partners get automatically</h2>
+  <p>You never need to send these. Client emails have a button to their claim tracker on claimsassistltd.com, where they can follow their claim.</p>
+  <h3>Clients</h3>
   <div class="tablebox">
     <table>
       <thead><tr><th>When</th><th>What the email says</th></tr></thead>
       <tbody>
         <tr><td>They submit on the website</td><td>We have your claim; here is your reference.</td></tr>
-        <tr><td>A lead is qualified</td><td>Please send your evidence (with the link to the form).</td></tr>
+        <tr><td>A lead is qualified, and they signed online</td><td>Your claim is open; nothing to do now.</td></tr>
+        <tr><td>A lead is qualified, and they did not sign</td><td>Please send your details (with the link to the evidence form).</td></tr>
+        <tr><td>Someone uses <span class="btn">Request information</span></td><td>We need a little more information (with the link to the short form).</td></tr>
         <tr><td><span class="st review">Under Review</span></td><td>We are reviewing your claim.</td></tr>
         <tr><td><span class="st airline">Awaiting Reply</span></td><td>We have sent a demand letter to the airline.</td></tr>
         <tr><td><span class="st legal">With Solicitor</span></td><td>Your claim has gone to our legal team.</td></tr>
         <tr><td><span class="st closed">Won</span></td><td>Your claim succeeded; we will arrange payment.</td></tr>
+        <tr><td><span class="st closed">Paid</span></td><td>Your compensation has been paid, after our fee.</td></tr>
         <tr><td><span class="st closed">Lost</span></td><td>The airline has not agreed; we will discuss your options.</td></tr>
       </tbody>
     </table>
   </div>
+  <p>Rejecting a lead sends no email. If the person should hear from us, tell them yourself.</p>
+  <h3>Referral partners</h3>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>When</th><th>What the email says</th></tr></thead>
+      <tbody>
+        <tr><td>Someone claims through their link</td><td>New referral: Ada O. came through your link.</td></tr>
+        <tr><td>That person's claim moves on</td><td>Update on Ada O.'s claim: Collecting documents, Under review, With the airline, Won, and so on.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>You</h3>
+  <p>When a client answers a <span class="btn">Request information</span> form, whoever owns the record is emailed.</p>
 </section>
 
 <section id="ai">
@@ -437,6 +528,7 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
     <li><strong>Nothing goes to the airline inside the client's cancellation period.</strong></li>
     <li><strong>Never promise a client that we will pay court fees.</strong></li>
     <li><strong>Take before you work.</strong> If a record already belongs to someone else, ask them or a manager.</li>
+    <li><strong>Which link or partner brought a lead cannot be changed.</strong> The website and the server set it, so the figures on Links and Referral partners can be trusted.</li>
   </ul>
 </section>
 
@@ -447,6 +539,7 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
     <li>Invites not yet used are listed under <strong>Waiting to join</strong>. Use <span class="btn">New link</span> if theirs expired or got lost (the old link stops working), or <span class="btn">Cancel</span> to withdraw it.</li>
     <li>Change someone's role, or remove their access, in the staff list.</li>
     <li><strong>Monitor</strong>: the health of the whole pipeline, overdue work, each person's workload, recent activity and AI use.</li>
+    <li><strong>Referral partners</strong>: invite, suspend and restore partners, and send them a new sign-in link. See <a href="#partners">Referral partners</a>.</li>
   </ul>
 </section>
 

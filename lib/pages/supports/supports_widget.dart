@@ -45,20 +45,26 @@ class _SupportsWidgetState extends State<SupportsWidget> {
     _Faq(
       question: 'Where do new leads come from?',
       answer:
-          'From the website. When a client submits their flight, a lead appears at the top of Leads as "New lead", with no owner. Click Take to make it yours, then contact the client within a day.',
+          'From the website. When a client submits their flight, a lead appears at the top of Leads as "New lead", with no owner. Click Take to make it yours, then contact the client within a day. The lead file shows everything they gave, including their signed authority, and "Came in through" shows the ad link or partner that brought them.',
       section: 'intake',
     ),
     _Faq(
       question: 'How does a lead become a claim?',
       answer:
-          'Contact the client, move the lead to Contacted, then to Qualified. Qualifying opens the claim for you, and the client is emailed a link to send their evidence. To turn a lead down, move it to Rejected and give a reason.',
+          'Contact the client, move the lead to Contacted, then to Qualified. Qualifying opens the claim for you with everything the client already gave. A client who signed on the website is told their claim is open; anyone else is emailed a link to send their evidence. To turn a lead down, move it to Rejected and give a reason.',
       section: 'lead',
     ),
     _Faq(
       question: 'The client has not sent their evidence. What do I do?',
       answer:
-          'Chase them by phone or email and record it with Add note. The claim moves on by itself once they send their evidence and sign the terms. If they no longer want to go ahead, move the claim to Withdrawn with a reason.',
+          'Chase them by phone or email and record it with Add note. If only one or two things are missing, use Request information in the file and tick just those. The claim moves on by itself once they send their evidence and sign the terms. If they no longer want to go ahead, move the claim to Withdrawn with a reason.',
       section: 'client',
+    ),
+    _Faq(
+      question: 'How do I ask a client for something that is missing?',
+      answer:
+          'Open the lead or claim and click Request information. Tick what you need (for example the flight number or a boarding pass), add a question or a note, and send. The client gets a short form by email, and you can copy the link for WhatsApp. Their answers and files go straight onto the record.',
+      section: 'ask',
     ),
     _Faq(
       question: 'Where do I find a client\'s documents?',
@@ -89,6 +95,18 @@ class _SupportsWidgetState extends State<SupportsWidget> {
       answer:
           'Claims at With Solicitor are in the Legal Workspace. A lawyer reviews the file, sends the final notice (7 days to pay), and if needed files an NCAA complaint. Court is decided claim by claim.',
       section: 'legal',
+    ),
+    _Faq(
+      question: 'Which link do I put in an ad or a post?',
+      answer:
+          'One from the Links page (managers and admins). Quick start makes a link for each social network; New link makes one for a campaign. Each link shows its clicks, leads, signed clients, claims and wins, so we know which ads work.',
+      section: 'links',
+    ),
+    _Faq(
+      question: 'How do referral partners work?',
+      answer:
+          'An admin invites a partner on the Referral partners page. The partner gets their own link to share and a page on claimsassistltd.com/partner where they follow their referrals. They see first names and progress only, never contact details, documents or money, and they are emailed when a referral moves on.',
+      section: 'partners',
     ),
     _Faq(
       question: 'How do new staff get an account?',
