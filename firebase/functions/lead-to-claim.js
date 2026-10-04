@@ -28,6 +28,13 @@ function claimFieldsFromLead(lead) {
   put('destination', text(lead.route_to));
   put('pnr_number', text(lead.booking_reference).toUpperCase());
   put('claims_reason', text(lead.complaint_type));
+  // From the claim form a client filled in, or the signed authority.
+  put('date_of_birth', text(lead.date_of_birth));
+  put('address', text(lead.address));
+  if (typeof lead.fare_paid === 'number' && lead.fare_paid > 0) {
+    out.fare_paid = lead.fare_paid;
+    put('fare_currency', text(lead.fare_currency));
+  }
   // The ad or partner link that brought the client, for the Links page.
   put('source_link', text(lead.source_link));
   put('partner_id', text(lead.partner_id));

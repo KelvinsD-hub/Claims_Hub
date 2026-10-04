@@ -311,9 +311,10 @@ class _RequestCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   [
+                    if (d['intake'] == true) 'Claim form',
                     statusText[status] ?? status,
                     if (createdAt != null)
-                      'asked ${dateTimeFormat('d MMM y', createdAt)}',
+                      '${d['intake'] == true ? 'sent' : 'asked'} ${dateTimeFormat('d MMM y', createdAt)}',
                     if ((d['created_by_name'] ?? '').toString().isNotEmpty)
                       'by ${d['created_by_name']}',
                   ].join('  ·  '),
@@ -338,7 +339,7 @@ class _RequestCard extends StatelessWidget {
               padding: const EdgeInsets.only(top: 2.0),
               child: Text.rich(TextSpan(children: [
                 TextSpan(
-                    text: '${infoRequestItems[key] ?? key}: ', style: small),
+                    text: '${infoRequestLabels[key] ?? key}: ', style: small),
                 TextSpan(
                   text: unavailable.containsKey(key)
                       ? 'does not have it${(unavailable[key] ?? '').toString().isEmpty ? '' : ' (${unavailable[key]})'}'
@@ -359,7 +360,7 @@ class _RequestCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 4.0)),
                 icon: const Icon(Icons.attach_file_rounded, size: 16.0),
                 label: Text(
-                    '${infoRequestItems[f['item']] ?? f['item']}: ${f['name']}'),
+                    '${infoRequestLabels[f['item']] ?? f['item']}: ${f['name']}'),
                 onPressed: () =>
                     openStoredDocument(context, f['path'].toString()),
               ),

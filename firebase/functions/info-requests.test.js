@@ -75,5 +75,25 @@ const mail = r.requestEmail({ name: 'Ada <b>Obi</b>', link: 'https://claimsassis
 check('email escapes the client name and message', !mail.html.includes('<b>') && !mail.html.includes('<script>'));
 check('email lists what is asked', mail.text.includes('- Boarding pass') && mail.text.includes('answers to 1 question'));
 
+// The full claim form, sent with a new lead
+const known = r.intakeItems({ email: 'a@b.co', phone: '' });
+check('intake skips what the lead has', !known.includes('email') && known.includes('phone'));
+check('intake asks for photos of ID and boarding pass', known.includes('id_document') && known.includes('boarding_pass'));
+check('intake items are all known', r.planRequest({ items: r.INTAKE_ITEMS }).items.length === r.INTAKE_ITEMS.length);
+const intake = { items: ['what_happened', 'airline', 'route_from', 'route_to', 'story', 'email'], questions: [] };
+const told = {
+  what_happened: 'Flight cancellation', airline: ' Air  Peace ', route_from: 'Lagos', route_to: 'Abuja',
+  story: 'Cancelled at the gate, no food or hotel offered.', email: ' Ada@Example.COM ',
+};
+const took = r.checkAnswers(intake, { answers: told }, []);
+check('intake answers cleaned', took.values.airline === 'Air Peace' && took.values.email === 'ada@example.com');
+check('a problem not on the list is refused', !!refusal(() => r.checkAnswers(intake, { answers: { ...told, what_happened: 'Lost my hat' } }, [])));
+check('what happened cannot be skipped', !!refusal(() => r.checkAnswers(intake, { answers: { ...told, what_happened: { unavailable: true } } }, [])));
+check('a missing airline says so', /airline/.test((refusal(() => r.checkAnswers(intake, { answers: { ...told, airline: '' } }, [])) || {}).message));
+const intoLead = r.recordUpdates('lead', took.values);
+check('intake answers land on the lead fields', intoLead.record.complaint_type === 'Flight cancellation' && intoLead.record.route_to === 'Abuja' && intoLead.record.disruption_details.startsWith('Cancelled'));
+const intakeMail = r.requestEmail({ name: 'Ada', link: 'https://x', items: r.INTAKE_ITEMS, questions: [], message: '', expiresAt: '2026-10-17T00:00:00Z', intake: true }, (v) => v);
+check('intake email starts a claim', intakeMail.subject.startsWith('Start your flight claim') && intakeMail.html.includes('Start my claim'));
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

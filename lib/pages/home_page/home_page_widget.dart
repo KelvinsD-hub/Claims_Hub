@@ -1,6 +1,7 @@
 import '/backend/backend.dart';
 import '/backend/services/casework.dart';
 import '/backend/services/pipeline.dart';
+import '/components/add_lead_dialog.dart';
 import '/components/brand_colors.dart';
 import '/components/case_file_widget.dart';
 import '/components/lead_file_widget.dart';
@@ -10,7 +11,6 @@ import '/custom_code/widgets/weekly_leads_chart.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/index.dart';
-import '/leads/add_lead/add_lead_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -82,18 +82,6 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     return claim.clientEmail.isNotEmpty ? claim.clientEmail : 'Unnamed client';
   }
 
-  void _addLead() {
-    showModalBottomSheet<void>(
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      context: context,
-      builder: (context) => Padding(
-        padding: MediaQuery.viewInsetsOf(context),
-        child: const AddLeadWidget(),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return WorkScaffold(
@@ -106,7 +94,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
           icon: Icons.person_add_alt_1_outlined,
           label: 'Add a lead',
           filled: true,
-          onTap: _addLead,
+          onTap: () => showAddLeadDialog(context),
         ),
       ],
       child: StreamBuilder<List<LeadsRecord>>(

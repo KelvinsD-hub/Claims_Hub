@@ -39,5 +39,11 @@ const none = flightFromSummary('Airline: Not specified');
 check('summary: neither', none.flight_number === '' && none.flight_date === '');
 check('summary: missing', flightFromSummary(undefined).flight_number === '');
 
+// What a client filled in on the claim form goes with them
+const filled = claimFieldsFromLead({ date_of_birth: '1990-05-01', address: '1 Marina, Lagos', fare_paid: 85000, fare_currency: 'NGN' });
+check('form: date of birth and address carried', filled.date_of_birth === '1990-05-01' && filled.address === '1 Marina, Lagos');
+check('form: ticket price carried', filled.fare_paid === 85000 && filled.fare_currency === 'NGN');
+check('form: no price, no price fields', !('fare_paid' in claimFieldsFromLead({ fare_paid: 0 })));
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -29,6 +29,18 @@ const infoRequestItems = <String, String>{
   'expense_receipts': 'Expense receipts',
 };
 
+/// How every item reads on a request, including those only the full claim
+/// form sent with a new lead asks for (INTAKE_ITEMS in info-requests.js).
+const infoRequestLabels = <String, String>{
+  'what_happened': 'What happened',
+  'airline': 'Airline',
+  'route_from': 'Flying from',
+  'route_to': 'Flying to',
+  'story': 'In their words',
+  'email': 'Email address',
+  ...infoRequestItems,
+};
+
 /// Items the client answers with a file rather than typing.
 const infoRequestFileItems = {
   'boarding_pass',

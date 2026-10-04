@@ -23,7 +23,8 @@ const REQUEST_DAYS = 14;
 const CHASE_DAYS = 5;
 const SITE_URL = 'https://claimsassistltd.com';
 const MAX_QUESTIONS = 3;
-const MAX_FILES = 8;
+// Room for a whole intake: ID, boarding pass, ticket, messages and receipts.
+const MAX_FILES = 12;
 const MAX_FILE_BYTES = 6 * 1024 * 1024;
 const FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 const CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'CAD'];
@@ -45,12 +46,59 @@ function pastDate(v, what) {
   return null;
 }
 
+/** What went wrong, in the website's words, so both kinds of lead read alike. */
+const PROBLEMS = [
+  'Flight delay', 'Flight cancellation', 'Denied boarding', 'Missed connection',
+  'Downgrade', 'Baggage claim', 'Something else',
+];
+
+const place = (v) => text(v).replace(/\s+/g, ' ');
+const checkPlace = (v) => (v.length >= 2 && v.length <= 60 ? null : 'Give the airport or city.');
+
 /**
  * What staff can ask for. `fields` names where an answer goes on a lead and
  * on a claim; a file item stores files instead. `check` returns an error
- * message, or null when the answer will do.
+ * message, or null when the answer will do. An `always` item cannot be
+ * answered "I don't have this": the claim cannot start without it.
  */
 const ITEMS = {
+  what_happened: {
+    label: 'What happened',
+    ask: 'What went wrong with your flight?',
+    type: 'choice',
+    options: PROBLEMS,
+    always: true,
+    fields: { lead: 'complaint_type', claim: 'claims_reason' },
+    clean: text,
+    check: (v) => (PROBLEMS.includes(v) ? null : 'Choose what happened.'),
+  },
+  airline: {
+    label: 'Airline',
+    ask: 'The airline you flew with, or were booked with.',
+    type: 'text',
+    always: true,
+    fields: { lead: 'airline_name', claim: 'airline_name' },
+    clean: place,
+    check: (v) => (v.length >= 2 && v.length <= 80 ? null : 'Give the airline\'s name.'),
+  },
+  route_from: {
+    label: 'Flying from',
+    ask: 'The airport or city the flight left from (for example Lagos).',
+    type: 'text',
+    always: true,
+    fields: { lead: 'route_from', claim: 'departure' },
+    clean: place,
+    check: checkPlace,
+  },
+  route_to: {
+    label: 'Flying to',
+    ask: 'Where the flight was going (for example Abuja).',
+    type: 'text',
+    always: true,
+    fields: { lead: 'route_to', claim: 'destination' },
+    clean: place,
+    check: checkPlace,
+  },
   flight_number: {
     label: 'Flight number',
     ask: 'Your flight number, as it appears on your ticket or boarding pass (for example P4 7120).',
@@ -106,6 +154,23 @@ const ITEMS = {
     clean: (v) => text(v).replace(/[^0-9+]/g, ''),
     check: (v) => (/^\+?[0-9]{7,15}$/.test(v) ? null : 'That does not look like a phone number.'),
   },
+  email: {
+    label: 'Email address',
+    ask: 'An email address for updates on your claim.',
+    type: 'text',
+    fields: { lead: 'email', claim: 'client_email' },
+    clean: (v) => text(v).toLowerCase(),
+    check: (v) => (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) && v.length <= 200 ? null : 'That does not look like an email address.'),
+  },
+  story: {
+    label: 'In your words',
+    ask: 'Tell us what happened: how long you waited, what the airline said, and anything you had to pay for.',
+    type: 'long',
+    always: true,
+    fields: { lead: 'disruption_details', claim: 'lead:disruption_details' },
+    clean: (v) => text(v).replace(/\r\n/g, '\n'),
+    check: (v) => (v.length >= 10 ? (v.length <= 3000 ? null : 'Keep it under 3,000 characters.') : 'Tell us a little more about what happened.'),
+  },
   boarding_pass: {
     label: 'Boarding pass',
     ask: 'A photo or PDF of your boarding pass.',
@@ -132,6 +197,21 @@ const ITEMS = {
     type: 'file',
   },
 };
+
+/**
+ * Everything a claim needs, for a lead staff have only a name and a number
+ * for: the client fills in the whole form themselves. In the order the form
+ * asks; what the lead already has (email, phone) is left out.
+ */
+const INTAKE_ITEMS = [
+  'what_happened', 'airline', 'route_from', 'route_to', 'flight_number', 'flight_date',
+  'booking_reference', 'story', 'fare', 'email', 'phone', 'date_of_birth', 'address',
+  'id_document', 'boarding_pass', 'ticket_receipt', 'airline_message', 'expense_receipts',
+];
+
+function intakeItems(lead) {
+  return INTAKE_ITEMS.filter((k) => !(k === 'email' && text(lead.email)) && !(k === 'phone' && text(lead.phone)));
+}
 
 /** Where a request stands: open, answered, cancelled, replaced, expired, or missing. */
 function requestStatus(request, now = Date.now()) {
@@ -178,6 +258,7 @@ function checkAnswers(request, { answers, replies }, files) {
     const item = ITEMS[key];
     const answer = given[key];
     if (answer && typeof answer === 'object' && answer.unavailable === true) {
+      if (item.always) throw new StageError(400, `We need the ${item.label.toLowerCase()} to start your claim.`);
       const reason = text(answer.reason);
       if (reason.length > 500) throw new StageError(400, `Keep the note about the ${item.label.toLowerCase()} short.`);
       unavailable[key] = reason;
@@ -198,7 +279,12 @@ function checkAnswers(request, { answers, replies }, files) {
       continue;
     }
     const value = item.clean(answer);
-    if (!value) throw new StageError(400, `Give your ${item.label.toLowerCase()}, or tick that you do not have it.`);
+    if (!value) {
+      // An `always` item's own check says what is missing.
+      throw new StageError(400, item.always
+        ? item.check(value)
+        : `Give your ${item.label.toLowerCase()}, or tick that you do not have it.`);
+    }
     const problem = item.check(value);
     if (problem) throw new StageError(400, problem);
     values[key] = value;
@@ -256,8 +342,11 @@ const clientEmailOf = (kind, data) => text(kind === 'lead' ? data.email : (data.
  * request on the same record. Returns { id, token, link, expiresAt, email,
  * name, items, questions, message }; the token is never stored.
  */
-async function createRequest(admin, { staff, kind, id, items, questions, message }) {
-  const plan = planRequest({ items, questions, message });
+async function createRequest(admin, { staff, kind, id, items, questions, message, intake = false, emailOptional = false }) {
+  if (intake && kind !== 'lead') throw new StageError(400, 'Only a lead can be sent the full form.');
+  // An intake's items depend on what the lead already has, so it is planned
+  // once the lead is read.
+  let plan = intake ? null : planRequest({ items, questions, message });
   const db = admin.firestore();
   const token = crypto.randomBytes(24).toString('base64url');
   const requestId = hashToken(token);
@@ -267,7 +356,9 @@ async function createRequest(admin, { staff, kind, id, items, questions, message
   return db.runTransaction(async (tx) => {
     const { ref, data } = await loadRecord(db, tx, kind, id);
     const email = clientEmailOf(kind, data);
-    if (!email) throw new StageError(409, 'This record has no email address for the client. Add one first.');
+    // Without an email the link can still go by WhatsApp or text.
+    if (!email && !emailOptional) throw new StageError(409, 'This record has no email address for the client. Add one first.');
+    if (intake) plan = planRequest({ items: intakeItems(data), questions: [], message });
     const open = await tx.get(db.collection('info_requests')
       .where('record', '==', ref).where('status', '==', 'open'));
 
@@ -281,6 +372,7 @@ async function createRequest(admin, { staff, kind, id, items, questions, message
       items: plan.items,
       questions: plan.questions,
       message: plan.message,
+      ...(intake ? { intake: true } : {}),
       created_by: staff.uid,
       created_by_name: staff.name,
       created_at: ts,
@@ -292,7 +384,7 @@ async function createRequest(admin, { staff, kind, id, items, questions, message
     tx.update(ref, {
       info_request_open: true,
       info_request_sent_at: ts,
-      next_action: 'Chase the client for the information asked for',
+      next_action: intake ? 'Chase the client to fill in the claim form' : 'Chase the client for the information asked for',
       next_action_due: Timestamp.fromDate(dueIn(CHASE_DAYS)),
       next_action_set_by: 'system',
       next_action_set_by_name: 'System',
@@ -300,8 +392,10 @@ async function createRequest(admin, { staff, kind, id, items, questions, message
     tx.set(db.collection('activity_logs').doc(), {
       entityType: kind === 'lead' ? 'Lead' : 'Claim',
       ...(kind === 'lead' ? { leadRef: ref } : { claims: ref, ...(data.lead_ref ? { leadRef: data.lead_ref } : {}) }),
-      action: 'Information requested',
-      description: `${staff.name} asked the client for: ${asked.join(', ')}`,
+      action: intake ? 'Claim form sent' : 'Information requested',
+      description: intake
+        ? `${staff.name} sent the client the full claim form`
+        : `${staff.name} asked the client for: ${asked.join(', ')}`,
       performedBy: db.doc(`users/${staff.uid}`),
       performedByName: staff.name,
       actor_type: 'staff',
@@ -314,6 +408,7 @@ async function createRequest(admin, { staff, kind, id, items, questions, message
       expiresAt: expiresAt.toISOString(),
       email,
       name: text(data.full_name),
+      intake,
       ...plan,
     };
   });
@@ -358,6 +453,7 @@ async function requestInfo(admin, { token }) {
   const route = [text(record.route_from || record.departure), text(record.route_to || record.destination)];
   return {
     status,
+    intake: request.intake === true,
     firstName: text(request.client_name).split(' ')[0] || '',
     flight: {
       airline: text(record.airline_name),
@@ -366,7 +462,12 @@ async function requestInfo(admin, { token }) {
       date: text(record.flight_date),
     },
     items: request.items.map((key) => ({
-      key, label: ITEMS[key].label, ask: ITEMS[key].ask, type: ITEMS[key].type,
+      key,
+      label: ITEMS[key].label,
+      ask: ITEMS[key].ask,
+      type: ITEMS[key].type,
+      ...(ITEMS[key].options ? { options: ITEMS[key].options } : {}),
+      ...(ITEMS[key].always ? { always: true } : {}),
     })),
     questions: request.questions,
     message: request.message,
@@ -476,7 +577,7 @@ async function submitAnswers(admin, { token, answers, replies, bucketName, store
     tx.set(db.collection('activity_logs').doc(), {
       entityType: request.kind === 'lead' ? 'Lead' : 'Claim',
       ...(request.kind === 'lead' ? { leadRef: request.record } : { claims: request.record, ...(leadRef ? { leadRef } : {}) }),
-      action: 'Client sent information',
+      action: request.intake ? 'Client filled in the claim form' : 'Client sent information',
       description: `Client sent: ${sent.join(', ') || 'nothing'}${missing.length ? `. Does not have: ${missing.join(', ')}` : ''}`,
       performedByName: request.client_name || 'Client',
       actor_type: 'client',
@@ -484,6 +585,7 @@ async function submitAnswers(admin, { token, answers, replies, bucketName, store
     });
     return {
       kind: request.kind,
+      intake: request.intake === true,
       recordId: request.record.id,
       clientName: request.client_name || 'The client',
       handlerUid: text(record.handler_uid),
@@ -495,11 +597,17 @@ async function submitAnswers(admin, { token, answers, replies, bucketName, store
 }
 
 /** The email that carries the link to the client. */
-function requestEmail({ name, link, items, questions, message, expiresAt }, escapeHtml) {
+function requestEmail({ name, link, items, questions, message, expiresAt, intake = false }, escapeHtml) {
   const first = text(name).split(' ')[0] || 'there';
-  const asked = [...items.map((k) => ITEMS[k].label), ...(questions.length ? [`answers to ${questions.length} question${questions.length === 1 ? '' : 's'}`] : [])];
+  // The full form asks for too much to list; it is described instead.
+  const asked = intake
+    ? ['What happened, and your flight details', 'Your date of birth and address', 'Photos of your ID, boarding pass and ticket, if you have them']
+    : [...items.map((k) => ITEMS[k].label), ...(questions.length ? [`answers to ${questions.length} question${questions.length === 1 ? '' : 's'}`] : [])];
+  const intro = intake
+    ? 'Thank you for speaking with us. To start your claim, please fill in our short form. It asks for:'
+    : 'To move your claim forward we need a few more details from you:';
   const until = new Date(expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Africa/Lagos' });
-  const subject = 'Your flight claim: we need a little more information';
+  const subject = intake ? 'Start your flight claim with Claims Assist' : 'Your flight claim: we need a little more information';
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1f2937">
       <div style="background:#0f1a33;padding:22px 28px;border-radius:8px 8px 0 0">
@@ -507,13 +615,13 @@ function requestEmail({ name, link, items, questions, message, expiresAt }, esca
       </div>
       <div style="padding:28px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
         <p>Hello ${escapeHtml(first)},</p>
-        <p>To move your claim forward we need a few more details from you:</p>
+        <p>${intro}</p>
         <ul>${asked.map((a) => `<li>${escapeHtml(a)}</li>`).join('')}</ul>
         ${message ? `<p style="background:#f8f5ee;padding:12px 14px;border-radius:6px">${escapeHtml(message).replace(/\n/g, '<br/>')}</p>` : ''}
         <p style="text-align:center;margin:28px 0">
-          <a href="${link}" style="background:#0f1a33;color:#fff;padding:13px 26px;border-radius:6px;text-decoration:none;font-weight:bold">Send my details</a>
+          <a href="${link}" style="background:#0f1a33;color:#fff;padding:13px 26px;border-radius:6px;text-decoration:none;font-weight:bold">${intake ? 'Start my claim' : 'Send my details'}</a>
         </p>
-        <p style="font-size:13px;color:#6b7280">It takes a couple of minutes. You can add photos straight from your phone. This link is personal to you and works until ${escapeHtml(until)}.</p>
+        <p style="font-size:13px;color:#6b7280">It takes ${intake ? 'about ten minutes' : 'a couple of minutes'}. You can add photos straight from your phone. This link is personal to you and works until ${escapeHtml(until)}.</p>
         <p style="font-size:13px;color:#6b7280">If the button does not work, copy this address into your browser:<br/><a href="${link}">${link}</a></p>
         <p style="font-size:13px;color:#6b7280">Questions? Just reply to this email.</p>
       </div>
@@ -521,7 +629,7 @@ function requestEmail({ name, link, items, questions, message, expiresAt }, esca
   const textBody = [
     `Hello ${first},`,
     '',
-    'To move your claim forward we need a few more details from you:',
+    intro,
     ...asked.map((a) => `- ${a}`),
     ...(message ? ['', message] : []),
     '',
@@ -535,7 +643,7 @@ function requestEmail({ name, link, items, questions, message, expiresAt }, esca
 }
 
 module.exports = {
-  ITEMS, REQUEST_DAYS, MAX_FILES, MAX_FILE_BYTES, FILE_TYPES, CURRENCIES,
-  hashToken, requestStatus, planRequest, checkAnswers, recordUpdates, storageName,
+  ITEMS, PROBLEMS, INTAKE_ITEMS, REQUEST_DAYS, MAX_FILES, MAX_FILE_BYTES, FILE_TYPES, CURRENCIES,
+  hashToken, requestStatus, intakeItems, planRequest, checkAnswers, recordUpdates, storageName,
   createRequest, cancelRequest, requestInfo, uploadFile, submitAnswers, requestEmail,
 };

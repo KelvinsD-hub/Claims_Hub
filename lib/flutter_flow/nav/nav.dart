@@ -148,18 +148,12 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           path: EvidenceLockerWidget.routePath,
           builder: (context, params) => EvidenceLockerWidget(),
         ),
+        // The old public claim form; links to it go to the website's.
         FFRoute(
-          name: LeadFormWidget.routeName,
-          path: LeadFormWidget.routePath,
-          builder: (context, params) => LeadFormWidget(
+          name: FormMovedWidget.routeName,
+          path: FormMovedWidget.routePath,
+          builder: (context, params) => FormMovedWidget(
             source: params.getParam('source', ParamType.String),
-          ),
-        ),
-        FFRoute(
-          name: IntakeSuccessWidget.routeName,
-          path: IntakeSuccessWidget.routePath,
-          builder: (context, params) => IntakeSuccessWidget(
-            reference: params.getParam('reference', ParamType.String),
           ),
         ),
         FFRoute(

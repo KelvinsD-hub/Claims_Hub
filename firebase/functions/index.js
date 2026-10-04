@@ -15,6 +15,7 @@ const { runAiAssist, reviewAiOutput } = require('./ai');
 const invites = require('./invites');
 const infoRequests = require('./info-requests');
 const partners = require('./partners');
+const addLead = require('./add-lead');
 const notifications = require('./notifications');
 const { applyCaseAction, nextActionFields } = require('./case-action');
 
@@ -1446,6 +1447,63 @@ exports.staffInvite = functions
 // Asking a client for more information (functions/info-requests.js). Staff
 // send or withdraw a request here; the client answers through
 // clientInfoRequest from the form on the website.
+// Staff entering a lead (functions/add-lead.js): typed in by them, or just a
+// name and a number with the full claim form sent to the person to fill in.
+exports.addLead = functions
+  .runWith({ secrets: [MAIL_SECRET] })
+  .https.onRequest((req, res) => {
+    cors(req, res, async () => {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      const staff = await staffFromRequest(req);
+      if (!staff) {
+        return res.status(401).json({ error: 'Sign in with an approved staff account.' });
+      }
+      const payload = (req.body && req.body.data) ? req.body.data : (req.body || {});
+      let id = '';
+      try {
+        const plan = addLead.planLead(payload);
+        id = await addLead.createLead(admin, { staff, plan, own: payload.own !== false });
+        if (plan.mode !== 'form') return res.status(200).json({ success: true, id });
+
+        const request = await infoRequests.createRequest(admin, {
+          staff, kind: 'lead', id, message: plan.message, intake: true, emailOptional: true,
+        });
+        let emailed = false;
+        if (request.email && payload.send_email !== false) {
+          const mail = infoRequests.requestEmail(request, escapeHtml);
+          try {
+            await createTransporter().sendMail({
+              from: `"Claims Assist" <${MAIL}>`,
+              replyTo: MAIL,
+              to: request.email,
+              subject: mail.subject,
+              html: mail.html,
+              text: mail.text,
+            });
+            emailed = true;
+          } catch (e) {
+            console.error('[addLead] email', e && e.message);
+          }
+        }
+        return res.status(200).json({
+          success: true, id, link: request.link, email: request.email, phone: plan.lead.phone, emailed,
+        });
+      } catch (e) {
+        if (e instanceof pipeline.StageError) {
+          // The lead is saved even if the form could not be made; say so.
+          return res.status(e.status).json({ error: e.message, ...(id ? { id } : {}) });
+        }
+        console.error('[addLead]', e && e.message);
+        return res.status(500).json({
+          error: id ? 'The lead was saved, but the form could not be sent. Use Request information on the lead.' : 'The lead could not be saved. Please try again.',
+          ...(id ? { id } : {}),
+        });
+      }
+    });
+  });
+
 exports.infoRequest = functions
   .runWith({ secrets: [MAIL_SECRET] })
   .https.onRequest((req, res) => {
@@ -1546,9 +1604,13 @@ exports.clientInfoRequest = functions
             await createTransporter().sendMail({
               from: `"Claims Hub" <${MAIL}>`,
               to: user.email,
-              subject: `${done.clientName} sent the information you asked for`,
+              subject: done.intake
+                ? `${done.clientName} filled in the claim form`
+                : `${done.clientName} sent the information you asked for`,
               text: [
-                `${done.clientName} has answered the request for information on their ${what}.`,
+                done.intake
+                  ? `${done.clientName} has filled in the claim form you sent them.`
+                  : `${done.clientName} has answered the request for information on their ${what}.`,
                 '',
                 `Sent: ${done.sent.join(', ') || 'nothing'}`,
                 ...(done.missing.length ? [`Does not have: ${done.missing.join(', ')}`] : []),
@@ -1939,14 +2001,14 @@ exports.onLeadStageLog = functions.firestore
 
     if (!before) {
       // Leads arrive from the website, the public form, or staff entering one.
-      const viaStaff = Boolean(after.agent_Ref);
+      const viaStaff = Boolean(after.entered_by_uid || after.agent_Ref);
       await logEvent({
         entityType: 'Lead', leadRef: change.after.ref,
-        action: 'Lead received',
+        action: after.entered_by_name ? 'Lead entered by staff' : 'Lead received',
         description: `${who}${after.airline_name ? ` — ${after.airline_name}` : ''}` +
           `${after.utm_source ? ` (${after.utm_source})` : ''}`,
-        actorUid: viaStaff && after.agent_Ref.id ? after.agent_Ref.id : 'client',
-        actorName: viaStaff ? 'Staff' : 'Client',
+        actorUid: after.entered_by_uid || (viaStaff && after.agent_Ref.id ? after.agent_Ref.id : 'client'),
+        actorName: after.entered_by_name || (viaStaff ? 'Staff' : 'Client'),
         to: after.status || '',
       });
       // A new lead belongs to nobody yet; this is what puts it on a clock.

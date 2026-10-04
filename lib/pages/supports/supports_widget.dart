@@ -49,6 +49,12 @@ class _SupportsWidgetState extends State<SupportsWidget> {
       section: 'intake',
     ),
     _Faq(
+      question: 'Someone phoned or sent a WhatsApp. How do I add them?',
+      answer:
+          'Click Add a lead on the Dashboard or Leads. Give their name, a phone number or email, and how they got in touch. Then either type in what they told you, or choose "Send them the claim form": they get a link to fill in everything themselves, with photos of their ID, boarding pass and ticket, and you are emailed when it is in. No email? Send the link by WhatsApp from the next screen. The lead shows "Entered by" with your name.',
+      section: 'add-lead',
+    ),
+    _Faq(
       question: 'How does a lead become a claim?',
       answer:
           'Contact the client, move the lead to Contacted, then to Qualified. Qualifying opens the claim for you with everything the client already gave. A client who signed on the website is told their claim is open; anyone else is emailed a link to send their evidence. To turn a lead down, move it to Rejected and give a reason.',

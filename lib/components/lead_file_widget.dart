@@ -258,6 +258,15 @@ class _LeadFileWidgetState extends State<LeadFileWidget> {
                                 FileFact('Prefers', lead.mediumOfContact),
                                 FileFact('Country', lead.country),
                                 FileFact('Came in through', lead.utmSource),
+                                if (_enteredBy(lead).isNotEmpty)
+                                  FileFact('Entered by', _enteredBy(lead)),
+                                // Signed leads show these with the authority.
+                                if (!lead.loaSigned &&
+                                    lead.dateOfBirth.isNotEmpty)
+                                  FileFact('Date of birth',
+                                      _dateText(lead.dateOfBirth)),
+                                if (!lead.loaSigned && lead.address.isNotEmpty)
+                                  FileFact('Address', lead.address),
                                 if ((lead.snapshotData['partner_name'] ?? '')
                                     .toString()
                                     .isNotEmpty)
@@ -273,6 +282,7 @@ class _LeadFileWidgetState extends State<LeadFileWidget> {
                                 FileFact('Problem', what),
                                 FileFact('Airline', lead.airlineName),
                                 FileFact('Flight', lead.flightNumber),
+                                FileFact('Route', _route(lead)),
                                 FileFact(
                                     'Flight date', _dateText(lead.flightDate)),
                                 FileFact(
@@ -419,6 +429,27 @@ class _LeadFileWidgetState extends State<LeadFileWidget> {
       },
     );
   }
+}
+
+/// Who typed the lead in, and when; empty for one from the website.
+String _enteredBy(LeadsRecord lead) {
+  final name = (lead.snapshotData['entered_by_name'] ?? '').toString().trim();
+  if (name.isEmpty) return '';
+  final at = lead.createdAt;
+  final how = lead.snapshotData['entry_method'] == 'staff_form'
+      ? ' (claim form sent)'
+      : '';
+  return at == null
+      ? '$name$how'
+      : '$name, ${dateTimeFormat('d MMM y', at)}$how';
+}
+
+/// "Lagos → Abuja", or as much of it as is known.
+String _route(LeadsRecord lead) {
+  final from = (lead.snapshotData['route_from'] ?? '').toString().trim();
+  final to = (lead.snapshotData['route_to'] ?? '').toString().trim();
+  if (from.isEmpty && to.isEmpty) return '';
+  return '${from.isEmpty ? '?' : from} → ${to.isEmpty ? '?' : to}';
 }
 
 /// "2026-09-30" as "30 Sep 2026"; anything else as it came.

@@ -1,8 +1,8 @@
 import '/backend/services/compensation_calculator.dart';
+import '/components/add_lead_dialog.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
-import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'eligibility_checker_model.dart';
@@ -699,7 +699,7 @@ class _EligibilityCheckerWidgetState extends State<EligibilityCheckerWidget> {
         // Primary CTA
         if (result.eligible)
           FFButtonWidget(
-            onPressed: () => context.pushNamed(LeadFormWidget.routeName),
+            onPressed: () => showAddLeadDialog(context),
             text: result.outcome == Outcome.yes
                 ? 'Start My Claim — No Win, No Fee'
                 : 'Send Us the Details for Review',
@@ -728,7 +728,7 @@ class _EligibilityCheckerWidgetState extends State<EligibilityCheckerWidget> {
           ),
           const SizedBox(height: 12),
           FFButtonWidget(
-            onPressed: () => context.pushNamed(LeadFormWidget.routeName),
+            onPressed: () => showAddLeadDialog(context),
             text: 'Talk to Our Team',
             options: FFButtonOptions(
               width: double.infinity,
