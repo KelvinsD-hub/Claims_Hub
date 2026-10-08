@@ -13,7 +13,7 @@ const crypto = require('crypto');
 const { ROLE, StageError } = require('./pipeline');
 
 const INVITE_DAYS = 7;
-const APP_URL = 'https://claimshub.online';
+const APP_URL = 'https://admin.claimsassistltd.com';
 const ROLES = [ROLE.AGENT, ROLE.SOLICITOR, ROLE.MANAGER, ROLE.ADMIN, ROLE.SUPER_ADMIN];
 const ADMINS = [ROLE.ADMIN, ROLE.SUPER_ADMIN];
 const EMAIL = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]{2,}$/;

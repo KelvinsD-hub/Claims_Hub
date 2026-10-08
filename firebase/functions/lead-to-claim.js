@@ -31,6 +31,10 @@ function claimFieldsFromLead(lead) {
   // From the claim form a client filled in, or the signed authority.
   put('date_of_birth', text(lead.date_of_birth));
   put('address', text(lead.address));
+  // Payout account. account_no is ciphertext and copies across unchanged.
+  put('bank_name', text(lead.bank_name));
+  put('account_name', text(lead.account_name));
+  put('account_no', text(lead.account_no));
   if (typeof lead.fare_paid === 'number' && lead.fare_paid > 0) {
     out.fare_paid = lead.fare_paid;
     put('fare_currency', text(lead.fare_currency));

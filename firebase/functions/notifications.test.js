@@ -30,9 +30,9 @@ check('a win reads so', n.partnerEmail({ partnerName: 'T', clientName: 'Ada Obi'
 // Clients
 const tracker = n.trackerUrl('C1', 'tok&en');
 check('tracker is on the website and escapes the token', tracker === 'https://claimsassistltd.com/track?claimRef=claims%2FC1&token=tok%26en');
-const signed = n.claimOpenedEmail({ name: 'Ada Obi', airline: 'Air Peace', signedOnWebsite: true, tracker, evidenceUrl: 'https://claimshub.online/evidenceForm?x' }, esc);
+const signed = n.claimOpenedEmail({ name: 'Ada Obi', airline: 'Air Peace', signedOnWebsite: true, tracker, evidenceUrl: 'https://admin.claimsassistltd.com/evidenceForm?x' }, esc);
 check('a client who signed online is not asked again', !signed.text.includes('evidenceForm') && signed.subject.startsWith('Your claim is open'));
-const unsigned = n.claimOpenedEmail({ name: 'Ada', airline: '', signedOnWebsite: false, tracker, evidenceUrl: 'https://claimshub.online/evidenceForm?x' }, esc);
+const unsigned = n.claimOpenedEmail({ name: 'Ada', airline: '', signedOnWebsite: false, tracker, evidenceUrl: 'https://admin.claimsassistltd.com/evidenceForm?x' }, esc);
 check('a client who has not signed is sent the form', unsigned.text.includes('evidenceForm') && unsigned.subject.startsWith('Action needed'));
 const paid = n.paidEmail({ name: '<b>Ada</b>', airline: 'Air Peace', tracker }, esc);
 check('paid email escapes the name', !paid.html.includes('<b>'));

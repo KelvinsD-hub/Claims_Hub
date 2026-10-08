@@ -314,7 +314,11 @@ class _LeadFileWidgetState extends State<LeadFileWidget> {
                                               .isAfter(DateTime.now())
                                           ? '${dateTimeFormat('d MMM y', lead.workMayStartAt)} (can still cancel)'
                                           : 'Now'),
-                                if (lead.bankDetailsPending)
+                                if (lead.bankName.isNotEmpty) ...[
+                                  FileFact('Bank', lead.bankName),
+                                  FileFact('Account name', lead.accountName),
+                                  FileFact('Account number', lead.accountNo),
+                                ] else if (lead.bankDetailsPending)
                                   const FileFact(
                                       'Bank details', 'Still to be collected'),
                               ],

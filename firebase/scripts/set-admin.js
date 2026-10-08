@@ -14,8 +14,8 @@
  *   node set-admin.js <email> [--revoke]
  *
  * Examples:
- *   node set-admin.js jane@claimshub.online          # grant admin
- *   node set-admin.js jane@claimshub.online --revoke # remove admin
+ *   node set-admin.js jane@claimsassistltd.com          # grant admin
+ *   node set-admin.js jane@claimsassistltd.com --revoke # remove admin
  *
  * The user must sign out and back in (or refresh their ID token) for the new
  * claim to take effect.

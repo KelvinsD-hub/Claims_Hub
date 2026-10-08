@@ -16,6 +16,8 @@ const website = {
 };
 const out = claimFieldsFromLead(website);
 check('flight number tidied', out.flight_number === 'P47120');
+const paid = claimFieldsFromLead({ bank_name: 'Zenith Bank', account_name: 'Ada Obi', account_no: 'iv:cipher' });
+check('payout account carried, number still encrypted', paid.bank_name === 'Zenith Bank' && paid.account_name === 'Ada Obi' && paid.account_no === 'iv:cipher');
 check('flight date as given', out.flight_date === '2026-09-30');
 check('route onto the fields the demand letter reads',
   out.departure === 'LOS' && out.destination === 'ABV');

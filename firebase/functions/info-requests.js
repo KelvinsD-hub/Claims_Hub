@@ -27,7 +27,7 @@ const MAX_QUESTIONS = 3;
 const MAX_FILES = 12;
 const MAX_FILE_BYTES = 6 * 1024 * 1024;
 const FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'CAD'];
+const CURRENCIES = ['NGN', 'USD'];
 
 const hashToken = (token) => crypto.createHash('sha256').update(String(token)).digest('hex');
 const requestLink = (token) => `${SITE_URL}/more-info?t=${token}`;
@@ -171,6 +171,13 @@ const ITEMS = {
     clean: (v) => text(v).replace(/\r\n/g, '\n'),
     check: (v) => (v.length >= 10 ? (v.length <= 3000 ? null : 'Keep it under 3,000 characters.') : 'Tell us a little more about what happened.'),
   },
+  bank_details: {
+    label: 'Bank details',
+    ask: 'The Nigerian bank account your compensation should be paid into: the bank, the name on the account and the 10-digit account number.',
+    type: 'bank',
+    // Written as bank_name, account_name and an encrypted account_no.
+    fields: { lead: 'bank', claim: 'bank' },
+  },
   boarding_pass: {
     label: 'Boarding pass',
     ask: 'A photo or PDF of your boarding pass.',
@@ -206,7 +213,8 @@ const ITEMS = {
 const INTAKE_ITEMS = [
   'what_happened', 'airline', 'route_from', 'route_to', 'flight_number', 'flight_date',
   'booking_reference', 'story', 'fare', 'email', 'phone', 'date_of_birth', 'address',
-  'id_document', 'boarding_pass', 'ticket_receipt', 'airline_message', 'expense_receipts',
+  'bank_details', 'id_document', 'boarding_pass', 'ticket_receipt', 'airline_message',
+  'expense_receipts',
 ];
 
 function intakeItems(lead) {
@@ -278,6 +286,20 @@ function checkAnswers(request, { answers, replies }, files) {
       values[key] = { amount: Math.round(amount * 100) / 100, currency };
       continue;
     }
+    if (item.type === 'bank') {
+      const bank = {
+        bank_name: text(answer && answer.bank_name).replace(/\s+/g, ' '),
+        account_name: text(answer && answer.account_name).replace(/\s+/g, ' '),
+        account_number: text(answer && answer.account_number).replace(/\s+/g, ''),
+      };
+      if (!bank.bank_name || !bank.account_name || !bank.account_number) {
+        throw new StageError(400, 'Give the bank name, account name and account number, or tick that you do not have them.');
+      }
+      if (bank.bank_name.length > 80 || bank.account_name.length > 120) throw new StageError(400, 'Keep the bank and account names short.');
+      if (!/^\d{10}$/.test(bank.account_number)) throw new StageError(400, 'The account number must be 10 digits.');
+      values[key] = bank;
+      continue;
+    }
     const value = item.clean(answer);
     if (!value) {
       // An `always` item's own check says what is missing.
@@ -308,6 +330,12 @@ function recordUpdates(kind, values) {
     if (key === 'fare') {
       record.fare_paid = value.amount;
       record.fare_currency = value.currency;
+    } else if (key === 'bank_details') {
+      // account_no is already ciphertext here (see submitAnswers).
+      record.bank_name = value.bank_name;
+      record.account_name = value.account_name;
+      record.account_no = value.account_no;
+      record.bank_details_pending = false;
     } else if (field.startsWith('lead:')) {
       lead[field.slice(5)] = value;
     } else {
@@ -526,7 +554,7 @@ async function uploadFile(admin, { token, item, name, type, data }) {
  * the request and makes reviewing it the record's next action, together.
  * Returns what the staff email needs.
  */
-async function submitAnswers(admin, { token, answers, replies, bucketName, storedAddress }) {
+async function submitAnswers(admin, { token, answers, replies, bucketName, storedAddress, encrypt }) {
   const db = admin.firestore();
   const ref = db.doc(`info_requests/${hashToken(token)}`);
   return db.runTransaction(async (tx) => {
@@ -536,6 +564,16 @@ async function submitAnswers(admin, { token, answers, replies, bucketName, store
     if (status !== 'open') throw new StageError(status === 'missing' ? 404 : 409, CLOSED_MESSAGES[status]);
     const files = request.files || [];
     const checked = checkAnswers(request, { answers, replies }, files);
+    // The account number is never stored in the clear: encrypted for the
+    // record, and only its last four digits kept on the request.
+    let stored = checked.values;
+    if (checked.values.bank_details) {
+      const { account_number: number, ...rest } = checked.values.bank_details;
+      const cipher = encrypt ? encrypt(number) : '';
+      if (!cipher) throw new StageError(503, 'We could not save your bank details just now. Please try again in a few minutes.');
+      checked.values.bank_details = { ...rest, account_no: cipher };
+      stored = { ...checked.values, bank_details: { ...rest, account_ending: number.slice(-4) } };
+    }
     const recordSnap = await tx.get(request.record);
     if (!recordSnap.exists) throw new StageError(404, 'This claim is no longer open. Reply to our email if you have a question.');
     const record = recordSnap.data();
@@ -563,7 +601,7 @@ async function submitAnswers(admin, { token, answers, replies, bucketName, store
     tx.update(ref, {
       status: 'answered',
       answered_at: ts,
-      answers: checked.values,
+      answers: stored,
       unavailable: checked.unavailable,
       replies: checked.replies,
       previous,

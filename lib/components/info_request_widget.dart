@@ -291,6 +291,15 @@ class _RequestCard extends StatelessWidget {
 
     String answerText(String key) {
       final v = answers[key];
+      if (v is Map && v['bank_name'] != null) {
+        // Only the last four digits are kept on the request.
+        return [
+          v['bank_name'],
+          v['account_name'],
+          if ((v['account_ending'] ?? '').toString().isNotEmpty)
+            'ending ${v['account_ending']}',
+        ].join(' · ');
+      }
       if (v is Map) return '${v['currency'] ?? ''} ${v['amount'] ?? ''}'.trim();
       return v?.toString() ?? '';
     }

@@ -95,5 +95,24 @@ check('intake answers land on the lead fields', intoLead.record.complaint_type =
 const intakeMail = r.requestEmail({ name: 'Ada', link: 'https://x', items: r.INTAKE_ITEMS, questions: [], message: '', expiresAt: '2026-10-17T00:00:00Z', intake: true }, (v) => v);
 check('intake email starts a claim', intakeMail.subject.startsWith('Start your flight claim') && intakeMail.html.includes('Start my claim'));
 
+// Bank details
+const askBank = { items: ['bank_details'], questions: [] };
+const bankIn = { answers: { bank_details: { bank_name: ' Zenith  Bank ', account_name: 'Ada Obi', account_number: '01234 56789' } } };
+const bankOut = r.checkAnswers(askBank, bankIn, []);
+check('bank details cleaned', bankOut.values.bank_details.bank_name === 'Zenith Bank' && bankOut.values.bank_details.account_number === '0123456789');
+check('a 9-digit account number is refused', /10 digits/.test((refusal(() => r.checkAnswers(askBank, { answers: { bank_details: { bank_name: 'Zenith Bank', account_name: 'Ada Obi', account_number: '012345678' } } }, [])) || {}).message));
+check('part of an account is refused', !!refusal(() => r.checkAnswers(askBank, { answers: { bank_details: { bank_name: 'Zenith Bank', account_name: '', account_number: '0123456789' } } }, [])));
+check('bank details can be marked as not held', r.checkAnswers(askBank, { answers: { bank_details: { unavailable: true, reason: 'Later' } } }, []).unavailable.bank_details === 'Later');
+const bankRecord = r.recordUpdates('claim', { bank_details: { bank_name: 'Zenith Bank', account_name: 'Ada Obi', account_no: 'iv:cipher' } });
+check('bank details land on the CRM fields', bankRecord.record.bank_name === 'Zenith Bank' && bankRecord.record.account_name === 'Ada Obi' && bankRecord.record.account_no === 'iv:cipher' && bankRecord.record.bank_details_pending === false);
+check('the full claim form asks for bank details', r.INTAKE_ITEMS.includes('bank_details'));
+
+const pii = require('./pii');
+const KEY = '0123456789abcdef0123456789abcdef';
+const sealed = pii.encryptPii('0123456789', KEY);
+check('account number encrypts in the app format', /^[A-Za-z0-9+/=]+:[A-Za-z0-9+/=]+$/.test(sealed) && !sealed.includes('0123456789'));
+check('and opens again with the same key', pii.decryptPii(sealed, KEY) === '0123456789');
+check('no key, no ciphertext', pii.encryptPii('0123456789', '') === '');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -21,6 +21,7 @@ const infoRequestItems = <String, String>{
   'fare': 'Ticket price',
   'date_of_birth': 'Date of birth',
   'address': 'Home address',
+  'bank_details': 'Bank details',
   'phone': 'Phone number',
   'boarding_pass': 'Boarding pass',
   'ticket_receipt': 'Ticket or receipt',

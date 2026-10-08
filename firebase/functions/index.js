@@ -14,6 +14,7 @@ const documents = require('./documents');
 const { runAiAssist, reviewAiOutput } = require('./ai');
 const invites = require('./invites');
 const infoRequests = require('./info-requests');
+const { encryptPii } = require('./pii');
 const partners = require('./partners');
 const addLead = require('./add-lead');
 const notifications = require('./notifications');
@@ -314,6 +315,10 @@ async function buildLoaPdf(data, claimId) {
   return pdfDoc.save();
 }
 
+// Lent to firebase/scripts/remake-loa.js, which re-makes stored letters. Not
+// exported on deploy, where only Cloud Functions belong in the exports.
+if (process.env.CLAIMS_HUB_SCRIPT === '1') exports.buildLoaPdf = buildLoaPdf;
+
 // ─── Formal Demand Letter PDF Builder ────────────────────────────────────────
 // Legal demand letter from Claims Assist to the airline, citing NCAR 2023 Part 19.
 // Includes payment details and escalation consequences.
@@ -538,7 +543,7 @@ exports.onClaimCreatedSendEmail = functions
       airline: data.airline_name,
       signedOnWebsite,
       tracker: notifications.trackerUrl(claimId, data.secure_token),
-      evidenceUrl: `https://claimshub.online/evidenceForm?claimRef=claims%2F${claimId}&token=${data.secure_token}`,
+      evidenceUrl: `https://admin.claimsassistltd.com/evidenceForm?claimRef=claims%2F${claimId}&token=${data.secure_token}`,
     }, escapeHtml);
 
     try {
@@ -1564,7 +1569,7 @@ exports.infoRequest = functions
 // The client's side of a request for information. Not signed in: the link's
 // token is the only thing that opens it.
 exports.clientInfoRequest = functions
-  .runWith({ secrets: [MAIL_SECRET], memory: '512MB' })
+  .runWith({ secrets: [MAIL_SECRET, 'PII_ENCRYPTION_KEY'], memory: '512MB' })
   .https.onRequest((req, res) => {
     cors(req, res, async () => {
       if (req.method !== 'POST') {
@@ -1594,6 +1599,7 @@ exports.clientInfoRequest = functions
           replies: payload.replies,
           bucketName: admin.storage().bucket().name,
           storedAddress: documents.storedAddress,
+          encrypt: encryptPii,
         });
         // Tell whoever handles the record, or whoever asked.
         try {
@@ -1615,7 +1621,7 @@ exports.clientInfoRequest = functions
                 `Sent: ${done.sent.join(', ') || 'nothing'}`,
                 ...(done.missing.length ? [`Does not have: ${done.missing.join(', ')}`] : []),
                 '',
-                `Open the ${what} in Claims Hub to review it: https://claimshub.online`,
+                `Open the ${what} in Claims Hub to review it: https://admin.claimsassistltd.com`,
               ].join('\n'),
             });
           }

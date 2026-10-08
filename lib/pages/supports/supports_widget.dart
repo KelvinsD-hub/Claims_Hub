@@ -15,8 +15,10 @@ const Color _kNavy = Color(0xFF002855);
 // Support contact details. Update these to the real support channels.
 // ---------------------------------------------------------------------------
 const String _supportEmail = 'info@claimsassistltd.com';
-const String _supportPhone = '+233000000000'; // TODO: real support line
-const String _supportWhatsApp = '233000000000'; // wa.me number, digits only
+// The business line shown on claimsassistltd.com.
+const String _supportPhone = '+234 712 709 9920';
+// Hidden until a WhatsApp number is confirmed. wa.me number, digits only.
+const String _supportWhatsApp = '234000000000';
 
 // A phone/WhatsApp value still holding a placeholder (all zeros) is not shown,
 // so users never dial a junk number. Set real values above to reveal the button.
@@ -258,7 +260,7 @@ class _SupportsWidgetState extends State<SupportsWidget> {
                                           icon: Icons.call_outlined,
                                           label: 'Call',
                                           onTap: () =>
-                                              _open('tel:$_supportPhone'),
+                                              _open('tel:${_supportPhone.replaceAll(' ', '')}'),
                                         ),
                                     ],
                                   ),

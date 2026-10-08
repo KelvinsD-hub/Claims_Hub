@@ -131,7 +131,7 @@ String? generateWhatsAppLink(
   // 2. Build the Magic Link with the SOURCE tag added
   // Added &source=whatsapp_followup to track the click in your CRM
   String magicLink =
-      "https://claimshub.online/evidenceForm?claimRef=claims%2F$cID&token=$token&source=whatsapp_followup";
+      "https://admin.claimsassistltd.com/evidenceForm?claimRef=claims%2F$cID&token=$token&source=whatsapp_followup";
 
   // 3. Create the message
   String message =

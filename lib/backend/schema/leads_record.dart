@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 
 import '/backend/schema/util/firestore_util.dart';
 import '/backend/schema/util/schema_util.dart';
+import '/backend/security/crypto_service.dart';
 
 import 'index.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -148,6 +149,15 @@ class LeadsRecord extends FirestoreRecord {
   bool? _bankDetailsPending;
   bool get bankDetailsPending => _bankDetailsPending ?? false;
 
+  // Payout account: "bank_name", "account_name", and "account_no" stored
+  // encrypted, as on a claim.
+  String? _bankName;
+  String get bankName => _bankName ?? '';
+  String? _accountName;
+  String get accountName => _accountName ?? '';
+  String? _accountNo;
+  String get accountNo => _accountNo ?? '';
+
   // "work_may_start_at" field: end of the 14 day cancellation period, or the
   // signing time where the claimant asked us to start at once.
   DateTime? _workMayStartAt;
@@ -221,6 +231,9 @@ class LeadsRecord extends FirestoreRecord {
     _bookingReference = read<String>('booking_reference');
     _disruptionDetails = read<String>('disruption_details');
     _bankDetailsPending = read<bool>('bank_details_pending');
+    _bankName = read<String>('bank_name');
+    _accountName = read<String>('account_name');
+    _accountNo = CryptoService.instance.decrypt(read<String>('account_no') ?? '');
     _workMayStartAt = read<DateTime>('work_may_start_at');
     _flightNumber = read<String>('flight_number');
     _flightDate = read<String>('flight_date');
