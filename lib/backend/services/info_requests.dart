@@ -21,6 +21,9 @@ const infoRequestItems = <String, String>{
   'fare': 'Ticket price',
   'date_of_birth': 'Date of birth',
   'address': 'Home address',
+  'nin': 'NIN',
+  'passport': 'Passport number',
+  'bvn': 'BVN',
   'bank_details': 'Bank details',
   'phone': 'Phone number',
   'boarding_pass': 'Boarding pass',
@@ -50,6 +53,45 @@ const infoRequestFileItems = {
   'airline_message',
   'expense_receipts',
 };
+
+/// What the record is still missing, to tick when staff open the request.
+///
+/// [record] is the lead's or claim's data; [lead] is a claim's lead, where the
+/// phone number lives (null for a lead, or a claim opened by hand). A claim
+/// keeps its booking reference as pnr_number, a lead as booking_reference.
+/// Files are asked for while nothing at all is on file, since the record does
+/// not say which kind each attached document is.
+Set<String> missingInfoItems(
+  RecordKind kind,
+  Map<String, dynamic> record, {
+  Map<String, dynamic>? lead,
+}) {
+  bool empty(Object? v) => v == null || (v is String && v.trim().isEmpty);
+  final claim = kind == RecordKind.claim;
+  final reason = '${record[claim ? 'claims_reason' : 'complaint_type'] ?? ''}';
+  final baggage = reason.toLowerCase().contains('baggage');
+  final phone = claim ? (lead?['phone'] ?? record['client_phone']) : record['phone'];
+  final files = record['attached_document'];
+  final noFiles = files is! List || files.isEmpty;
+  return {
+    if (empty(record['flight_number'])) 'flight_number',
+    if (empty(record['flight_date'])) 'flight_date',
+    if (empty(record[claim ? 'pnr_number' : 'booking_reference']))
+      'booking_reference',
+    // Baggage compensation is a fixed sum, not a share of the fare.
+    if (!baggage && record['fare_paid'] == null) 'fare',
+    if (empty(record['date_of_birth'])) 'date_of_birth',
+    if (empty(record['address'])) 'address',
+    if (empty(record['NIN'])) 'nin',
+    // A passport is the other way to prove who they are, so it is only asked
+    // for alongside a missing NIN.
+    if (empty(record['NIN']) && empty(record['Passport'])) 'passport',
+    if (empty(record['bvn_number'])) 'bvn',
+    if (empty(record['account_no'])) 'bank_details',
+    if (empty(phone)) 'phone',
+    if (noFiles) ...['id_document', 'boarding_pass', 'ticket_receipt'],
+  };
+}
 
 /// The outcome of sending a request.
 class InfoRequestResult {

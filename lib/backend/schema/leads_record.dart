@@ -158,6 +158,14 @@ class LeadsRecord extends FirestoreRecord {
   String? _accountNo;
   String get accountNo => _accountNo ?? '';
 
+  // Identity numbers, stored encrypted under the claim's field names.
+  String? _nin;
+  String get nin => _nin ?? '';
+  String? _passport;
+  String get passport => _passport ?? '';
+  String? _bvn;
+  String get bvn => _bvn ?? '';
+
   // "work_may_start_at" field: end of the 14 day cancellation period, or the
   // signing time where the claimant asked us to start at once.
   DateTime? _workMayStartAt;
@@ -234,6 +242,9 @@ class LeadsRecord extends FirestoreRecord {
     _bankName = read<String>('bank_name');
     _accountName = read<String>('account_name');
     _accountNo = CryptoService.instance.decrypt(read<String>('account_no') ?? '');
+    _nin = CryptoService.instance.decrypt(read<String>('NIN') ?? '');
+    _passport = CryptoService.instance.decrypt(read<String>('Passport') ?? '');
+    _bvn = CryptoService.instance.decrypt(read<String>('bvn_number') ?? '');
     _workMayStartAt = read<DateTime>('work_may_start_at');
     _flightNumber = read<String>('flight_number');
     _flightDate = read<String>('flight_date');

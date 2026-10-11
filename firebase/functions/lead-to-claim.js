@@ -31,10 +31,22 @@ function claimFieldsFromLead(lead) {
   // From the claim form a client filled in, or the signed authority.
   put('date_of_birth', text(lead.date_of_birth));
   put('address', text(lead.address));
-  // Payout account. account_no is ciphertext and copies across unchanged.
+  // Payout account and identity numbers. account_no, NIN, Passport and
+  // bvn_number are ciphertext and copy across unchanged, under the claim's
+  // own field names (the same on the lead).
   put('bank_name', text(lead.bank_name));
   put('account_name', text(lead.account_name));
   put('account_no', text(lead.account_no));
+  put('NIN', text(lead.NIN));
+  put('Passport', text(lead.Passport));
+  put('bvn_number', text(lead.bvn_number));
+  // The website's estimate, e.g. "₦30,000 (25% of ₦120,000 fare)" or
+  // "25% of ticket price" when the fare was not given. Labels such as
+  // "Baggage — not pursued", and estimates in other currencies from before
+  // the site was Nigeria only, are not an amount and are left out.
+  const estimate = text(lead.estimate_value);
+  const isAmount = /^(₦|NGN|US\$|USD|\$|\d)/.test(estimate) || /% of/.test(estimate);
+  put('claims_amount', text(lead.claims_amount) || (isAmount ? estimate : ''));
   if (typeof lead.fare_paid === 'number' && lead.fare_paid > 0) {
     out.fare_paid = lead.fare_paid;
     put('fare_currency', text(lead.fare_currency));

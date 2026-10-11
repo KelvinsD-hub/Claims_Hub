@@ -12,7 +12,8 @@
  * Claims: a claim opened from a lead was given only the email, name and
  * airline. It now gets the flight, date, route, booking reference, delay and
  * reason from its lead (functions/lead-to-claim.js), which the demand letter
- * needs before it can be sent.
+ * needs before it can be sent. Since October 2026 also the ticket price, the
+ * amount claimed, the payout account and the NIN, passport and BVN numbers.
  *
  * Only empty fields are filled; nothing a person has typed is overwritten.
  * Safe to run more than once.
@@ -79,9 +80,18 @@ function plain(doc) {
   return out;
 }
 
+/** What a change shows in the log: identity and account numbers are hidden. */
+const SECRET = ['account_no', 'NIN', 'Passport', 'bvn_number'];
+function shown(update) {
+  return JSON.stringify(Object.fromEntries(
+    Object.entries(update).map(([k, v]) => [k, SECRET.includes(k) ? '(encrypted)' : v])));
+}
+
 async function patch(doc, update) {
   const fields = {};
-  for (const [k, v] of Object.entries(update)) fields[k] = { stringValue: v };
+  for (const [k, v] of Object.entries(update)) {
+    fields[k] = typeof v === 'number' ? { doubleValue: v } : { stringValue: v };
+  }
   const mask = Object.keys(fields).map((k) => `updateMask.fieldPaths=${k}`).join('&');
   await request('PATCH', `https://firestore.googleapis.com/v1/${doc.name}?${mask}&currentDocument.exists=true`, { fields });
 }
@@ -117,7 +127,7 @@ async function patch(doc, update) {
     }
     if (!Object.keys(update).length) continue;
     claimsChanged++;
-    console.log(`  claim ${doc.name.split('/').pop()}  ${JSON.stringify(update)}`);
+    console.log(`  claim ${doc.name.split('/').pop()}  ${shown(update)}`);
     if (APPLY) await patch(doc, update);
   }
 

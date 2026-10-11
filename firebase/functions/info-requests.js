@@ -171,6 +171,34 @@ const ITEMS = {
     clean: (v) => text(v).replace(/\r\n/g, '\n'),
     check: (v) => (v.length >= 10 ? (v.length <= 3000 ? null : 'Keep it under 3,000 characters.') : 'Tell us a little more about what happened.'),
   },
+  nin: {
+    label: 'NIN',
+    ask: 'Your National Identification Number: 11 digits, on your NIN slip or ID card.',
+    type: 'text',
+    // Stored encrypted, as the app stores it.
+    secret: true,
+    fields: { lead: 'NIN', claim: 'NIN' },
+    clean: (v) => text(v).replace(/\s+/g, ''),
+    check: (v) => (/^\d{11}$/.test(v) ? null : 'Your NIN is 11 digits.'),
+  },
+  passport: {
+    label: 'Passport number',
+    ask: 'Your international passport number, as printed on the photo page.',
+    type: 'text',
+    secret: true,
+    fields: { lead: 'Passport', claim: 'Passport' },
+    clean: upper,
+    check: (v) => (/^[A-Z0-9]{6,12}$/.test(v) ? null : 'That does not look like a passport number.'),
+  },
+  bvn: {
+    label: 'BVN',
+    ask: 'Your Bank Verification Number: 11 digits. It only lets us confirm the account we pay is yours.',
+    type: 'text',
+    secret: true,
+    fields: { lead: 'bvn_number', claim: 'bvn_number' },
+    clean: (v) => text(v).replace(/\s+/g, ''),
+    check: (v) => (/^\d{11}$/.test(v) ? null : 'Your BVN is 11 digits.'),
+  },
   bank_details: {
     label: 'Bank details',
     ask: 'The Nigerian bank account your compensation should be paid into: the bank, the name on the account and the 10-digit account number.',
@@ -213,7 +241,7 @@ const ITEMS = {
 const INTAKE_ITEMS = [
   'what_happened', 'airline', 'route_from', 'route_to', 'flight_number', 'flight_date',
   'booking_reference', 'story', 'fare', 'email', 'phone', 'date_of_birth', 'address',
-  'bank_details', 'id_document', 'boarding_pass', 'ticket_receipt', 'airline_message',
+  'nin', 'bank_details', 'id_document', 'boarding_pass', 'ticket_receipt', 'airline_message',
   'expense_receipts',
 ];
 
@@ -564,15 +592,24 @@ async function submitAnswers(admin, { token, answers, replies, bucketName, store
     if (status !== 'open') throw new StageError(status === 'missing' ? 404 : 409, CLOSED_MESSAGES[status]);
     const files = request.files || [];
     const checked = checkAnswers(request, { answers, replies }, files);
-    // The account number is never stored in the clear: encrypted for the
-    // record, and only its last four digits kept on the request.
-    let stored = checked.values;
+    // Account, NIN, passport and BVN numbers are never stored in the clear:
+    // encrypted for the record, and only their last four characters kept on
+    // the request.
+    const stored = { ...checked.values };
+    const seal = (value) => {
+      const cipher = encrypt ? encrypt(value) : '';
+      if (!cipher) throw new StageError(503, 'We could not save your details just now. Please try again in a few minutes.');
+      return cipher;
+    };
     if (checked.values.bank_details) {
       const { account_number: number, ...rest } = checked.values.bank_details;
-      const cipher = encrypt ? encrypt(number) : '';
-      if (!cipher) throw new StageError(503, 'We could not save your bank details just now. Please try again in a few minutes.');
-      checked.values.bank_details = { ...rest, account_no: cipher };
-      stored = { ...checked.values, bank_details: { ...rest, account_ending: number.slice(-4) } };
+      checked.values.bank_details = { ...rest, account_no: seal(number) };
+      stored.bank_details = { ...rest, account_ending: number.slice(-4) };
+    }
+    for (const key of Object.keys(checked.values)) {
+      if (!ITEMS[key].secret) continue;
+      stored[key] = `ending ${checked.values[key].slice(-4)}`;
+      checked.values[key] = seal(checked.values[key]);
     }
     const recordSnap = await tx.get(request.record);
     if (!recordSnap.exists) throw new StageError(404, 'This claim is no longer open. Reply to our email if you have a question.');

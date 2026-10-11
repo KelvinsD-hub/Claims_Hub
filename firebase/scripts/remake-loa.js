@@ -6,6 +6,7 @@
  *   firebase login                      # once; the script uses that sign-in
  *   node remake-loa.js                  # dry run: lists the letters it would re-make
  *   node remake-loa.js --apply          # re-makes them
+ *   node remake-loa.js --missing --apply  # makes one for signed claims that have none
  *
  * Each letter is written over the same storage file, so loa_url and every
  * link to it stay as they are. The signature and the signing date come from
@@ -21,10 +22,14 @@ const https = require('https');
 process.env.CLAIMS_HUB_SCRIPT = '1';
 process.env.GCLOUD_PROJECT = process.env.GCLOUD_PROJECT || 'msmcrm-g24k37';
 const { buildLoaPdf } = require('../functions/index');
-const { storagePathOf } = require('../functions/documents');
+const { storagePathOf, storedAddress } = require('../functions/documents');
 
 const PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'msmcrm-g24k37';
 const APPLY = process.argv.includes('--apply');
+// Signed claims with no letter yet: since October 2026 one is made when a
+// signed claim opens (onClaimSignedMakeLoa); this covers those from before.
+const MISSING = process.argv.includes('--missing');
+const BUCKET = 'msmcrm-g24k37.firebasestorage.app';
 const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
 
 function token() {
@@ -99,6 +104,22 @@ function bucketAndPath(address) {
   const skipped = [];
   for (const doc of claims) {
     const claim = fields(doc.fields);
+    if (MISSING) {
+      if (claim.loa_url || !claim.signature) continue;
+      found++;
+      const id = doc.name.split('/').pop();
+      const objectPath = `claims/${id}/LOA_${id}.pdf`;
+      console.log(`  ${id}  ${claim.full_name || '(no name)'}  →  ${objectPath} (new)`);
+      if (!APPLY) continue;
+      const pdf = Buffer.from(await buildLoaPdf(claim, id));
+      await request('POST',
+        `https://storage.googleapis.com/upload/storage/v1/b/${BUCKET}/o?uploadType=media&name=${encodeURIComponent(objectPath)}`,
+        pdf, 'application/pdf');
+      await request('PATCH', `https://firestore.googleapis.com/v1/${doc.name}?updateMask.fieldPaths=loa_url&currentDocument.exists=true`,
+        { fields: { loa_url: { stringValue: storedAddress(BUCKET, objectPath) } } });
+      written++;
+      continue;
+    }
     if (!claim.loa_url) continue;
     found++;
     const id = doc.name.split('/').pop();
@@ -116,7 +137,7 @@ function bucketAndPath(address) {
       { fields: { loa_remade_at: { timestampValue: new Date().toISOString() } } });
     written++;
   }
-  console.log(`\n${claims.length} claims, ${found} with a stored Letter of Authority`);
+  console.log(`\n${claims.length} claims, ${found} ${MISSING ? 'signed with no Letter of Authority' : 'with a stored Letter of Authority'}`);
   for (const s of skipped) console.log(`  LEFT ALONE — ${s}`);
   if (APPLY) console.log(`${written} re-made`);
 })().catch((e) => {

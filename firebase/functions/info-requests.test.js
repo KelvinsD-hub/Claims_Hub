@@ -107,6 +107,14 @@ const bankRecord = r.recordUpdates('claim', { bank_details: { bank_name: 'Zenith
 check('bank details land on the CRM fields', bankRecord.record.bank_name === 'Zenith Bank' && bankRecord.record.account_name === 'Ada Obi' && bankRecord.record.account_no === 'iv:cipher' && bankRecord.record.bank_details_pending === false);
 check('the full claim form asks for bank details', r.INTAKE_ITEMS.includes('bank_details'));
 
+const askIds = { items: ['nin', 'passport', 'bvn'], questions: [] };
+const ids = r.checkAnswers(askIds, { answers: { nin: '123 4567 8901', passport: 'a1234567', bvn: '22233344455' } }, []);
+check('NIN, passport and BVN cleaned', ids.values.nin === '12345678901' && ids.values.passport === 'A1234567' && ids.values.bvn === '22233344455');
+check('a 10-digit NIN is refused', /11 digits/.test((refusal(() => r.checkAnswers({ items: ['nin'], questions: [] }, { answers: { nin: '1234567890' } }, [])) || {}).message));
+const idRecord = r.recordUpdates('claim', { nin: 'iv:a', passport: 'iv:b', bvn: 'iv:c' });
+check('ID numbers land on the CRM fields', idRecord.record.NIN === 'iv:a' && idRecord.record.Passport === 'iv:b' && idRecord.record.bvn_number === 'iv:c');
+check('the full claim form asks for the NIN', r.INTAKE_ITEMS.includes('nin'));
+
 const pii = require('./pii');
 const KEY = '0123456789abcdef0123456789abcdef';
 const sealed = pii.encryptPii('0123456789', KEY);

@@ -18,6 +18,12 @@ const out = claimFieldsFromLead(website);
 check('flight number tidied', out.flight_number === 'P47120');
 const paid = claimFieldsFromLead({ bank_name: 'Zenith Bank', account_name: 'Ada Obi', account_no: 'iv:cipher' });
 check('payout account carried, number still encrypted', paid.bank_name === 'Zenith Bank' && paid.account_name === 'Ada Obi' && paid.account_no === 'iv:cipher');
+const ids = claimFieldsFromLead({ NIN: 'iv:nin', Passport: 'iv:pp', bvn_number: 'iv:bvn', estimate_value: '₦30,000 (25% of ₦120,000 fare)' });
+check('identity numbers carried, still encrypted', ids.NIN === 'iv:nin' && ids.Passport === 'iv:pp' && ids.bvn_number === 'iv:bvn');
+check('amount claimed from the website estimate', ids.claims_amount === '₦30,000 (25% of ₦120,000 fare)');
+check('a label is not an amount', !claimFieldsFromLead({ estimate_value: 'Baggage — Nigeria international' }).claims_amount);
+check('an old pound estimate is not carried', !claimFieldsFromLead({ estimate_value: '£220' }).claims_amount);
+check('a share of the fare is carried', claimFieldsFromLead({ estimate_value: '25% of ticket price' }).claims_amount === '25% of ticket price');
 check('flight date as given', out.flight_date === '2026-09-30');
 check('route onto the fields the demand letter reads',
   out.departure === 'LOS' && out.destination === 'ABV');

@@ -42,6 +42,39 @@ class _InfoRequestDialogState extends State<_InfoRequestDialog> {
   bool _busy = false;
   String? _error;
   InfoRequestResult? _sent;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _tickMissing();
+  }
+
+  /// Start with everything the record is still missing ticked.
+  Future<void> _tickMissing() async {
+    try {
+      final db = FirebaseFirestore.instance;
+      final claim = widget.kind == RecordKind.claim;
+      final snap = await db
+          .collection(claim ? 'claims' : 'leads')
+          .doc(widget.recordId)
+          .get();
+      final record = snap.data() ?? const <String, dynamic>{};
+      Map<String, dynamic>? lead;
+      final leadRef = record['lead_ref'];
+      if (claim && leadRef is DocumentReference) {
+        lead = (await leadRef.get()).data() as Map<String, dynamic>?;
+      }
+      final missing = missingInfoItems(widget.kind, record, lead: lead);
+      if (!mounted) return;
+      setState(() =>
+          _picked.addAll(missing.where(infoRequestItems.containsKey)));
+    } catch (_) {
+      // Nothing ticked; staff tick by hand.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -145,7 +178,9 @@ class _InfoRequestDialogState extends State<_InfoRequestDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Tick what is missing. Answers go straight onto this record; files go into its documents.',
+                _loading
+                    ? 'Checking what this record is missing…'
+                    : 'What this record is missing is ticked. Untick anything you do not need; answers go straight onto this record and files into its documents.',
                 style: label,
               ),
               const SizedBox(height: 12.0),

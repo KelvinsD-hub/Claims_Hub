@@ -1950,6 +1950,26 @@ function actorOf(before, after) {
   return { uid: 'client', name: 'Client', note: '' };
 }
 
+// A signed claim has its Letter of Authority on file from the start, not only
+// once the demand letter goes out (which re-makes it with the details then
+// known, under the same file name).
+exports.onClaimSignedMakeLoa = functions.firestore
+  .document('claims/{claimId}')
+  .onWrite(async (change, context) => {
+    if (!change.after.exists) return null;
+    const claim = change.after.data();
+    if (!claim.signature || claim.loa_url) return null;
+    const claimId = context.params.claimId;
+    try {
+      const bytes = await buildLoaPdf(claim, claimId);
+      const loaUrl = await storePdf(claimId, `LOA_${claimId}.pdf`, bytes);
+      return change.after.ref.update({ loa_url: loaUrl });
+    } catch (err) {
+      console.error('[onClaimSignedMakeLoa]', claimId, err && err.message);
+      return null;
+    }
+  });
+
 exports.onClaimStageLog = functions.firestore
   .document('claims/{claimId}')
   .onWrite(async (change) => {
